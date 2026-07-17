@@ -23,14 +23,6 @@ function handleNewFile() {
   newFile()
 }
 
-function handleNewFolder() {
-  emit('new-folder')
-}
-
-function handleRefresh() {
-  emit('refresh')
-}
-
 function handleCollapseAll() {
   isCollapsed.value = !isCollapsed.value
   emit('collapse-all')

@@ -2,164 +2,122 @@
 /**
  * WysiwygPane - 所见即所得编辑区
  *
- * 使用 contenteditable 渲染 Markdown HTML，实现所见即所得编辑。
- * - 渲染：markdown-it 将 Markdown 转为 HTML
- * - 编辑：用户直接在渲染结果上编辑
- * - 同步：turndown 将编辑后的 HTML 转回 Markdown 存入 useDocument
+ * 使用 Milkdown 提供 Markdown-first 的所见即所得编辑体验。
+ * 编辑器负责 Markdown 快捷输入、选区、撤销历史和输入法兼容，
+ * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import MarkdownIt from 'markdown-it'
-import TurndownService from 'turndown'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Editor, defaultValueCtx, rootCtx } from '@milkdown/kit/core'
+import { commonmark } from '@milkdown/kit/preset/commonmark'
+import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
+import { replaceAll } from '@milkdown/kit/utils'
 import { useDocument } from '@composables/useDocument'
 
 const { content, updateCursor } = useDocument()
 
-/** 配置 markdown-it */
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true,
-  breaks: false,
-})
-
-/** 配置 turndown（HTML → Markdown） */
-const turndown = new TurndownService({
-  headingStyle: 'atx',
-  codeBlockStyle: 'fenced',
-  bulletListMarker: '-',
-  emDelimiter: '*',
-  strongDelimiter: '**',
-})
-
-/** 实时渲染 HTML */
-const renderedHtml = computed(() => md.render(content.value))
-
 const editorRef = ref<HTMLDivElement | null>(null)
+let editor: Editor | null = null
+let editorMarkdown = content.value
 
-/** 内部标记，避免循环更新 */
-let isInternalUpdate = false
-
-/** 用户编辑后将 HTML 转回 Markdown */
-function handleInput() {
+onMounted(async () => {
   if (!editorRef.value) return
-  isInternalUpdate = true
-  const html = editorRef.value.innerHTML
-  const markdown = turndown.turndown(html)
-  content.value = markdown
-  syncCursor()
-  nextTick(() => {
-    isInternalUpdate = false
-  })
-}
 
-/** 同步光标行列位置 */
-function syncCursor() {
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
+  editor = await Editor.make()
+    .config((ctx) => {
+      ctx.set(rootCtx, editorRef.value!)
+      ctx.set(defaultValueCtx, content.value)
 
-  const range = sel.getRangeAt(0)
-  const fullText = editorRef.value?.innerText || ''
-
-  // 计算光标前所有文本的偏移量
-  const preRange = document.createRange()
-  preRange.selectNodeContents(editorRef.value!)
-  preRange.setEnd(range.startContainer, range.startOffset)
-  const beforeText = preRange.toString()
-  const pos = beforeText.length
-
-  const before = fullText.substring(0, pos)
-  const lines = before.split('\n')
-  updateCursor(lines.length, lines[lines.length - 1].length + 1)
-}
-
-/** 处理光标移动 */
-function handleKeyup() {
-  syncCursor()
-}
-
-/** 处理点击选区 */
-function handleClick() {
-  syncCursor()
-}
-
-/** 支持 Tab 缩进 */
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Tab') {
-    e.preventDefault()
-    document.execCommand('insertText', false, '  ')
-  }
-}
-
-/** 外部 content 变化时更新编辑器内容（如打开文件） */
-watch(content, (newVal) => {
-  if (isInternalUpdate) return
-  if (editorRef.value) {
-    editorRef.value.innerHTML = md.render(newVal)
-  }
+      ctx.get(listenerCtx)
+        .markdownUpdated((_ctx, markdown) => {
+          editorMarkdown = markdown
+          if (content.value !== markdown) content.value = markdown
+        })
+        .selectionUpdated((_ctx, selection) => {
+          const before = selection.$from.doc.textBetween(0, selection.from, '\n', '\n')
+          const lines = before.split('\n')
+          updateCursor(lines.length, (lines.at(-1)?.length || 0) + 1)
+        })
+    })
+    .use(commonmark)
+    .use(listener)
+    .create()
 })
 
-onMounted(() => {
-  if (editorRef.value) {
-    editorRef.value.innerHTML = renderedHtml.value
-  }
+/** 打开文件或新建文档时，将外部 Markdown 更新到 Milkdown。 */
+watch(content, (markdown) => {
+  if (!editor || markdown === editorMarkdown) return
+  editorMarkdown = markdown
+  editor.action(replaceAll(markdown))
+})
+
+onBeforeUnmount(() => {
+  void editor?.destroy()
+  editor = null
 })
 </script>
 
 <template>
   <section class="lume-wysiwyg-pane">
-    <div
-      ref="editorRef"
-      class="lume-wysiwyg-pane__content"
-      contenteditable="true"
-      spellcheck="false"
-      @input="handleInput"
-      @keyup="handleKeyup"
-      @click="handleClick"
-      @keydown="handleKeydown"
-    ></div>
+    <div ref="editorRef" class="lume-wysiwyg-pane__content"></div>
   </section>
 </template>
 
 <style scoped>
 .lume-wysiwyg-pane {
   flex: 1;
-  display: flex;
   background-color: var(--lume-bg-surface-raised);
-  overflow: hidden;
+  overflow-x: hidden;
+    overflow-y: auto;
   min-width: 0;
+  min-height: 0;
 }
 
 .lume-wysiwyg-pane__content {
-  flex: 1;
-  max-width: var(--lume-preview-max-width);
-  margin: 0 auto;
-  padding: var(--lume-space-8) var(--lume-space-10);
-  overflow-y: auto;
+  width: 100%;
+    min-height: 100%;
   color: var(--lume-text-primary);
   font-size: var(--lume-font-size-md);
   line-height: 1.8;
-  outline: none;
 }
 
 /* 滚动条 */
-.lume-wysiwyg-pane__content::-webkit-scrollbar {
+.lume-wysiwyg-pane::-webkit-scrollbar {
   width: 10px;
 }
 
-.lume-wysiwyg-pane__content::-webkit-scrollbar-track {
+.lume-wysiwyg-pane::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.lume-wysiwyg-pane__content::-webkit-scrollbar-thumb {
+.lume-wysiwyg-pane::-webkit-scrollbar-thumb {
   background-color: var(--lume-border-default);
   border-radius: var(--lume-radius-full);
   border: 2px solid var(--lume-bg-surface-raised);
 }
 
-.lume-wysiwyg-pane__content::-webkit-scrollbar-thumb:hover {
+.lume-wysiwyg-pane::-webkit-scrollbar-thumb:hover {
   background-color: var(--lume-border-strong);
 }
 
+/* Milkdown 外层保持全宽，正文维持适合阅读的居中宽度。 */
+.lume-wysiwyg-pane__content :deep(.milkdown) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--lume-preview-max-width);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: var(--lume-space-8) var(--lume-space-10);
+}
+
+/* 移除 ProseMirror 默认焦点边框。 */
+.lume-wysiwyg-pane__content :deep(.ProseMirror),
+.lume-wysiwyg-pane__content :deep(.ProseMirror:focus),
+.lume-wysiwyg-pane__content :deep(.ProseMirror-focused) {
+  min-height: 100%;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
 /* Markdown 元素样式 */
 .lume-wysiwyg-pane__content :deep(h1) {
   font-size: 1.8em;
