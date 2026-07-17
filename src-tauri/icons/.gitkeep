@@ -1,0 +1,10 @@
+# 此目录用于存放 Tauri 应用图标
+#
+# 需要以下文件（在 tauri.conf.json 中引用）：
+# - 32x32.png
+# - 128x128.png
+# - 128x128@2x.png
+# - icon.icns (macOS)
+# - icon.ico (Windows)
+#
+# 可通过 `npm run tauri icon <path-to-source-image>` 生成。

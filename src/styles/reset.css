@@ -1,0 +1,92 @@
+/**
+ * 基础重置样式
+ * 消除浏览器默认样式差异，建立一致的基线。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--lume-font-sans);
+  font-size: var(--lume-font-size-base);
+  line-height: var(--lume-line-height-normal);
+  color: var(--lume-text-primary);
+  background-color: var(--lume-bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 禁用 WebView 默认的文本选择行为（非编辑区域） */
+body {
+  user-select: none;
+}
+
+/* 允许编辑区域和预览区域选择文本 */
+input,
+textarea,
+[contenteditable],
+.lume-editor,
+.lume-preview {
+  user-select: text;
+}
+
+a {
+  color: var(--lume-accent-default);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--lume-accent-hover);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--lume-border-default);
+  border-radius: var(--lume-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--lume-border-strong);
+}

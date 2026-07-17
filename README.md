@@ -62,11 +62,11 @@ Rust / Tauri
 
 目标：建立可持续迭代的桌面应用骨架。
 
-- [ ] 初始化 Tauri 2、Rust、Vue 3、TypeScript 与 Vite。
-- [ ] 建立目录约定、ESLint、Prettier、提交规范与基础 CI。
-- [ ] 定义设计 Token：颜色、排版、间距、阴影、圆角和明暗主题。
-- [ ] 搭建应用壳：标题栏、侧栏、编辑区、预览区和状态栏。
-- [ ] 建立 Tauri 命令边界与错误处理规范。
+- [x] 初始化 Tauri 2、Rust、Vue 3、TypeScript 与 Vite。
+- [x] 建立目录约定、ESLint、Prettier、提交规范与基础 CI。
+- [x] 定义设计 Token：颜色、排版、间距、阴影、圆角和明暗主题。
+- [x] 搭建应用壳：标题栏、侧栏、编辑区、预览区和状态栏。
+- [x] 建立 Tauri 命令边界与错误处理规范。
 
 验收标准：应用可在 Windows 开发环境启动，基础布局在常见窗口尺寸下稳定响应。
 
