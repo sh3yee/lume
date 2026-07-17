@@ -8,12 +8,19 @@
 import { useFileOps } from '@composables/useFileOps'
 
 const { currentFileName, isDirty } = useFileOps()
+
+const emit = defineEmits<{
+  (e: 'toggle-view-mode'): void
+}>()
 </script>
 
 <template>
   <header class="lume-titlebar" data-tauri-drag-region>
     <div class="lume-titlebar__left" data-tauri-drag-region>
-      <span class="lume-titlebar__logo">Lume</span>
+      <button class="lume-titlebar__logo" type="button" title="切换编辑与预览布局" aria-label="切换编辑与预览布局"
+        data-tauri-drag-region="false" @click="emit('toggle-view-mode')">
+        Lume
+      </button>
     </div>
 
     <div class="lume-titlebar__center" data-tauri-drag-region>
@@ -47,10 +54,23 @@ const { currentFileName, isDirty } = useFileOps()
 }
 
 .lume-titlebar__logo {
+  padding: 0;
+    border: none;
+    background: transparent;
   font-size: var(--lume-font-size-md);
   font-weight: var(--lume-font-weight-semibold);
   color: var(--lume-accent-default);
   letter-spacing: 0.5px;
+  cursor: pointer;
+  }
+  
+  .lume-titlebar__logo:hover {
+    color: var(--lume-accent-hover);
+  }
+  
+  .lume-titlebar__logo:focus-visible {
+    outline: 2px solid var(--lume-accent-default);
+    outline-offset: 3px;
 }
 
 .lume-titlebar__center {
