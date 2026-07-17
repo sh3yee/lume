@@ -2,9 +2,12 @@
 /**
  * StatusBar - 状态栏
  *
- * 显示字数、字符数、阅读时长、光标位置和当前主题等信息。
- * Phase 0 阶段提供占位结构。
+ * 显示字数、字符数、阅读时长、光标位置和编码等信息。
+ * 通过 useDocument composable 获取实时统计。
  */
+import { useDocument } from '@composables/useDocument'
+
+const { cursor, stats } = useDocument()
 </script>
 
 <template>
@@ -14,9 +17,13 @@
     </div>
 
     <div class="lume-statusbar__right">
-      <span class="lume-statusbar__item">行 1, 列 1</span>
+      <span class="lume-statusbar__item">行 {{ cursor.line }}, 列 {{ cursor.column }}</span>
       <span class="lume-statusbar__separator"></span>
-      <span class="lume-statusbar__item">0 字</span>
+      <span class="lume-statusbar__item">{{ stats.words }} 字</span>
+      <span class="lume-statusbar__separator"></span>
+      <span class="lume-statusbar__item">{{ stats.chars }} 字符</span>
+      <span class="lume-statusbar__separator"></span>
+      <span class="lume-statusbar__item">约 {{ stats.readingTime }} 分钟</span>
       <span class="lume-statusbar__separator"></span>
       <span class="lume-statusbar__item">UTF-8</span>
       <span class="lume-statusbar__separator"></span>
