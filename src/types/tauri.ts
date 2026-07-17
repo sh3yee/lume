@@ -63,3 +63,33 @@ async function invokeCommand<T>(cmd: string, args?: Record<string, unknown>): Pr
 export async function healthCheck(): Promise<HealthStatus> {
   return invokeCommand<HealthStatus>('lume_health_check')
 }
+
+/** 最小化当前桌面窗口 */
+export async function minimizeWindow(): Promise<void> {
+  if (!isTauri()) return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  await getCurrentWindow().minimize()
+}
+
+/** 切换当前桌面窗口的最大化状态 */
+export async function toggleMaximizeWindow(): Promise<boolean> {
+  if (!isTauri()) return false
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const window = getCurrentWindow()
+  await window.toggleMaximize()
+  return window.isMaximized()
+}
+
+/** 获取当前桌面窗口是否已最大化 */
+export async function isWindowMaximized(): Promise<boolean> {
+  if (!isTauri()) return false
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  return getCurrentWindow().isMaximized()
+}
+
+/** 关闭当前桌面窗口 */
+export async function closeWindow(): Promise<void> {
+  if (!isTauri()) return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  await getCurrentWindow().close()
+}

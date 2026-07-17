@@ -5,13 +5,30 @@
  * 显示应用名称和当前文件名，提供窗口拖拽区域。
  * 文件操作按钮统一放在 SideBar 资源管理器旁，避免重复。
  */
+import { onMounted, ref } from 'vue'
+import { Copy, Minus, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
+import {
+  closeWindow,
+  isWindowMaximized,
+  minimizeWindow,
+  toggleMaximizeWindow,
+} from '../types/tauri'
 
 const { currentFileName, isDirty } = useFileOps()
+const isMaximized = ref(false)
 
 const emit = defineEmits<{
   (e: 'toggle-view-mode'): void
 }>()
+
+async function handleToggleMaximize() {
+  isMaximized.value = await toggleMaximizeWindow()
+}
+
+onMounted(async () => {
+  isMaximized.value = await isWindowMaximized()
+})
 </script>
 
 <template>
@@ -28,8 +45,22 @@ const emit = defineEmits<{
       <span v-if="isDirty" class="lume-titlebar__dirty">●</span>
     </div>
 
-    <div class="lume-titlebar__right" data-tauri-drag-region>
-      <!-- 窗口控制按钮在 Tauri 环境下由原生层接管 -->
+    <div class="lume-titlebar__right" data-tauri-drag-region="false">
+      <button class="lume-titlebar__window-control" type="button" title="最小化" aria-label="最小化窗口"
+        @click="minimizeWindow">
+        <Minus :size="16" :stroke-width="1.5" />
+      </button>
+
+      <button class="lume-titlebar__window-control" type="button" :title="isMaximized ? '还原' : '最大化'"
+        :aria-label="isMaximized ? '还原窗口' : '最大化窗口'" @click="handleToggleMaximize">
+        <Copy v-if="isMaximized" :size="14" :stroke-width="1.5" />
+        <Square v-else :size="13" :stroke-width="1.5" />
+      </button>
+
+      <button class="lume-titlebar__window-control lume-titlebar__window-control--close" type="button" title="关闭"
+        aria-label="关闭应用" @click="closeWindow">
+        <X :size="17" :stroke-width="1.5" />
+      </button>
     </div>
   </header>
 </template>
@@ -40,7 +71,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--lume-space-5);
+  padding-left: var(--lume-space-5);
   background-color: var(--lume-bg-surface);
   border-bottom: 1px solid var(--lume-border-subtle);
   user-select: none;
@@ -55,22 +86,22 @@ const emit = defineEmits<{
 
 .lume-titlebar__logo {
   padding: 0;
-    border: none;
+  border: none;
     background: transparent;
   font-size: var(--lume-font-size-md);
   font-weight: var(--lume-font-weight-semibold);
   color: var(--lume-accent-default);
   letter-spacing: 0.5px;
   cursor: pointer;
-  }
-  
-  .lume-titlebar__logo:hover {
-    color: var(--lume-accent-hover);
-  }
-  
-  .lume-titlebar__logo:focus-visible {
-    outline: 2px solid var(--lume-accent-default);
-    outline-offset: 3px;
+}
+
+.lume-titlebar__logo:hover {
+  color: var(--lume-accent-hover);
+}
+
+.lume-titlebar__logo:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 3px;
 }
 
 .lume-titlebar__center {
@@ -93,8 +124,38 @@ const emit = defineEmits<{
 }
 
 .lume-titlebar__right {
+  align-self: stretch;
   display: flex;
   align-items: center;
-  gap: var(--lume-space-3);
+}
+
+.lume-titlebar__window-control {
+  width: 46px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lume-text-secondary);
+  cursor: default;
+  transition: background-color var(--lume-transition-fast), color var(--lume-transition-fast);
+}
+
+.lume-titlebar__window-control:hover {
+  background-color: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-titlebar__window-control--close:hover {
+  background-color: #c42b1c;
+  color: #ffffff;
+}
+
+.lume-titlebar__window-control:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: -2px;
 }
 </style>
