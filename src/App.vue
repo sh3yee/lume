@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
       </main>
     </div>
 
-    <StatusBar @open-settings="openSettings" />
+    <StatusBar @new-file="newFile" @open-file="openFile" @open-settings="openSettings" />
     <SettingsDialog :open="settingsOpen" :view-mode="viewMode" :theme="themePreference" @close="settingsOpen = false"
       @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
     <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
