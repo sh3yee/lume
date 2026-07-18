@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--lume-space-5);
+  padding: 0 var(--lume-space-5) 0 var(--lume-space-2);
   background-color: var(--lume-bg-surface);
   border-top: 1px solid var(--lume-border-subtle);
   font-size: var(--lume-font-size-xs);
