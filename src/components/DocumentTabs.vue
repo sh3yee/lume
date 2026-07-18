@@ -4,12 +4,12 @@
  *
  * 展示所有已打开文档，支持切换、关闭、新建和打开文件。
  */
-import { FileText, FolderOpen, Plus, X } from 'lucide-vue-next'
+import { FileText, Plus, X } from 'lucide-vue-next'
 import { useDocument, type OpenDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 
 const { documents, activeDocumentId, activateDocument, closeDocument } = useDocument()
-const { newFile, openFile } = useFileOps()
+const { newFile } = useFileOps()
 
 /** 关闭脏文档前提醒用户，防止误丢失内容。 */
 function requestClose(document: OpenDocument) {
@@ -52,13 +52,8 @@ function handleAuxClick(event: MouseEvent, document: OpenDocument) {
           <X :size="13" :stroke-width="1.8" />
         </span>
       </button>
-    </div>
 
-    <div class="lume-tabs__actions">
-      <button class="lume-tabs__action" type="button" title="打开文件 (Ctrl+O)" @click="openFile">
-        <FolderOpen :size="15" :stroke-width="1.6" />
-      </button>
-      <button class="lume-tabs__action" type="button" title="新建文档 (Ctrl+N)" @click="newFile">
+      <button class="lume-tabs__new" type="button" title="新建文档 (Ctrl+N)" aria-label="新建文档" @click="newFile">
         <Plus :size="16" :stroke-width="1.8" />
       </button>
     </div>
@@ -178,36 +173,28 @@ function handleAuxClick(event: MouseEvent, document: OpenDocument) {
   color: var(--lume-text-primary);
 }
 
-.lume-tabs__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--lume-space-1);
-  padding: 0 var(--lume-space-3);
-  border-left: 1px solid var(--lume-border-subtle);
-  background-color: var(--lume-bg-base);
-}
-
-.lume-tabs__action {
-  width: 26px;
-  height: 26px;
+.lume-tabs__new {
+  width: 38px;
+  height: 100%;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: var(--lume-radius-sm);
+  border-radius: 0;
   background: transparent;
   color: var(--lume-text-tertiary);
   cursor: pointer;
 }
 
-.lume-tabs__action:hover {
+.lume-tabs__new:hover {
   background-color: var(--lume-bg-surface-raised);
   color: var(--lume-text-primary);
 }
 
 .lume-tabs__tab:focus-visible,
-.lume-tabs__action:focus-visible,
+.lume-tabs__new:focus-visible,
 .lume-tabs__close:focus-visible {
   outline: 2px solid var(--lume-accent-default);
   outline-offset: -2px;
