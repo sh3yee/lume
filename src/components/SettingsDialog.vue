@@ -5,10 +5,10 @@
  * 使用原生 dialog 提供简洁、可扩展的应用设置入口。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Columns2, Monitor, Moon, Sparkles, Sun, X } from 'lucide-vue-next'
+import { Columns2, Droplets, Monitor, Moon, Sparkles, Sun, X } from 'lucide-vue-next'
 
 type ViewMode = 'wysiwyg' | 'split'
-type ThemePreference = 'system' | 'light' | 'dark'
+type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 
 const props = defineProps<{
   open: boolean
@@ -120,7 +120,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
         <section class="lume-settings__section lume-settings__section--divided">
           <div class="lume-settings__section-heading">
             <h3 class="lume-settings__label">外观主题</h3>
-            <p class="lume-settings__hint">选择舒适的界面配色，跟随系统时会自动切换。</p>
+            <p class="lume-settings__hint">选择舒适的界面配色，毛玻璃主题会朦胧透出窗口后方内容。</p>
           </div>
 
           <div class="lume-settings__theme-options" role="radiogroup" aria-label="外观主题">
@@ -156,6 +156,12 @@ onBeforeUnmount(() => dialogRef.value?.close())
             >
               <Moon :size="17" :stroke-width="1.6" />
               <span>深色</span>
+            </button>
+            <button class="lume-settings__theme-option"
+              :class="{ 'lume-settings__theme-option--active': theme === 'glass' }" type="button" role="radio"
+              :aria-checked="theme === 'glass'" @click="emit('update:theme', 'glass')">
+              <Droplets :size="17" :stroke-width="1.6" />
+              <span>毛玻璃</span>
             </button>
           </div>
         </section>
@@ -369,7 +375,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
 .lume-settings__theme-options {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--lume-space-3);
 }
 

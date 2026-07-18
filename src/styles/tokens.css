@@ -172,3 +172,36 @@
   --lume-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.25);
   --lume-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.3);
 }
+/* ===== 液体玻璃主题 ===== */
+:root[data-theme='glass'] {
+  --lume-bg-base: rgba(239, 247, 255, 0.38);
+  --lume-bg-surface: rgba(255, 255, 255, 0.48);
+  --lume-bg-surface-raised: rgba(255, 255, 255, 0.32);
+  --lume-bg-overlay: rgba(247, 251, 255, 0.68);
+
+  --lume-text-primary: #172338;
+  --lume-text-secondary: #4b5e78;
+  --lume-text-tertiary: #73839a;
+  --lume-text-inverse: #ffffff;
+
+  --lume-border-subtle: rgba(255, 255, 255, 0.5);
+  --lume-border-default: rgba(119, 151, 184, 0.28);
+  --lume-border-strong: rgba(91, 126, 163, 0.42);
+
+  --lume-accent-default: #d47c22;
+  --lume-accent-hover: #bd6815;
+  --lume-accent-active: #a95b10;
+  --lume-accent-subtle: rgba(226, 137, 43, 0.13);
+  --lume-accent-contrast: #ffffff;
+
+  --lume-code-bg: rgba(235, 242, 250, 0.5);
+  --lume-code-border: rgba(111, 140, 172, 0.24);
+
+  --lume-shadow-xs: 0 1px 2px rgba(54, 78, 106, 0.08);
+  --lume-shadow-sm: 0 4px 14px rgba(54, 78, 106, 0.1);
+  --lume-shadow-md: 0 10px 30px rgba(54, 78, 106, 0.12);
+  --lume-shadow-lg: 0 18px 45px rgba(54, 78, 106, 0.16);
+  --lume-shadow-xl: 0 24px 70px rgba(54, 78, 106, 0.2);
+
+  --lume-app-background: transparent;
+}

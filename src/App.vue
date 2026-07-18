@@ -21,14 +21,14 @@ import { closeWindow } from './types/tauri'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
-type ThemePreference = 'system' | 'light' | 'dark'
+type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 
 const THEME_STORAGE_KEY = 'lume-theme'
 
 /** 读取已保存的主题偏好，无有效记录时跟随系统。 */
 function getInitialTheme(): ThemePreference {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
-  return savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'
+  return savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'glass' || savedTheme === 'system'
     ? savedTheme
     : 'system'
 }
@@ -166,12 +166,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lume-app {
+  position: relative;
+    isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: var(--lume-bg-base);
+  background: var(--lume-app-background, var(--lume-bg-base));
 }
 
 .lume-app__body {
