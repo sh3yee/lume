@@ -13,6 +13,7 @@ import PreviewPane from '@components/PreviewPane.vue'
 import WysiwygPane from '@components/WysiwygPane.vue'
 import StatusBar from '@components/StatusBar.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
@@ -21,9 +22,18 @@ type ViewMode = 'wysiwyg' | 'split'
 const viewMode = ref<ViewMode>('wysiwyg')
 const sidebarVisible = ref(false)
 const { newFile, openFile, saveFile } = useFileOps()
+const { activeDocument, closeDocument } = useDocument()
 
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'
+}
+
+/** 关闭当前标签，未保存时先向用户确认。 */
+function closeActiveDocument() {
+  const document = activeDocument.value
+  if (!document) return
+  if (document.isDirty && !window.confirm(`“${document.name}”尚未保存，确定关闭吗？`)) return
+  closeDocument(document.id)
 }
 
 /** 桌面编辑器常用文件快捷键。 */
@@ -31,12 +41,13 @@ function handleShortcut(event: KeyboardEvent) {
   if (!(event.ctrlKey || event.metaKey)) return
 
   const key = event.key.toLowerCase()
-  if (!['n', 'o', 's'].includes(key)) return
+  if (!['n', 'o', 's', 't', 'w'].includes(key)) return
   event.preventDefault()
 
-  if (key === 'n') newFile()
+  if (key === 'n' || key === 't') newFile()
   if (key === 'o') void openFile()
   if (key === 's') void saveFile()
+  if (key === 'w') closeActiveDocument()
 }
 
 onMounted(() => window.addEventListener('keydown', handleShortcut))
