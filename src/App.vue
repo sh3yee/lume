@@ -12,20 +12,51 @@ import EditorPane from '@components/EditorPane.vue'
 import PreviewPane from '@components/PreviewPane.vue'
 import WysiwygPane from '@components/WysiwygPane.vue'
 import StatusBar from '@components/StatusBar.vue'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import SettingsDialog from '@components/SettingsDialog.vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
+type ThemePreference = 'system' | 'light' | 'dark'
+
+const THEME_STORAGE_KEY = 'lume-theme'
+
+/** 读取已保存的主题偏好，无有效记录时跟随系统。 */
+function getInitialTheme(): ThemePreference {
+  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+  return savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'
+    ? savedTheme
+    : 'system'
+}
 
 const viewMode = ref<ViewMode>('wysiwyg')
 const sidebarVisible = ref(false)
+const settingsOpen = ref(false)
+const themePreference = ref<ThemePreference>(getInitialTheme())
+const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
 const { newFile, openFile, saveFile } = useFileOps()
 const { activeDocument, closeDocument } = useDocument()
 
+/** 将主题偏好解析为实际主题并应用到根元素。 */
+function applyTheme() {
+  const resolvedTheme = themePreference.value === 'system'
+    ? systemTheme.matches ? 'dark' : 'light'
+    : themePreference.value
+  document.documentElement.dataset.theme = resolvedTheme
+}
+
+function handleSystemThemeChange() {
+  if (themePreference.value === 'system') applyTheme()
+}
+
 function toggleViewMode() {
   viewMode.value = viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'
+}
+
+function openSettings() {
+  settingsOpen.value = true
 }
 
 /** 关闭当前标签，未保存时先向用户确认。 */
@@ -41,6 +72,11 @@ function handleShortcut(event: KeyboardEvent) {
   if (!(event.ctrlKey || event.metaKey)) return
 
   const key = event.key.toLowerCase()
+  if (key === ',') {
+    event.preventDefault()
+    openSettings()
+    return
+  }
   if (!['n', 'o', 's', 't', 'w'].includes(key)) return
   event.preventDefault()
 
@@ -50,8 +86,20 @@ function handleShortcut(event: KeyboardEvent) {
   if (key === 'w') closeActiveDocument()
 }
 
-onMounted(() => window.addEventListener('keydown', handleShortcut))
-onBeforeUnmount(() => window.removeEventListener('keydown', handleShortcut))
+watch(themePreference, (theme) => {
+  localStorage.setItem(THEME_STORAGE_KEY, theme)
+  applyTheme()
+}, { immediate: true })
+
+onMounted(() => {
+  window.addEventListener('keydown', handleShortcut)
+  systemTheme.addEventListener('change', handleSystemThemeChange)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleShortcut)
+  systemTheme.removeEventListener('change', handleSystemThemeChange)
+})
 </script>
 
 <template>
@@ -71,7 +119,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleShortcut))
       </main>
     </div>
 
-    <StatusBar />
+    <StatusBar @open-settings="openSettings" />
+    <SettingsDialog :open="settingsOpen" :view-mode="viewMode" :theme="themePreference" @close="settingsOpen = false"
+      @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
   </div>
 </template>
 

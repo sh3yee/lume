@@ -5,14 +5,23 @@
  * 显示字数、字符数、阅读时长、光标位置和编码等信息。
  * 通过 useDocument composable 获取实时统计。
  */
+import { Menu } from 'lucide-vue-next'
 import { useDocument } from '@composables/useDocument'
 
 const { cursor, stats } = useDocument()
+
+const emit = defineEmits<{
+  (e: 'open-settings'): void
+}>()
 </script>
 
 <template>
   <footer class="lume-statusbar">
     <div class="lume-statusbar__left">
+      <button class="lume-statusbar__settings" type="button" title="设置 (Ctrl+,)" aria-label="打开设置"
+        @click="emit('open-settings')">
+        <Menu :size="15" :stroke-width="1.7" />
+      </button>
       <span class="lume-statusbar__item">就绪</span>
     </div>
 
@@ -58,6 +67,30 @@ const { cursor, stats } = useDocument()
   white-space: nowrap;
 }
 
+.lume-statusbar__settings {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--lume-radius-sm);
+  background: transparent;
+  color: var(--lume-text-tertiary);
+  cursor: pointer;
+  transition: background-color var(--lume-transition-fast), color var(--lume-transition-fast);
+}
+
+.lume-statusbar__settings:hover {
+  background-color: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-statusbar__settings:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 0;
+}
 .lume-statusbar__separator {
   width: 1px;
   height: 12px;
