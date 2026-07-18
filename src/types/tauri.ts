@@ -8,6 +8,13 @@
 // Tauri 的 invoke 在 Web 环境下不可用，通过动态导入实现懒加载
 // 这样开发阶段（仅前端）也能正常运行
 type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>
+type UnlistenFn = () => void
+
+export interface WindowState {
+  width: number
+  height: number
+  maximized: boolean
+}
 
 let invokeFn: InvokeFn | null = null
 
@@ -85,6 +92,55 @@ export async function isWindowMaximized(): Promise<boolean> {
   if (!isTauri()) return false
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   return getCurrentWindow().isMaximized()
+}
+
+/** 获取当前桌面窗口状态 */
+export async function getWindowState(): Promise<WindowState | null> {
+  if (!isTauri()) return null
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const window = getCurrentWindow()
+  const [size, maximized] = await Promise.all([
+    window.innerSize(),
+    window.isMaximized(),
+  ])
+  return { width: size.width, height: size.height, maximized }
+}
+
+/** 应用已保存的桌面窗口状态 */
+export async function restoreWindowState(state: WindowState): Promise<void> {
+  if (!isTauri()) return
+  const { PhysicalSize } = await import('@tauri-apps/api/dpi')
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const window = getCurrentWindow()
+
+  if (state.width >= 720 && state.height >= 480) {
+    await window.setSize(new PhysicalSize(state.width, state.height))
+  }
+
+  if (state.maximized && !(await window.isMaximized())) {
+    await window.maximize()
+  }
+}
+
+/** 监听桌面窗口尺寸变化 */
+export async function onWindowResized(handler: (state: WindowState) => void): Promise<UnlistenFn | null> {
+  if (!isTauri()) return null
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  const window = getCurrentWindow()
+  return window.onResized(async ({ payload }) => {
+    handler({
+      width: payload.width,
+      height: payload.height,
+      maximized: await window.isMaximized(),
+    })
+  })
+}
+
+/** 显示当前桌面窗口 */
+export async function showWindow(): Promise<void> {
+  if (!isTauri()) return
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  await getCurrentWindow().show()
 }
 
 /** 关闭当前桌面窗口 */

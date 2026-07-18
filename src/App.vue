@@ -17,7 +17,7 @@ import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
-import { closeWindow } from './types/tauri'
+import { closeWindow, getWindowState, onWindowResized, restoreWindowState, showWindow, type WindowState } from './types/tauri'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
@@ -25,6 +25,7 @@ type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 type ResolvedTheme = 'light' | 'dark' | 'glass'
 
 const THEME_STORAGE_KEY = 'lume-theme'
+const WINDOW_STATE_STORAGE_KEY = 'lume-window-state'
 
 /** 读取已保存的主题偏好，无有效记录时跟随系统。 */
 function getInitialTheme(): ThemePreference {
@@ -52,6 +53,7 @@ const {
   requestCloseDocument,
 } = useDocument()
 let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null
+let unlistenWindowResized: (() => void) | null = null
 
 /** 将主题偏好解析为实际主题并应用到根元素。 */
 function applyTheme() {
@@ -73,6 +75,37 @@ function openSettings() {
   settingsOpen.value = true
 }
 
+function isValidWindowState(value: unknown): value is WindowState {
+  if (!value || typeof value !== 'object') return false
+  const state = value as Partial<WindowState>
+  return typeof state.width === 'number'
+    && typeof state.height === 'number'
+    && typeof state.maximized === 'boolean'
+    && state.width >= 720
+    && state.height >= 480
+}
+
+function getSavedWindowState(): WindowState | null {
+  const savedState = localStorage.getItem(WINDOW_STATE_STORAGE_KEY)
+  if (!savedState) return null
+
+  try {
+    const parsedState = JSON.parse(savedState)
+    return isValidWindowState(parsedState) ? parsedState : null
+  } catch {
+    return null
+  }
+}
+
+function saveWindowState(state: WindowState) {
+  localStorage.setItem(WINDOW_STATE_STORAGE_KEY, JSON.stringify(state))
+}
+
+async function persistWindowState() {
+  const state = await getWindowState()
+  if (state) saveWindowState(state)
+}
+
 /** 延迟更新会话暂存，避免编辑时频繁写入本地存储。 */
 function scheduleSessionPersist() {
   if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
@@ -86,11 +119,13 @@ function scheduleSessionPersist() {
 async function handleCloseWindow() {
   if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
   persistDocumentSession()
+  await persistWindowState()
   await closeWindow()
 }
 
 function handleBeforeUnload() {
   persistDocumentSession()
+  void persistWindowState()
 }
 
 /** 关闭当前标签，未保存时先向用户确认。 */
@@ -126,7 +161,15 @@ watch(themePreference, (theme) => {
 
 watch([documents, activeDocumentId], scheduleSessionPersist, { deep: true })
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const savedWindowState = getSavedWindowState()
+    if (savedWindowState) await restoreWindowState(savedWindowState)
+  } finally {
+    await showWindow()
+  }
+
+  unlistenWindowResized = await onWindowResized(saveWindowState).catch(() => null)
   window.addEventListener('keydown', handleShortcut)
   window.addEventListener('beforeunload', handleBeforeUnload)
   systemTheme.addEventListener('change', handleSystemThemeChange)
@@ -134,7 +177,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
+  unlistenWindowResized?.()
   persistDocumentSession()
+  void persistWindowState()
   window.removeEventListener('keydown', handleShortcut)
   window.removeEventListener('beforeunload', handleBeforeUnload)
   systemTheme.removeEventListener('change', handleSystemThemeChange)
