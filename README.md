@@ -1,4 +1,4 @@
-![Lume 图标](src-tauri/icons/128x128.png)
+![Lume 图标](docs/assets/logo.png)
 
 # Lume
 
