@@ -26,23 +26,9 @@ Lume 是为个人写作与本地知识整理打造的桌面编辑器。
 
 Lume 提供明亮、沉静与朦胧三种不同氛围，让写作空间适应你的环境与心情。
 
-### 浅色主题
-
-清爽自然，适合白天与明亮环境下的长时间写作。
-
-![Lume 浅色主题界面](docs/assets/lume-light.png)
-
-### 深色主题
-
-沉静克制，减少暗光环境下的视觉干扰。
-
-![Lume 深色主题界面](docs/assets/lume-dark.png)
-
-### 毛玻璃主题
-
-柔和通透，在保持内容清晰的同时呈现轻盈的层次感。
-
-![Lume 毛玻璃主题界面](docs/assets/lume-glass.png)
+| 浅色主题 | 深色主题 | 毛玻璃主题 |
+| --- | --- | --- |
+| ![Lume 浅色主题界面](docs/assets/lume-light.png) | ![Lume 深色主题界面](docs/assets/lume-dark.png) | ![Lume 毛玻璃主题界面](docs/assets/lume-glass.png) |
 
 ## 体验亮点
 
