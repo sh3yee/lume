@@ -65,16 +65,19 @@ onBeforeUnmount(() => {
 <style scoped>
 .lume-wysiwyg-pane {
   flex: 1;
+  display: flex;
   background-color: var(--lume-bg-surface-raised);
   overflow-x: hidden;
-    overflow-y: auto;
+  overflow-y: auto;
   min-width: 0;
   min-height: 0;
 }
 
 .lume-wysiwyg-pane__content {
+  flex: 1;
+    display: flex;
   width: 100%;
-    min-height: 100%;
+  min-height: 100%;
   color: var(--lume-text-primary);
   font-size: var(--lume-font-size-md);
   line-height: 1.8;
@@ -102,6 +105,8 @@ onBeforeUnmount(() => {
 /* Milkdown 外层保持全宽，正文维持适合阅读的居中宽度。 */
 .lume-wysiwyg-pane__content :deep(.milkdown) {
   box-sizing: border-box;
+  flex: 1;
+    display: flex;
   width: 100%;
   max-width: var(--lume-preview-max-width);
   min-height: 100%;
@@ -113,6 +118,8 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(.ProseMirror),
 .lume-wysiwyg-pane__content :deep(.ProseMirror:focus),
 .lume-wysiwyg-pane__content :deep(.ProseMirror-focused) {
+  flex: 1;
+    width: 100%;
   min-height: 100%;
   border: none;
   outline: none;
