@@ -34,6 +34,9 @@ export interface OpenDocument {
   cursor: CursorPosition
 }
 
+/** 标签拖放到目标标签的相对位置。 */
+export type DocumentDropPosition = 'before' | 'after'
+
 /** 持久化的编辑会话快照。 */
 interface DocumentSession {
   version: 1
@@ -235,6 +238,20 @@ function activateDocument(id: string) {
   }
 }
 
+/** 按标签标识调整文档顺序。 */
+function moveDocument(sourceId: string, targetId: string, position: DocumentDropPosition) {
+  if (sourceId === targetId) return false
+
+  const sourceIndex = documents.value.findIndex((document) => document.id === sourceId)
+  if (sourceIndex < 0 || !documents.value.some((document) => document.id === targetId)) return false
+
+  const [sourceDocument] = documents.value.splice(sourceIndex, 1)
+  const targetIndex = documents.value.findIndex((document) => document.id === targetId)
+  const insertionIndex = position === 'after' ? targetIndex + 1 : targetIndex
+  documents.value.splice(insertionIndex, 0, sourceDocument)
+  return true
+}
+
 /** 关闭标签，并优先激活其右侧相邻标签。 */
 function closeDocument(id: string) {
   const index = documents.value.findIndex((document) => document.id === id)
@@ -315,6 +332,7 @@ export function useDocument() {
     newDocument,
     openDocument,
     activateDocument,
+    moveDocument,
     closeDocument,
     requestCloseDocument,
     confirmCloseDocument,
