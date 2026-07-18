@@ -16,6 +16,7 @@ import SettingsDialog from '@components/SettingsDialog.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
+import { closeWindow } from './types/tauri'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
@@ -37,7 +38,8 @@ const settingsOpen = ref(false)
 const themePreference = ref<ThemePreference>(getInitialTheme())
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
 const { newFile, openFile, saveFile } = useFileOps()
-const { activeDocument, closeDocument } = useDocument()
+const { activeDocument, activeDocumentId, closeDocument, documents, persistDocumentSession } = useDocument()
+let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 将主题偏好解析为实际主题并应用到根元素。 */
 function applyTheme() {
@@ -57,6 +59,26 @@ function toggleViewMode() {
 
 function openSettings() {
   settingsOpen.value = true
+}
+
+/** 延迟更新会话暂存，避免编辑时频繁写入本地存储。 */
+function scheduleSessionPersist() {
+  if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
+  sessionPersistTimer = setTimeout(() => {
+    persistDocumentSession()
+    sessionPersistTimer = null
+  }, 300)
+}
+
+/** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
+async function handleCloseWindow() {
+  if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
+  persistDocumentSession()
+  await closeWindow()
+}
+
+function handleBeforeUnload() {
+  persistDocumentSession()
 }
 
 /** 关闭当前标签，未保存时先向用户确认。 */
@@ -91,20 +113,26 @@ watch(themePreference, (theme) => {
   applyTheme()
 }, { immediate: true })
 
+watch([documents, activeDocumentId], scheduleSessionPersist, { deep: true })
+
 onMounted(() => {
   window.addEventListener('keydown', handleShortcut)
+  window.addEventListener('beforeunload', handleBeforeUnload)
   systemTheme.addEventListener('change', handleSystemThemeChange)
 })
 
 onBeforeUnmount(() => {
+  if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
+  persistDocumentSession()
   window.removeEventListener('keydown', handleShortcut)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   systemTheme.removeEventListener('change', handleSystemThemeChange)
 })
 </script>
 
 <template>
   <div class="lume-app">
-    <TitleBar @toggle-view-mode="toggleViewMode" />
+    <TitleBar @toggle-view-mode="toggleViewMode" @close-window="handleCloseWindow" />
     <DocumentTabs />
 
     <div class="lume-app__body">

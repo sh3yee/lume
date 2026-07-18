@@ -34,6 +34,15 @@ export interface OpenDocument {
   cursor: CursorPosition
 }
 
+/** 持久化的编辑会话快照。 */
+interface DocumentSession {
+  version: 1
+  activeDocumentId: string
+  documents: OpenDocument[]
+}
+
+const SESSION_STORAGE_KEY = 'lume-document-session'
+
 /** 默认欢迎文档 */
 const DEFAULT_CONTENT = `# 欢迎使用 Lume
 
@@ -96,11 +105,55 @@ function createDocumentRecord(
   }
 }
 
+/** 校验并恢复上次关闭时的编辑会话。 */
+function restoreDocumentSession(): DocumentSession | null {
+  try {
+    const serializedSession = localStorage.getItem(SESSION_STORAGE_KEY)
+    if (!serializedSession) return null
+
+    const session = JSON.parse(serializedSession) as Partial<DocumentSession>
+    if (session.version !== 1 || !Array.isArray(session.documents) || session.documents.length === 0) {
+      return null
+    }
+
+    const restoredDocuments = session.documents.filter((document): document is OpenDocument =>
+      typeof document?.id === 'string'
+      && typeof document.name === 'string'
+      && (typeof document.path === 'string' || document.path === null)
+      && typeof document.content === 'string'
+      && typeof document.isDirty === 'boolean'
+      && typeof document.cursor?.line === 'number'
+      && typeof document.cursor?.column === 'number',
+    )
+    if (restoredDocuments.length === 0) return null
+
+    const activeId = restoredDocuments.some((document) => document.id === session.activeDocumentId)
+      ? session.activeDocumentId!
+      : restoredDocuments[0].id
+
+    return {
+      version: 1,
+      documents: restoredDocuments,
+      activeDocumentId: activeId,
+    }
+  } catch (error) {
+    console.warn('恢复编辑会话失败，将使用默认文档:', error)
+    return null
+  }
+}
+
 /** 单例多文档状态（跨组件共享） */
-const documents = ref<OpenDocument[]>([
+const restoredSession = restoreDocumentSession()
+const documents = ref<OpenDocument[]>(restoredSession?.documents ?? [
   createDocumentRecord(DEFAULT_CONTENT, '欢迎使用 Lume.md'),
 ])
-const activeDocumentId = ref(documents.value[0].id)
+const activeDocumentId = ref(restoredSession?.activeDocumentId ?? documents.value[0].id)
+
+/** 避免恢复后创建的新文档与已有文档 ID 冲突。 */
+documentSequence = documents.value.reduce((maximum, document) => {
+  const sequence = Number(document.id.match(/^document-(\d+)$/)?.[1] ?? 0)
+  return Math.max(maximum, sequence)
+}, documentSequence)
 
 const activeDocument = computed(() =>
   documents.value.find((document) => document.id === activeDocumentId.value) ?? documents.value[0],
@@ -203,6 +256,23 @@ function updateActiveDocument(metadata: Partial<Pick<OpenDocument, 'name' | 'pat
   if (activeDocument.value) Object.assign(activeDocument.value, metadata)
 }
 
+/**
+ * 将当前编辑会话写入本地暂存区。
+ * 此操作不会写入任何 Markdown 文件，正式文件仍只通过保存命令更新。
+ */
+function persistDocumentSession() {
+  try {
+    const session: DocumentSession = {
+      version: 1,
+      activeDocumentId: activeDocumentId.value,
+      documents: documents.value,
+    }
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+  } catch (error) {
+    console.error('暂存编辑会话失败:', error)
+  }
+}
+
 export function useDocument() {
   return {
     documents,
@@ -218,5 +288,6 @@ export function useDocument() {
     activateDocument,
     closeDocument,
     updateActiveDocument,
+    persistDocumentSession,
   }
 }

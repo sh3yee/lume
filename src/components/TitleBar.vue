@@ -9,7 +9,6 @@ import { onMounted, ref } from 'vue'
 import { Copy, Minus, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
 import {
-  closeWindow,
   isWindowMaximized,
   minimizeWindow,
   toggleMaximizeWindow,
@@ -20,6 +19,7 @@ const isMaximized = ref(false)
 
 const emit = defineEmits<{
   (e: 'toggle-view-mode'): void
+  (e: 'close-window'): void
 }>()
 
 async function handleToggleMaximize() {
@@ -58,7 +58,7 @@ onMounted(async () => {
       </button>
 
       <button class="lume-titlebar__window-control lume-titlebar__window-control--close" type="button" title="关闭"
-        aria-label="关闭应用" @click="closeWindow">
+        aria-label="关闭应用" @click="emit('close-window')">
         <X :size="17" :stroke-width="1.5" />
       </button>
     </div>
