@@ -8,13 +8,19 @@
 import { onMounted, ref } from 'vue'
 import { Copy, Minus, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
-import appIconUrl from '../../src-tauri/icons/app-icon.png'
+import lightLogoUrl from '@/assets/lume-logo-light.png'
+import darkLogoUrl from '@/assets/lume-logo-dark.png'
 import {
   isWindowMaximized,
   minimizeWindow,
   toggleMaximizeWindow,
 } from '../types/tauri'
 
+type ResolvedTheme = 'light' | 'dark' | 'glass'
+
+const props = defineProps<{
+  theme: ResolvedTheme
+}>()
 const { currentFileName, isDirty } = useFileOps()
 const isMaximized = ref(false)
 
@@ -37,7 +43,7 @@ onMounted(async () => {
     <div class="lume-titlebar__left" data-tauri-drag-region>
       <button class="lume-titlebar__logo" type="button" title="切换编辑与预览布局" aria-label="切换编辑与预览布局"
         data-tauri-drag-region="false" @click="emit('toggle-view-mode')">
-        <img class="lume-titlebar__logo-image" :src="appIconUrl" alt="" />
+        <img class="lume-titlebar__logo-image" :src="props.theme === 'dark' ? darkLogoUrl : lightLogoUrl" alt="" />
       </button>
     </div>
 
@@ -108,6 +114,7 @@ onMounted(async () => {
   }
   
   .lume-titlebar__logo-image {
+    position: absolute;
     width: 24px;
     height: 24px;
     display: block;

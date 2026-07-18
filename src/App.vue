@@ -22,6 +22,7 @@ import { closeWindow } from './types/tauri'
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
 type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
+type ResolvedTheme = 'light' | 'dark' | 'glass'
 
 const THEME_STORAGE_KEY = 'lume-theme'
 
@@ -37,6 +38,7 @@ const viewMode = ref<ViewMode>('wysiwyg')
 const sidebarVisible = ref(false)
 const settingsOpen = ref(false)
 const themePreference = ref<ThemePreference>(getInitialTheme())
+const resolvedTheme = ref<ResolvedTheme>('light')
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
 const { newFile, openFile, saveFile } = useFileOps()
 const {
@@ -53,10 +55,10 @@ let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 将主题偏好解析为实际主题并应用到根元素。 */
 function applyTheme() {
-  const resolvedTheme = themePreference.value === 'system'
+  resolvedTheme.value = themePreference.value === 'system'
     ? systemTheme.matches ? 'dark' : 'light'
     : themePreference.value
-  document.documentElement.dataset.theme = resolvedTheme
+  document.documentElement.dataset.theme = resolvedTheme.value
 }
 
 function handleSystemThemeChange() {
@@ -141,7 +143,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="lume-app">
-    <TitleBar @toggle-view-mode="toggleViewMode" @close-window="handleCloseWindow" />
+    <TitleBar :theme="resolvedTheme" @toggle-view-mode="toggleViewMode" @close-window="handleCloseWindow" />
     <DocumentTabs />
 
     <div class="lume-app__body">
