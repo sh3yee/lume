@@ -5,17 +5,22 @@
  * - Tauri 环境：使用原生 dialog + fs 插件
  * - 浏览器环境：使用 File API（打开）和下载链接（保存）
  */
-import { ref } from 'vue'
+import { computed } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { isTauri } from '../types/tauri'
 
-const currentFileName = ref<string>('未命名文档')
-const currentFilePath = ref<string | null>(null)
-const isDirty = ref(false)
-
 /** 获取当前文件名 */
 export function useFileOps() {
-  const { content, setContent } = useDocument()
+  const {
+    activeDocument,
+    content,
+    newDocument,
+    openDocument,
+    updateActiveDocument,
+  } = useDocument()
+  const currentFileName = computed(() => activeDocument.value?.name ?? '未命名文档')
+  const currentFilePath = computed(() => activeDocument.value?.path ?? null)
+  const isDirty = computed(() => activeDocument.value?.isDirty ?? false)
 
   /**
    * 打开文件
@@ -44,10 +49,7 @@ export function useFileOps() {
       if (typeof selected === 'string') {
         const bytes = await readFile(selected)
         const text = new TextDecoder('utf-8').decode(bytes)
-        setContent(text)
-        currentFilePath.value = selected
-        currentFileName.value = selected.split(/[\\/]/).pop() || '未命名文档'
-        isDirty.value = false
+        openDocument(text, selected.split(/[\\/]/).pop() || '未命名文档', selected)
       }
     } catch (err) {
       console.error('打开文件失败:', err)
@@ -72,10 +74,7 @@ export function useFileOps() {
         const reader = new FileReader()
         reader.onload = () => {
           const text = reader.result as string
-          setContent(text)
-          currentFilePath.value = null
-          currentFileName.value = file.name
-          isDirty.value = false
+          openDocument(text, file.name, null)
           resolve()
         }
         reader.onerror = () => {
@@ -127,9 +126,11 @@ export function useFileOps() {
           await mkdir(dir, { recursive: true })
         }
         await writeFile(path, new TextEncoder().encode(content.value))
-        currentFilePath.value = path
-        currentFileName.value = path.split(/[\\/]/).pop() || currentFileName.value
-        isDirty.value = false
+        updateActiveDocument({
+          path,
+          name: path.split(/[\\/]/).pop() || currentFileName.value,
+          isDirty: false,
+        })
       }
     } catch (err) {
       console.error('保存文件失败:', err)
@@ -150,15 +151,12 @@ export function useFileOps() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    isDirty.value = false
+    updateActiveDocument({ isDirty: false })
   }
 
   /** 新建文件 */
   function newFile(): void {
-    setContent('')
-    currentFileName.value = '未命名文档'
-    currentFilePath.value = null
-    isDirty.value = false
+    newDocument()
   }
 
   return {

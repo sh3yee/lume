@@ -4,7 +4,7 @@
  * 管理当前 Markdown 文档的内容、光标位置和统计信息。
  * 作为编辑区与预览区之间的共享状态桥梁。
  */
-import { ref, computed, type Ref } from 'vue'
+import { computed, ref } from 'vue'
 
 /** 光标位置 */
 export interface CursorPosition {
@@ -22,6 +22,16 @@ export interface DocumentStats {
   lines: number
   /** 预计阅读时长（分钟） */
   readingTime: number
+}
+
+/** 编辑器中打开的文档 */
+export interface OpenDocument {
+  id: string
+  name: string
+  path: string | null
+  content: string
+  isDirty: boolean
+  cursor: CursorPosition
 }
 
 /** 默认欢迎文档 */
@@ -67,9 +77,48 @@ console.log(greet('Lume'))
 开始你的创作之旅吧！
 `
 
-/** 单例文档状态（跨组件共享） */
-const content: Ref<string> = ref(DEFAULT_CONTENT)
-const cursor = ref<CursorPosition>({ line: 1, column: 1 })
+let documentSequence = 0
+
+/** 创建具有稳定标识的文档。 */
+function createDocumentRecord(
+  content = '',
+  name = '未命名文档',
+  path: string | null = null,
+): OpenDocument {
+  documentSequence += 1
+  return {
+    id: `document-${documentSequence}`,
+    name,
+    path,
+    content,
+    isDirty: false,
+    cursor: { line: 1, column: 1 },
+  }
+}
+
+/** 单例多文档状态（跨组件共享） */
+const documents = ref<OpenDocument[]>([
+  createDocumentRecord(DEFAULT_CONTENT, '欢迎使用 Lume.md'),
+])
+const activeDocumentId = ref(documents.value[0].id)
+
+const activeDocument = computed(() =>
+  documents.value.find((document) => document.id === activeDocumentId.value) ?? documents.value[0],
+)
+
+/** 兼容编辑器现有接口，同时将输入写入当前活动文档。 */
+const content = computed<string>({
+  get: () => activeDocument.value?.content ?? '',
+  set: (text) => {
+    if (!activeDocument.value || activeDocument.value.content === text) return
+    activeDocument.value.content = text
+    activeDocument.value.isDirty = true
+  },
+})
+
+const cursor = computed<CursorPosition>(() =>
+  activeDocument.value?.cursor ?? { line: 1, column: 1 },
+)
 
 /** 计算文档统计信息 */
 const stats = computed<DocumentStats>(() => {
@@ -90,20 +139,84 @@ const stats = computed<DocumentStats>(() => {
 
 /** 更新光标位置 */
 function updateCursor(line: number, column: number) {
-  cursor.value = { line, column }
+  if (activeDocument.value) activeDocument.value.cursor = { line, column }
 }
 
 /** 设置文档内容 */
-function setContent(text: string) {
-  content.value = text
+function setContent(text: string, markDirty = true) {
+  if (!activeDocument.value) return
+  activeDocument.value.content = text
+  if (markDirty) activeDocument.value.isDirty = true
+}
+
+/** 新建并激活一个空白文档。 */
+function newDocument() {
+  const document = createDocumentRecord()
+  documents.value.push(document)
+  activeDocumentId.value = document.id
+  return document
+}
+
+/** 打开并激活文档；相同路径已打开时只切换标签。 */
+function openDocument(text: string, name: string, path: string | null) {
+  const existing = path
+    ? documents.value.find((document) => document.path === path)
+    : undefined
+
+  if (existing) {
+    activeDocumentId.value = existing.id
+    return existing
+  }
+
+  const document = createDocumentRecord(text, name, path)
+  documents.value.push(document)
+  activeDocumentId.value = document.id
+  return document
+}
+
+/** 切换当前活动标签。 */
+function activateDocument(id: string) {
+  if (documents.value.some((document) => document.id === id)) {
+    activeDocumentId.value = id
+  }
+}
+
+/** 关闭标签，并优先激活其右侧相邻标签。 */
+function closeDocument(id: string) {
+  const index = documents.value.findIndex((document) => document.id === id)
+  if (index < 0) return
+
+  const wasActive = activeDocumentId.value === id
+  documents.value.splice(index, 1)
+
+  if (documents.value.length === 0) {
+    const document = createDocumentRecord()
+    documents.value.push(document)
+    activeDocumentId.value = document.id
+  } else if (wasActive) {
+    activeDocumentId.value = documents.value[Math.min(index, documents.value.length - 1)].id
+  }
+}
+
+/** 更新当前文档的文件信息或保存状态。 */
+function updateActiveDocument(metadata: Partial<Pick<OpenDocument, 'name' | 'path' | 'isDirty'>>) {
+  if (activeDocument.value) Object.assign(activeDocument.value, metadata)
 }
 
 export function useDocument() {
   return {
+    documents,
+    activeDocumentId,
+    activeDocument,
     content,
     cursor,
     stats,
     updateCursor,
     setContent,
+    newDocument,
+    openDocument,
+    activateDocument,
+    closeDocument,
+    updateActiveDocument,
   }
 }
