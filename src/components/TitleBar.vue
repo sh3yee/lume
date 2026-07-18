@@ -8,6 +8,7 @@
 import { onMounted, ref } from 'vue'
 import { Copy, Minus, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
+import appIconUrl from '../../src-tauri/icons/app-icon.png'
 import {
   isWindowMaximized,
   minimizeWindow,
@@ -36,7 +37,7 @@ onMounted(async () => {
     <div class="lume-titlebar__left" data-tauri-drag-region>
       <button class="lume-titlebar__logo" type="button" title="切换编辑与预览布局" aria-label="切换编辑与预览布局"
         data-tauri-drag-region="false" @click="emit('toggle-view-mode')">
-        Lume
+        <img class="lume-titlebar__logo-image" :src="appIconUrl" alt="" />
       </button>
     </div>
 
@@ -71,7 +72,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-left: var(--lume-space-5);
+  padding-left: var(--lume-space-2);
   background-color: var(--lume-bg-surface);
   border-bottom: 1px solid var(--lume-border-subtle);
   user-select: none;
@@ -85,23 +86,34 @@ onMounted(async () => {
 }
 
 .lume-titlebar__logo {
-  padding: 0;
+  width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
   border: none;
-    background: transparent;
-  font-size: var(--lume-font-size-md);
-  font-weight: var(--lume-font-weight-semibold);
-  color: var(--lume-accent-default);
-  letter-spacing: 0.5px;
+  border-radius: var(--lume-radius-sm);
+  background: transparent;
   cursor: pointer;
 }
 
 .lume-titlebar__logo:hover {
-  color: var(--lume-accent-hover);
+  background-color: var(--lume-bg-surface-raised);
 }
 
 .lume-titlebar__logo:focus-visible {
   outline: 2px solid var(--lume-accent-default);
-  outline-offset: 3px;
+  outline-offset: 2px;
+  }
+  
+  .lume-titlebar__logo-image {
+    width: 24px;
+    height: 24px;
+    display: block;
+    border-radius: 5px;
+    object-fit: cover;
+    pointer-events: none;
 }
 
 .lume-titlebar__center {
