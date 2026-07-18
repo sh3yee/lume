@@ -13,6 +13,7 @@ import PreviewPane from '@components/PreviewPane.vue'
 import WysiwygPane from '@components/WysiwygPane.vue'
 import StatusBar from '@components/StatusBar.vue'
 import SettingsDialog from '@components/SettingsDialog.vue'
+import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
@@ -38,7 +39,16 @@ const settingsOpen = ref(false)
 const themePreference = ref<ThemePreference>(getInitialTheme())
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
 const { newFile, openFile, saveFile } = useFileOps()
-const { activeDocument, activeDocumentId, closeDocument, documents, persistDocumentSession } = useDocument()
+const {
+  activeDocument,
+  activeDocumentId,
+  cancelCloseDocument,
+  confirmCloseDocument,
+  documents,
+  pendingCloseDocument,
+  persistDocumentSession,
+  requestCloseDocument,
+} = useDocument()
 let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 将主题偏好解析为实际主题并应用到根元素。 */
@@ -85,8 +95,7 @@ function handleBeforeUnload() {
 function closeActiveDocument() {
   const document = activeDocument.value
   if (!document) return
-  if (document.isDirty && !window.confirm(`“${document.name}”尚未保存，确定关闭吗？`)) return
-  closeDocument(document.id)
+  requestCloseDocument(document.id)
 }
 
 /** 桌面编辑器常用文件快捷键。 */
@@ -150,6 +159,8 @@ onBeforeUnmount(() => {
     <StatusBar @open-settings="openSettings" />
     <SettingsDialog :open="settingsOpen" :view-mode="viewMode" :theme="themePreference" @close="settingsOpen = false"
       @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
+    <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
+      @cancel="cancelCloseDocument" @confirm="confirmCloseDocument" />
   </div>
 </template>
 

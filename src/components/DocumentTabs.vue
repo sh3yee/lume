@@ -8,13 +8,12 @@ import { FileText, Plus, X } from 'lucide-vue-next'
 import { useDocument, type OpenDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 
-const { documents, activeDocumentId, activateDocument, closeDocument } = useDocument()
+const { documents, activeDocumentId, activateDocument, requestCloseDocument } = useDocument()
 const { newFile } = useFileOps()
 
 /** 关闭脏文档前提醒用户，防止误丢失内容。 */
 function requestClose(document: OpenDocument) {
-  if (document.isDirty && !window.confirm(`“${document.name}”尚未保存，确定关闭吗？`)) return
-  closeDocument(document.id)
+  requestCloseDocument(document.id)
 }
 
 function handleAuxClick(event: MouseEvent, document: OpenDocument) {

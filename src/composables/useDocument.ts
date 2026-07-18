@@ -148,6 +148,7 @@ const documents = ref<OpenDocument[]>(restoredSession?.documents ?? [
   createDocumentRecord(DEFAULT_CONTENT, '欢迎使用 Lume.md'),
 ])
 const activeDocumentId = ref(restoredSession?.activeDocumentId ?? documents.value[0].id)
+const pendingCloseDocument = ref<OpenDocument | null>(null)
 
 /** 避免恢复后创建的新文档与已有文档 ID 冲突。 */
 documentSequence = documents.value.reduce((maximum, document) => {
@@ -251,6 +252,33 @@ function closeDocument(id: string) {
   }
 }
 
+/** 关闭标签前统一检查未保存状态，脏文档交由应用内弹窗确认。 */
+function requestCloseDocument(id: string) {
+  const document = documents.value.find((item) => item.id === id)
+  if (!document) return false
+
+  if (document.isDirty) {
+    pendingCloseDocument.value = document
+    return false
+  }
+
+  closeDocument(id)
+  return true
+}
+
+/** 确认丢弃修改并关闭待处理标签。 */
+function confirmCloseDocument() {
+  const document = pendingCloseDocument.value
+  if (!document) return
+  pendingCloseDocument.value = null
+  closeDocument(document.id)
+}
+
+/** 取消关闭并保留标签及其暂存内容。 */
+function cancelCloseDocument() {
+  pendingCloseDocument.value = null
+}
+
 /** 更新当前文档的文件信息或保存状态。 */
 function updateActiveDocument(metadata: Partial<Pick<OpenDocument, 'name' | 'path' | 'isDirty'>>) {
   if (activeDocument.value) Object.assign(activeDocument.value, metadata)
@@ -278,6 +306,7 @@ export function useDocument() {
     documents,
     activeDocumentId,
     activeDocument,
+    pendingCloseDocument,
     content,
     cursor,
     stats,
@@ -287,6 +316,9 @@ export function useDocument() {
     openDocument,
     activateDocument,
     closeDocument,
+    requestCloseDocument,
+    confirmCloseDocument,
+    cancelCloseDocument,
     updateActiveDocument,
     persistDocumentSession,
   }
