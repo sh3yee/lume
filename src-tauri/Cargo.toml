@@ -3,6 +3,7 @@ name = "lume"
 version = "0.1.0"
 description = "Lume - 面向个人创作与本地知识管理的桌面 Markdown 编辑器"
 authors = ["Lume"]
+license = "PolyForm-Noncommercial-1.0.0"
 edition = "2021"
 rust-version = "1.77"
 

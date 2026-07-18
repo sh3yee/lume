@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Lume - 面向个人创作与本地知识管理的桌面 Markdown 编辑器",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
