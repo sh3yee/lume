@@ -14,14 +14,16 @@ const menuRef = ref<HTMLDivElement | null>(null)
 const menuOpen = ref(false)
 
 const emit = defineEmits<{
-  (e: 'new-file'): void
-  (e: 'open-file'): void
-  (e: 'open-settings'): void
+  'new-file': []
+  'open-file': []
+  'open-settings': []
 }>()
 
 function runMenuAction(action: 'new-file' | 'open-file' | 'open-settings') {
   menuOpen.value = false
-  emit(action)
+  if (action === 'new-file') emit('new-file')
+  if (action === 'open-file') emit('open-file')
+  if (action === 'open-settings') emit('open-settings')
 }
 
 function handleDocumentPointerDown(event: PointerEvent) {
