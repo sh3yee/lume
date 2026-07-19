@@ -8,7 +8,7 @@
 mod commands;
 mod error;
 
-use commands::lume_health_check;
+use commands::{lume_health_check, lume_read_markdown_file};
 
 /// 创建并配置 Tauri 应用实例
 ///
@@ -17,7 +17,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![lume_health_check])
+        .invoke_handler(tauri::generate_handler![
+            lume_health_check,
+            lume_read_markdown_file
+        ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用时发生错误");
 }

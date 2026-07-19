@@ -10,6 +10,18 @@
 type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>
 type UnlistenFn = () => void
 
+export type FileDragDropEvent =
+  | { type: 'enter'; paths: string[] }
+  | { type: 'over' }
+  | { type: 'drop'; paths: string[] }
+  | { type: 'leave' }
+
+export interface MarkdownFile {
+  path: string
+  name: string
+  content: string
+}
+
 export interface WindowState {
   width: number
   height: number
@@ -69,6 +81,26 @@ async function invokeCommand<T>(cmd: string, args?: Record<string, unknown>): Pr
  */
 export async function healthCheck(): Promise<HealthStatus> {
   return invokeCommand<HealthStatus>('lume_health_check')
+}
+
+/** 读取用户从操作系统拖入的 Markdown 文件。 */
+export async function readDroppedMarkdownFile(path: string): Promise<MarkdownFile> {
+  return invokeCommand<MarkdownFile>('lume_read_markdown_file', { path })
+}
+
+/** 监听当前桌面窗口的原生文件拖放事件。 */
+export async function onFileDragDrop(
+  handler: (event: FileDragDropEvent) => void,
+): Promise<UnlistenFn | null> {
+  if (!isTauri()) return null
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  return getCurrentWindow().onDragDropEvent(({ payload }) => {
+    if (payload.type === 'enter' || payload.type === 'drop') {
+      handler({ type: payload.type, paths: payload.paths })
+      return
+    }
+    handler({ type: payload.type })
+  })
 }
 
 /** 最小化当前桌面窗口 */

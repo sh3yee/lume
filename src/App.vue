@@ -14,10 +14,20 @@ import WysiwygPane from '@components/WysiwygPane.vue'
 import StatusBar from '@components/StatusBar.vue'
 import SettingsDialog from '@components/SettingsDialog.vue'
 import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
+import FileDropMessage from '@components/FileDropMessage.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
-import { closeWindow, getWindowState, onWindowResized, restoreWindowState, showWindow, type WindowState } from './types/tauri'
+import {
+  closeWindow,
+  getWindowState,
+  onFileDragDrop,
+  onWindowResized,
+  restoreWindowState,
+  showWindow,
+  type FileDragDropEvent,
+  type WindowState,
+} from './types/tauri'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
@@ -38,10 +48,12 @@ function getInitialTheme(): ThemePreference {
 const viewMode = ref<ViewMode>('wysiwyg')
 const sidebarVisible = ref(false)
 const settingsOpen = ref(false)
+const fileDragPaths = ref<string[]>([])
+const fileDropMessage = ref<string | null>(null)
 const themePreference = ref<ThemePreference>(getInitialTheme())
 const resolvedTheme = ref<ResolvedTheme>('light')
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-const { newFile, openFile, saveFile } = useFileOps()
+const { newFile, openFile, openFilesFromPaths, saveFile } = useFileOps()
 const {
   activeDocument,
   activeDocumentId,
@@ -54,6 +66,9 @@ const {
 } = useDocument()
 let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null
 let unlistenWindowResized: (() => void) | null = null
+let unlistenFileDragDrop: (() => void) | null = null
+let fileDropMessageTimer: ReturnType<typeof setTimeout> | null = null
+let fileDropQueue = Promise.resolve()
 
 /** 将主题偏好解析为实际主题并应用到根元素。 */
 function applyTheme() {
@@ -128,6 +143,50 @@ function handleBeforeUnload() {
   void persistWindowState()
 }
 
+function dismissFileDropMessage() {
+  if (fileDropMessageTimer) clearTimeout(fileDropMessageTimer)
+  fileDropMessageTimer = null
+  fileDropMessage.value = null
+}
+
+function showFileDropMessage(message: string) {
+  dismissFileDropMessage()
+  fileDropMessage.value = message
+  fileDropMessageTimer = setTimeout(dismissFileDropMessage, 6000)
+}
+
+async function handleDroppedFiles(paths: string[]) {
+  const result = await openFilesFromPaths(paths)
+  if (result.rejected.length > 0) {
+    const prefix = result.opened > 0 ? `已打开 ${result.opened} 个文件；` : ''
+    const firstError = result.rejected[0].message
+    const remaining = result.rejected.length > 1
+      ? `，另有 ${result.rejected.length - 1} 个文件未打开`
+      : ''
+    showFileDropMessage(`${prefix}${firstError}${remaining}`)
+  }
+}
+
+function queueDroppedFiles(paths: string[]) {
+  fileDragPaths.value = []
+  fileDropQueue = fileDropQueue
+    .then(() => handleDroppedFiles(paths))
+    .catch(() => showFileDropMessage('打开拖入文件失败'))
+}
+
+function handleFileDragDrop(event: FileDragDropEvent) {
+  if (event.type === 'enter') {
+    dismissFileDropMessage()
+    fileDragPaths.value = event.paths
+    return
+  }
+  if (event.type === 'drop') {
+    queueDroppedFiles(event.paths)
+    return
+  }
+  if (event.type === 'leave') fileDragPaths.value = []
+}
+
 /** 关闭当前标签，未保存时先向用户确认。 */
 function closeActiveDocument() {
   const document = activeDocument.value
@@ -170,6 +229,7 @@ onMounted(async () => {
   }
 
   unlistenWindowResized = await onWindowResized(saveWindowState).catch(() => null)
+  unlistenFileDragDrop = await onFileDragDrop(handleFileDragDrop).catch(() => null)
   window.addEventListener('keydown', handleShortcut)
   window.addEventListener('beforeunload', handleBeforeUnload)
   systemTheme.addEventListener('change', handleSystemThemeChange)
@@ -178,6 +238,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
   unlistenWindowResized?.()
+  unlistenFileDragDrop?.()
+  dismissFileDropMessage()
   persistDocumentSession()
   void persistWindowState()
   window.removeEventListener('keydown', handleShortcut)
@@ -189,7 +251,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="lume-app">
     <TitleBar :theme="resolvedTheme" @toggle-view-mode="toggleViewMode" @close-window="handleCloseWindow" />
-    <DocumentTabs />
+    <DocumentTabs :file-drop-paths="fileDragPaths" />
 
     <div class="lume-app__body">
       <SideBar v-if="sidebarVisible" />
@@ -208,6 +270,7 @@ onBeforeUnmount(() => {
       @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
     <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
       @cancel="cancelCloseDocument" @confirm="confirmCloseDocument" />
+    <FileDropMessage :message="fileDropMessage" @dismiss="dismissFileDropMessage" />
   </div>
 </template>
 

@@ -7,7 +7,22 @@
  */
 import { computed } from 'vue'
 import { useDocument } from '@composables/useDocument'
-import { isTauri } from '../types/tauri'
+import { isTauri, readDroppedMarkdownFile } from '../types/tauri'
+
+export interface OpenFilesResult {
+  opened: number
+  rejected: Array<{ path: string; message: string }>
+}
+
+const MAX_DROPPED_FILES = 20
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String(error.message)
+  }
+  return '读取失败'
+}
 
 /** 获取当前文件名 */
 export function useFileOps() {
@@ -54,6 +69,31 @@ export function useFileOps() {
     } catch (err) {
       console.error('打开文件失败:', err)
     }
+  }
+
+  /** 打开从操作系统拖入的文件，并汇总不支持或读取失败的项目。 */
+  async function openFilesFromPaths(paths: string[]): Promise<OpenFilesResult> {
+    const result: OpenFilesResult = { opened: 0, rejected: [] }
+    const limitedPaths = paths.slice(0, MAX_DROPPED_FILES)
+
+    if (paths.length > MAX_DROPPED_FILES) {
+      result.rejected.push({
+        path: '',
+        message: `单次最多打开 ${MAX_DROPPED_FILES} 个文件`,
+      })
+    }
+
+    for (const path of limitedPaths) {
+      try {
+        const file = await readDroppedMarkdownFile(path)
+        openDocument(file.content, file.name, file.path)
+        result.opened += 1
+      } catch (error) {
+        result.rejected.push({ path, message: getErrorMessage(error) })
+      }
+    }
+
+    return result
   }
 
   /** 浏览器环境打开文件 */
@@ -164,6 +204,7 @@ export function useFileOps() {
     currentFilePath,
     isDirty,
     openFile,
+    openFilesFromPaths,
     saveFile,
     newFile,
   }

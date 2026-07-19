@@ -4,14 +4,20 @@
  *
  * 展示所有已打开文档，支持切换、关闭、新建和打开文件。
  */
-import { ref } from 'vue'
-import { FileText, Plus, X } from 'lucide-vue-next'
+import { computed, nextTick, ref, watch } from 'vue'
+import { FileDown, FileText, Plus, X } from 'lucide-vue-next'
 import {
   useDocument,
   type DocumentDropPosition,
   type OpenDocument,
 } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
+
+const props = withDefaults(defineProps<{
+  fileDropPaths?: string[]
+}>(), {
+  fileDropPaths: () => [],
+})
 
 const {
   documents,
@@ -29,11 +35,29 @@ const dropTargetId = ref<string | null>(null)
 const dropPosition = ref<DocumentDropPosition | null>(null)
 const dragOffsetX = ref(0)
 const draggedTabWidth = ref(0)
+const tabList = ref<HTMLElement | null>(null)
 let pendingDocumentId: string | null = null
 let activePointerId: number | null = null
 let pointerStartX = 0
 let suppressNextClick = false
 let tabLayouts: Array<{ id: string; centerX: number }> = []
+
+const markdownDropPaths = computed(() => props.fileDropPaths.filter((path) =>
+  /\.(md|markdown)$/i.test(path),
+))
+const fileDropLabel = computed(() => {
+  if (markdownDropPaths.value.length === 0) return null
+  if (markdownDropPaths.value.length > 1) {
+    return `${markdownDropPaths.value.length} 个 Markdown`
+  }
+  return markdownDropPaths.value[0].split(/[\\/]/).pop() || 'Markdown'
+})
+
+watch(fileDropLabel, async (label) => {
+  if (!label) return
+  await nextTick()
+  if (tabList.value) tabList.value.scrollLeft = tabList.value.scrollWidth
+})
 
 /** 关闭脏文档前提醒用户，防止误丢失内容。 */
 function requestClose(document: OpenDocument) {
@@ -165,7 +189,7 @@ function handlePointerUp(event: PointerEvent) {
 
 <template>
   <nav class="lume-tabs" aria-label="打开的文档">
-    <div class="lume-tabs__list" role="tablist">
+    <div ref="tabList" class="lume-tabs__list" role="tablist">
       <button
         v-for="document in documents"
         :key="document.id"
@@ -199,6 +223,11 @@ function handlePointerUp(event: PointerEvent) {
           <X :size="13" :stroke-width="1.8" />
         </span>
       </button>
+
+      <div v-if="fileDropLabel" class="lume-tabs__drop-preview" aria-live="polite">
+        <FileDown class="lume-tabs__drop-icon" :size="14" :stroke-width="1.6" />
+        <span class="lume-tabs__name">{{ fileDropLabel }}</span>
+      </div>
 
       <button class="lume-tabs__new" type="button" title="新建文档 (Ctrl+N)" aria-label="新建文档" @click="newFile">
         <Plus :size="16" :stroke-width="1.8" />
@@ -303,6 +332,38 @@ function handlePointerUp(event: PointerEvent) {
   flex-shrink: 0;
   border-radius: var(--lume-radius-full);
   background-color: var(--lume-accent-default);
+}
+
+.lume-tabs__drop-preview {
+  position: relative;
+  min-width: 132px;
+  max-width: 220px;
+  height: 100%;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--lume-space-3);
+  padding: 0 var(--lume-space-4);
+  border-right: 1px solid var(--lume-border-subtle);
+  background-color: var(--lume-bg-surface-raised);
+  color: var(--lume-text-secondary);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.lume-tabs__drop-preview::after {
+  content: '';
+  position: absolute;
+  right: var(--lume-space-3);
+  bottom: 0;
+  left: var(--lume-space-3);
+  height: 2px;
+  background-color: color-mix(in srgb, var(--lume-accent-default) 55%, transparent);
+}
+
+.lume-tabs__drop-icon {
+  flex-shrink: 0;
+  color: var(--lume-accent-default);
 }
 
 .lume-tabs__close {
