@@ -25,6 +25,7 @@ import {
   onWindowResized,
   restoreWindowState,
   showWindow,
+  startupFilePaths,
   type FileDragDropEvent,
   type WindowState,
 } from './types/tauri'
@@ -272,6 +273,10 @@ onMounted(async () => {
 
   unlistenWindowResized = await onWindowResized(saveWindowState).catch(() => null)
   unlistenFileDragDrop = await onFileDragDrop(handleFileDragDrop).catch(() => null)
+  if ('__TAURI_INTERNALS__' in window) {
+    const startupPaths = await startupFilePaths().catch(() => [])
+    if (startupPaths.length > 0) await handleDroppedFiles(startupPaths)
+  }
   window.addEventListener('keydown', handleShortcut)
   window.addEventListener('beforeunload', handleBeforeUnload)
   systemTheme.addEventListener('change', handleSystemThemeChange)

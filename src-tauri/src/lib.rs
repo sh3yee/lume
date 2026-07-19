@@ -11,7 +11,7 @@ mod error;
 use commands::{
     lume_clear_staged_images, lume_health_check, lume_import_image_file,
     lume_materialize_staged_images, lume_read_markdown_file, lume_resolve_image_path,
-    lume_reveal_file, lume_store_clipboard_image,
+    lume_reveal_file, lume_startup_file_paths, lume_store_clipboard_image,
 };
 
 /// 创建并配置 Tauri 应用实例
@@ -28,6 +28,7 @@ pub fn run() {
             lume_materialize_staged_images,
             lume_read_markdown_file,
             lume_resolve_image_path,
+            lume_startup_file_paths,
             lume_store_clipboard_image,
             lume_reveal_file
         ])

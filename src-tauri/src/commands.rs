@@ -34,6 +34,24 @@ pub fn lume_health_check() -> LumeResult<HealthStatus> {
     })
 }
 
+/// 返回操作系统启动 Lume 时传入的 Markdown 文件路径。
+#[tauri::command]
+pub fn lume_startup_file_paths() -> Vec<String> {
+    std::env::args()
+        .skip(1)
+        .filter(|path| {
+            matches!(
+                Path::new(path)
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .map(str::to_ascii_lowercase)
+                    .as_deref(),
+                Some("md" | "markdown")
+            )
+        })
+        .collect()
+}
+
 /// 健康检查返回结构
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HealthStatus {

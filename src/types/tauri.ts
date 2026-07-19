@@ -88,6 +88,11 @@ export async function healthCheck(): Promise<HealthStatus> {
   return invokeCommand<HealthStatus>('lume_health_check')
 }
 
+/** 读取操作系统在启动时传入的 Markdown 文件路径。 */
+export async function startupFilePaths(): Promise<string[]> {
+  return invokeCommand<string[]>('lume_startup_file_paths')
+}
+
 /** 读取用户从操作系统拖入的 Markdown 文件。 */
 export async function readDroppedMarkdownFile(path: string): Promise<MarkdownFile> {
   return invokeCommand<MarkdownFile>('lume_read_markdown_file', { path })
