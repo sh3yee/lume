@@ -257,8 +257,8 @@ onBeforeUnmount(() => {
       <SideBar v-if="sidebarVisible" />
 
       <main class="lume-app__main">
-        <WysiwygPane :key="activeDocumentId" v-show="viewMode === 'wysiwyg'" />
-        <template v-if="viewMode === 'split'">
+        <WysiwygPane v-if="viewMode === 'wysiwyg'" :key="activeDocumentId" />
+        <template v-else>
           <EditorPane />
           <PreviewPane />
         </template>

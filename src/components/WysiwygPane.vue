@@ -7,6 +7,7 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Bold, Code, Copy, Italic, RemoveFormatting } from 'lucide-vue-next'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
 import type { CmdKey } from '@milkdown/kit/core'
 import {
@@ -32,6 +33,8 @@ const contextMenu = ref<HTMLDivElement | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const selectionHasText = ref(false)
+const bubbleToolbarOpen = ref(false)
+const bubbleToolbarPosition = ref({ x: 0, y: 0 })
 let editor: Editor | null = null
 let editorMarkdown = content.value
 let editorClipboardText = ''
@@ -74,6 +77,36 @@ function closeContextMenu() {
   contextMenuOpen.value = false
 }
 
+function closeBubbleToolbar() {
+  bubbleToolbarOpen.value = false
+}
+
+function updateBubbleToolbar(view: EditorView) {
+  const { from, to } = view.state.selection
+  const hasText = getSelectionHasText(view)
+  if (!hasText || contextMenuOpen.value || !view.hasFocus()) {
+    closeBubbleToolbar()
+    return
+  }
+
+  const start = view.coordsAtPos(from)
+  const end = view.coordsAtPos(to)
+  const toolbarWidth = 184
+  const toolbarHeight = 34
+  const margin = 8
+  const selectionLeft = Math.min(start.left, end.left)
+  const selectionRight = Math.max(start.right, end.right)
+  const x = selectionLeft + (selectionRight - selectionLeft) / 2 - toolbarWidth / 2
+  const preferredY = Math.min(start.top, end.top) - toolbarHeight - margin
+  const fallbackY = Math.max(start.bottom, end.bottom) + margin
+
+  bubbleToolbarPosition.value = {
+    x: Math.max(margin, Math.min(x, window.innerWidth - toolbarWidth - margin)),
+    y: preferredY >= margin ? preferredY : Math.min(fallbackY, window.innerHeight - toolbarHeight - margin),
+  }
+  bubbleToolbarOpen.value = true
+}
+
 function getSelectionHasText(view: EditorView) {
   const { from, to, empty } = view.state.selection
   return !empty && view.state.doc.textBetween(from, to, '\n', '\n').trim().length > 0
@@ -101,6 +134,7 @@ async function openContextMenu(event: MouseEvent) {
     x: Math.max(margin, Math.min(event.clientX, window.innerWidth - menuWidth - margin)),
     y: Math.max(margin, Math.min(event.clientY, window.innerHeight - menuHeight - margin)),
   }
+  closeBubbleToolbar()
   contextMenuOpen.value = true
   await nextTick()
   contextMenu.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
@@ -190,8 +224,20 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
   }
 }
 
+function handleWindowPointerDown() {
+  closeContextMenu()
+  closeBubbleToolbar()
+}
+
+function handleWindowResize() {
+  closeContextMenu()
+  closeBubbleToolbar()
+}
+
 function handleWindowKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') closeContextMenu()
+  if (event.key !== 'Escape') return
+  closeContextMenu()
+  closeBubbleToolbar()
 }
 
 onMounted(async () => {
@@ -207,10 +253,11 @@ onMounted(async () => {
           editorMarkdown = markdown
           if (content.value !== markdown) content.value = markdown
         })
-        .selectionUpdated((_ctx, selection) => {
+        .selectionUpdated((ctx, selection) => {
           const before = selection.$from.doc.textBetween(0, selection.from, '\n', '\n')
           const lines = before.split('\n')
           updateCursor(lines.length, (lines.at(-1)?.length || 0) + 1)
+          updateBubbleToolbar(ctx.get(editorViewCtx))
         })
     })
     .use(commonmark)
@@ -219,9 +266,9 @@ onMounted(async () => {
     .use(listener)
     .create()
 
-  window.addEventListener('pointerdown', closeContextMenu)
-  window.addEventListener('blur', closeContextMenu)
-  window.addEventListener('resize', closeContextMenu)
+  window.addEventListener('pointerdown', handleWindowPointerDown)
+  window.addEventListener('blur', handleWindowResize)
+  window.addEventListener('resize', handleWindowResize)
   window.addEventListener('keydown', handleWindowKeydown)
 })
 
@@ -233,9 +280,9 @@ watch(content, (markdown) => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('pointerdown', closeContextMenu)
-  window.removeEventListener('blur', closeContextMenu)
-  window.removeEventListener('resize', closeContextMenu)
+  window.removeEventListener('pointerdown', handleWindowPointerDown)
+  window.removeEventListener('blur', handleWindowResize)
+  window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('keydown', handleWindowKeydown)
   void editor?.destroy()
   editor = null
@@ -248,6 +295,32 @@ onBeforeUnmount(() => {
   </section>
 
   <Teleport to="body">
+    <div
+      v-if="bubbleToolbarOpen"
+      class="lume-wysiwyg-pane__bubble-toolbar"
+      role="toolbar"
+      aria-label="选中文本格式"
+      :style="{ left: bubbleToolbarPosition.x + 'px', top: bubbleToolbarPosition.y + 'px' }"
+      @pointerdown.stop.prevent
+    >
+      <button type="button" title="加粗" aria-label="加粗" @click="runCommand(toggleStrongCommand.key)">
+        <Bold :size="15" :stroke-width="2.25" />
+      </button>
+      <button type="button" title="斜体" aria-label="斜体" @click="runCommand(toggleEmphasisCommand.key)">
+        <Italic :size="15" :stroke-width="2.25" />
+      </button>
+      <button type="button" title="行内代码" aria-label="行内代码" @click="runCommand(toggleInlineCodeCommand.key)">
+        <Code :size="15" :stroke-width="2.1" />
+      </button>
+      <div class="lume-wysiwyg-pane__bubble-separator" role="separator"></div>
+      <button type="button" title="清除格式" aria-label="清除格式" @click="clearFormatting">
+        <RemoveFormatting :size="15" :stroke-width="2.1" />
+      </button>
+      <button type="button" title="复制" aria-label="复制" @click="runNativeEditCommand('copy')">
+        <Copy :size="15" :stroke-width="2.1" />
+      </button>
+    </div>
+
     <div
       v-if="contextMenuOpen"
       ref="contextMenu"
@@ -500,6 +573,55 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(img) {
   max-width: 100%;
   border-radius: var(--lume-radius-md);
+}
+
+.lume-wysiwyg-pane__bubble-toolbar {
+  position: fixed;
+  z-index: var(--lume-z-tooltip);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 78%, transparent);
+  border-radius: 9px;
+  background-color: color-mix(in srgb, var(--lume-bg-overlay) 88%, transparent);
+  color: var(--lume-text-secondary);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 10%);
+  user-select: none;
+  backdrop-filter: blur(20px) saturate(1.35);
+}
+
+.lume-wysiwyg-pane__bubble-toolbar button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+}
+
+.lume-wysiwyg-pane__bubble-toolbar button:hover,
+.lume-wysiwyg-pane__bubble-toolbar button:focus-visible {
+  outline: none;
+  background-color: color-mix(in srgb, var(--lume-text-primary) 8%, transparent);
+  color: var(--lume-text-primary);
+}
+
+.lume-wysiwyg-pane__bubble-toolbar svg {
+  flex: none;
+}
+
+.lume-wysiwyg-pane__bubble-separator {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background-color: color-mix(in srgb, var(--lume-border-subtle) 82%, transparent);
 }
 
 .lume-wysiwyg-pane__context-menu {

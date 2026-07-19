@@ -93,11 +93,11 @@ onMounted(async () => {
 
 .lume-titlebar__logo {
   width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
   border: none;
   border-radius: var(--lume-radius-sm);
   background: transparent;
@@ -111,16 +111,15 @@ onMounted(async () => {
 .lume-titlebar__logo:focus-visible {
   outline: 2px solid var(--lume-accent-default);
   outline-offset: 2px;
-  }
-  
-  .lume-titlebar__logo-image {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    display: block;
-    border-radius: 5px;
-    object-fit: cover;
-    pointer-events: none;
+}
+
+.lume-titlebar__logo-image {
+  width: 24px;
+  height: 24px;
+  display: block;
+  border-radius: 5px;
+  object-fit: cover;
+  pointer-events: none;
 }
 
 .lume-titlebar__center {
