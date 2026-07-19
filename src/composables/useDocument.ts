@@ -152,6 +152,7 @@ const documents = ref<OpenDocument[]>(restoredSession?.documents ?? [
 ])
 const activeDocumentId = ref(restoredSession?.activeDocumentId ?? documents.value[0].id)
 const pendingCloseDocument = ref<OpenDocument | null>(null)
+const pendingCloseDocumentIds: string[] = []
 
 /** 避免恢复后创建的新文档与已有文档 ID 冲突。 */
 documentSequence = documents.value.reduce((maximum, document) => {
@@ -269,18 +270,43 @@ function closeDocument(id: string) {
   }
 }
 
-/** 关闭标签前统一检查未保存状态，脏文档交由应用内弹窗确认。 */
-function requestCloseDocument(id: string) {
-  const document = documents.value.find((item) => item.id === id)
-  if (!document) return false
+/** 依次关闭队列中的标签，遇到未保存文档时暂停并等待用户确认。 */
+function processCloseDocumentQueue() {
+  while (pendingCloseDocumentIds.length > 0) {
+    const id = pendingCloseDocumentIds.shift()!
+    const document = documents.value.find((item) => item.id === id)
+    if (!document) continue
 
-  if (document.isDirty) {
-    pendingCloseDocument.value = document
-    return false
+    if (document.isDirty) {
+      pendingCloseDocument.value = document
+      return false
+    }
+
+    closeDocument(id)
   }
 
-  closeDocument(id)
   return true
+}
+
+/** 批量请求关闭标签，重复标识和不存在的标签会被忽略。 */
+function requestCloseDocuments(ids: string[]) {
+  if (pendingCloseDocument.value) return false
+
+  const existingIds = new Set(documents.value.map((document) => document.id))
+  const queuedIds = new Set(pendingCloseDocumentIds)
+  for (const id of ids) {
+    if (existingIds.has(id) && !queuedIds.has(id)) {
+      pendingCloseDocumentIds.push(id)
+      queuedIds.add(id)
+    }
+  }
+
+  return processCloseDocumentQueue()
+}
+
+/** 关闭标签前统一检查未保存状态，脏文档交由应用内弹窗确认。 */
+function requestCloseDocument(id: string) {
+  return requestCloseDocuments([id])
 }
 
 /** 确认丢弃修改并关闭待处理标签。 */
@@ -289,11 +315,13 @@ function confirmCloseDocument() {
   if (!document) return
   pendingCloseDocument.value = null
   closeDocument(document.id)
+  processCloseDocumentQueue()
 }
 
-/** 取消关闭并保留标签及其暂存内容。 */
+/** 取消当前及剩余的批量关闭请求，并保留所有未处理标签。 */
 function cancelCloseDocument() {
   pendingCloseDocument.value = null
+  pendingCloseDocumentIds.length = 0
 }
 
 /** 更新当前文档的文件信息或保存状态。 */
@@ -335,6 +363,7 @@ export function useDocument() {
     moveDocument,
     closeDocument,
     requestCloseDocument,
+    requestCloseDocuments,
     confirmCloseDocument,
     cancelCloseDocument,
     updateActiveDocument,

@@ -13,6 +13,7 @@ use std::{
     fs::File,
     io::{Read, Take},
     path::Path,
+    process::Command,
 };
 
 const MAX_MARKDOWN_FILE_SIZE: u64 = 10 * 1024 * 1024;
@@ -94,4 +95,32 @@ pub fn lume_read_markdown_file(path: String) -> LumeResult<MarkdownFile> {
         name,
         content,
     })
+}
+
+/// 在系统文件管理器中选中一个已存在的普通文件。
+#[tauri::command]
+pub fn lume_reveal_file(path: String) -> LumeResult<()> {
+    let file_path = Path::new(&path);
+    if !file_path.is_file() {
+        return Err(LumeError::InvalidPath("文件不存在或不是普通文件".to_string()));
+    }
+
+    #[cfg(target_os = "windows")]
+    Command::new("explorer")
+        .arg("/select,")
+        .arg(file_path)
+        .spawn()?;
+
+    #[cfg(target_os = "macos")]
+    Command::new("open").arg("-R").arg(file_path).spawn()?;
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let parent = file_path
+            .parent()
+            .ok_or_else(|| LumeError::InvalidPath("无法定位文件所在目录".to_string()))?;
+        Command::new("xdg-open").arg(parent).spawn()?;
+    }
+
+    Ok(())
 }

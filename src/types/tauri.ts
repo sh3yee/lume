@@ -88,6 +88,11 @@ export async function readDroppedMarkdownFile(path: string): Promise<MarkdownFil
   return invokeCommand<MarkdownFile>('lume_read_markdown_file', { path })
 }
 
+/** 在系统文件管理器中选中指定文件。 */
+export async function revealFileInFolder(path: string): Promise<void> {
+  return invokeCommand<void>('lume_reveal_file', { path })
+}
+
 /** 监听当前桌面窗口的原生文件拖放事件。 */
 export async function onFileDragDrop(
   handler: (event: FileDragDropEvent) => void,
