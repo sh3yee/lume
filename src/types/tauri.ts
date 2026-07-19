@@ -11,15 +11,20 @@ type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown
 type UnlistenFn = () => void
 
 export type FileDragDropEvent =
-  | { type: 'enter'; paths: string[] }
-  | { type: 'over' }
-  | { type: 'drop'; paths: string[] }
+  | { type: 'enter'; paths: string[]; position: { x: number; y: number } }
+  | { type: 'over'; position: { x: number; y: number } }
+  | { type: 'drop'; paths: string[]; position: { x: number; y: number } }
   | { type: 'leave' }
 
 export interface MarkdownFile {
   path: string
   name: string
   content: string
+}
+
+export interface ImageAsset {
+  markdownPath: string
+  localPath: string
 }
 
 export interface WindowState {
@@ -88,6 +93,61 @@ export async function readDroppedMarkdownFile(path: string): Promise<MarkdownFil
   return invokeCommand<MarkdownFile>('lume_read_markdown_file', { path })
 }
 
+/** 将拖入的本地图片复制到文档资源目录。 */
+export async function importImageFile(
+  path: string,
+  documentPath: string | null,
+  documentId: string,
+): Promise<ImageAsset> {
+  return invokeCommand<ImageAsset>('lume_import_image_file', { path, documentPath, documentId })
+}
+
+/** 将剪贴板图片写入文档资源目录。 */
+export async function storeClipboardImage(
+  bytes: number[],
+  extension: string,
+  documentPath: string | null,
+  documentId: string,
+): Promise<ImageAsset> {
+  return invokeCommand<ImageAsset>('lume_store_clipboard_image', {
+    bytes,
+    extension,
+    documentPath,
+    documentId,
+  })
+}
+
+/** 首次保存时迁移未命名文档的暂存图片。 */
+export async function materializeStagedImages(
+  content: string,
+  documentPath: string,
+  documentId: string,
+): Promise<string> {
+  return invokeCommand<string>('lume_materialize_staged_images', {
+    content,
+    documentPath,
+    documentId,
+  })
+}
+
+/** Markdown 写盘成功后清理未命名文档的图片暂存区。 */
+export async function clearStagedImages(documentId: string): Promise<void> {
+  return invokeCommand<void>('lume_clear_staged_images', { documentId })
+}
+
+/** 解析仅用于展示的本地图片绝对路径。 */
+export async function resolveImagePath(
+  markdownPath: string,
+  documentPath: string | null,
+  documentId: string,
+): Promise<string> {
+  return invokeCommand<string>('lume_resolve_image_path', {
+    markdownPath,
+    documentPath,
+    documentId,
+  })
+}
+
 /** 在系统文件管理器中选中指定文件。 */
 export async function revealFileInFolder(path: string): Promise<void> {
   return invokeCommand<void>('lume_reveal_file', { path })
@@ -101,10 +161,14 @@ export async function onFileDragDrop(
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
   return getCurrentWindow().onDragDropEvent(({ payload }) => {
     if (payload.type === 'enter' || payload.type === 'drop') {
-      handler({ type: payload.type, paths: payload.paths })
+      handler({ type: payload.type, paths: payload.paths, position: payload.position })
       return
     }
-    handler({ type: payload.type })
+    if (payload.type === 'over') {
+      handler({ type: payload.type, position: payload.position })
+      return
+    }
+    handler(payload)
   })
 }
 

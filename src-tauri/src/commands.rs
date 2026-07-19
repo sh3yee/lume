@@ -10,13 +10,18 @@
 use crate::error::{LumeError, LumeResult};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
+    fs::{File, OpenOptions},
     io::{Read, Take},
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
+    time::{SystemTime, UNIX_EPOCH},
 };
+use tauri::{AppHandle, Manager};
 
 const MAX_MARKDOWN_FILE_SIZE: u64 = 10 * 1024 * 1024;
+const MAX_IMAGE_FILE_SIZE: u64 = 20 * 1024 * 1024;
+const STAGED_IMAGE_SCHEME: &str = "lume-staged://";
+const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "svg"];
 
 /// 健康检查命令
 ///
@@ -97,12 +102,359 @@ pub fn lume_read_markdown_file(path: String) -> LumeResult<MarkdownFile> {
     })
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageAsset {
+    pub markdown_path: String,
+    pub local_path: String,
+}
+
+fn validate_document_id(document_id: &str) -> LumeResult<()> {
+    if document_id.is_empty()
+        || !document_id
+            .chars()
+            .all(|value| value.is_ascii_alphanumeric() || matches!(value, '-' | '_'))
+    {
+        return Err(LumeError::InvalidPath("文档标识无效".to_string()));
+    }
+    Ok(())
+}
+
+fn normalize_image_extension(extension: &str) -> LumeResult<String> {
+    let extension = extension.trim_start_matches('.').to_ascii_lowercase();
+    if !IMAGE_EXTENSIONS.contains(&extension.as_str()) {
+        return Err(LumeError::InvalidPath(format!(
+            "不支持 .{extension} 图片，仅支持 PNG、JPEG、GIF、WebP、BMP、AVIF 和 SVG"
+        )));
+    }
+    Ok(extension)
+}
+
+fn image_extension(path: &Path) -> LumeResult<String> {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| LumeError::InvalidPath("图片缺少有效扩展名".to_string()))?;
+    normalize_image_extension(extension)
+}
+
+fn staging_dir(app: &AppHandle, document_id: &str) -> LumeResult<PathBuf> {
+    validate_document_id(document_id)?;
+    Ok(app
+        .path()
+        .app_cache_dir()?
+        .join("image-staging")
+        .join(document_id))
+}
+
+fn asset_dir(document_path: &Path) -> LumeResult<PathBuf> {
+    let parent = document_path
+        .parent()
+        .ok_or_else(|| LumeError::InvalidPath("Markdown 文件缺少父目录".to_string()))?;
+    let stem = document_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| LumeError::InvalidPath("Markdown 文件名无效".to_string()))?;
+    Ok(parent.join(format!("{stem}.assets")))
+}
+
+fn safe_file_stem(name: &str) -> String {
+    let stem = Path::new(name)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("image");
+    let sanitized: String = stem
+        .chars()
+        .map(|value| {
+            if value.is_control()
+                || matches!(value, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+            {
+                '-'
+            } else {
+                value
+            }
+        })
+        .collect();
+    let sanitized = sanitized.trim_matches([' ', '.', '-']);
+    if sanitized.is_empty() {
+        "image".to_string()
+    } else {
+        sanitized.to_string()
+    }
+}
+
+fn unique_image_path(directory: &Path, preferred_name: &str, extension: &str) -> PathBuf {
+    let stem = safe_file_stem(preferred_name);
+    for suffix in 0..10_000 {
+        let name = if suffix == 0 {
+            format!("{stem}.{extension}")
+        } else {
+            format!("{stem}-{suffix}.{extension}")
+        };
+        let candidate = directory.join(name);
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    directory.join(format!("{stem}-{timestamp}.{extension}"))
+}
+
+fn markdown_asset_path(document_path: &Path, image_path: &Path) -> LumeResult<String> {
+    let directory_name = asset_dir(document_path)?
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| LumeError::InvalidPath("图片资源目录名无效".to_string()))?
+        .to_string();
+    let file_name = image_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| LumeError::InvalidPath("图片文件名无效".to_string()))?;
+    Ok(format!("{directory_name}/{file_name}"))
+}
+
+fn store_image_bytes(
+    app: &AppHandle,
+    bytes: &[u8],
+    extension: &str,
+    preferred_name: &str,
+    document_path: Option<&str>,
+    document_id: &str,
+) -> LumeResult<ImageAsset> {
+    if bytes.is_empty() || bytes.len() as u64 > MAX_IMAGE_FILE_SIZE {
+        return Err(LumeError::InvalidPath("图片必须小于 20 MiB".to_string()));
+    }
+    let extension = normalize_image_extension(extension)?;
+    let document_path = document_path.map(Path::new);
+    let directory = match document_path {
+        Some(path) => asset_dir(path)?,
+        None => staging_dir(app, document_id)?,
+    };
+    std::fs::create_dir_all(&directory)?;
+
+    let image_path = unique_image_path(&directory, preferred_name, &extension);
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&image_path)?;
+    std::io::Write::write_all(&mut file, bytes)?;
+
+    let markdown_path = match document_path {
+        Some(path) => markdown_asset_path(path, &image_path)?,
+        None => format!(
+            "{STAGED_IMAGE_SCHEME}{document_id}/{}",
+            image_path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("image")
+        ),
+    };
+
+    Ok(ImageAsset {
+        markdown_path,
+        local_path: image_path.to_string_lossy().into_owned(),
+    })
+}
+
+/// 将操作系统中拖入的图片复制到当前文档资源目录或未命名文档暂存区。
+#[tauri::command]
+pub fn lume_import_image_file(
+    app: AppHandle,
+    path: String,
+    document_path: Option<String>,
+    document_id: String,
+) -> LumeResult<ImageAsset> {
+    let source = Path::new(&path);
+    let metadata = std::fs::symlink_metadata(source)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(LumeError::InvalidPath(
+            "拖入路径必须是普通图片文件".to_string(),
+        ));
+    }
+    if metadata.len() == 0 || metadata.len() > MAX_IMAGE_FILE_SIZE {
+        return Err(LumeError::InvalidPath("图片必须小于 20 MiB".to_string()));
+    }
+
+    let extension = image_extension(source)?;
+    let preferred_name = source
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("image");
+    let bytes = std::fs::read(source)?;
+    store_image_bytes(
+        &app,
+        &bytes,
+        &extension,
+        preferred_name,
+        document_path.as_deref(),
+        &document_id,
+    )
+}
+
+/// 将剪贴板图片保存到当前文档资源目录或未命名文档暂存区。
+#[tauri::command]
+pub fn lume_store_clipboard_image(
+    app: AppHandle,
+    bytes: Vec<u8>,
+    extension: String,
+    document_path: Option<String>,
+    document_id: String,
+) -> LumeResult<ImageAsset> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    store_image_bytes(
+        &app,
+        &bytes,
+        &extension,
+        &format!("image-{timestamp}"),
+        document_path.as_deref(),
+        &document_id,
+    )
+}
+
+/// 首次保存未命名文档时，将暂存图片迁移并替换 Markdown 地址。
+#[tauri::command]
+pub fn lume_materialize_staged_images(
+    app: AppHandle,
+    content: String,
+    document_path: String,
+    document_id: String,
+) -> LumeResult<String> {
+    let staging = staging_dir(&app, &document_id)?;
+    if !staging.exists() {
+        return Ok(content);
+    }
+
+    let destination_dir = asset_dir(Path::new(&document_path))?;
+    std::fs::create_dir_all(&destination_dir)?;
+    let marker_prefix = format!("{STAGED_IMAGE_SCHEME}{document_id}/");
+    let mut updated_content = content;
+
+    for entry in std::fs::read_dir(&staging)? {
+        let entry = entry?;
+        let source = entry.path();
+        let metadata = std::fs::symlink_metadata(&source)?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            continue;
+        }
+        let file_name = match source.file_name().and_then(|value| value.to_str()) {
+            Some(value) => value,
+            None => continue,
+        };
+        let marker = format!("{marker_prefix}{file_name}");
+        if !updated_content.contains(&marker) {
+            continue;
+        }
+
+        let extension = image_extension(&source)?;
+        let preferred_destination = destination_dir.join(file_name);
+        let destination = if preferred_destination.is_file()
+            && std::fs::read(&preferred_destination)? == std::fs::read(&source)?
+        {
+            preferred_destination
+        } else {
+            unique_image_path(&destination_dir, file_name, &extension)
+        };
+        if !destination.exists() {
+            std::fs::copy(&source, &destination)?;
+        }
+        let markdown_path = markdown_asset_path(Path::new(&document_path), &destination)?;
+        updated_content = updated_content.replace(&marker, &markdown_path);
+    }
+    Ok(updated_content)
+}
+
+/// Markdown 成功写盘后清理对应文档的图片暂存区。
+#[tauri::command]
+pub fn lume_clear_staged_images(app: AppHandle, document_id: String) -> LumeResult<()> {
+    let staging = staging_dir(&app, &document_id)?;
+    if staging.exists() {
+        std::fs::remove_dir_all(staging)?;
+    }
+    Ok(())
+}
+
+fn percent_decode_path(value: &str) -> LumeResult<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let encoded = std::str::from_utf8(&bytes[index + 1..index + 3])
+                .map_err(|_| LumeError::InvalidPath("图片地址编码无效".to_string()))?;
+            let byte = u8::from_str_radix(encoded, 16)
+                .map_err(|_| LumeError::InvalidPath("图片地址编码无效".to_string()))?;
+            decoded.push(byte);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded)
+        .map_err(|_| LumeError::InvalidPath("图片地址不是有效 UTF-8".to_string()))
+}
+
+/// 将 Markdown 中的相对图片地址解析为仅供 WebView 展示的本地绝对路径。
+#[tauri::command]
+pub fn lume_resolve_image_path(
+    app: AppHandle,
+    markdown_path: String,
+    document_path: Option<String>,
+    document_id: String,
+) -> LumeResult<String> {
+    let staged_prefix = format!("{STAGED_IMAGE_SCHEME}{document_id}/");
+    let resolved = if let Some(file_name) = markdown_path.strip_prefix(&staged_prefix) {
+        if Path::new(file_name)
+            .file_name()
+            .and_then(|value| value.to_str())
+            != Some(file_name)
+        {
+            return Err(LumeError::InvalidPath("暂存图片地址无效".to_string()));
+        }
+        staging_dir(&app, &document_id)?.join(file_name)
+    } else {
+        let path_without_suffix = markdown_path
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(&markdown_path);
+        let decoded = percent_decode_path(path_without_suffix)?;
+        let candidate = PathBuf::from(decoded.trim_start_matches("file://"));
+        if candidate.is_absolute() {
+            candidate
+        } else {
+            let document_path = document_path
+                .as_deref()
+                .ok_or_else(|| LumeError::InvalidPath("未保存文档无法解析相对图片".to_string()))?;
+            Path::new(document_path)
+                .parent()
+                .ok_or_else(|| LumeError::InvalidPath("Markdown 文件缺少父目录".to_string()))?
+                .join(candidate)
+        }
+    };
+
+    let metadata = std::fs::symlink_metadata(&resolved)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(LumeError::InvalidPath("图片地址不是普通文件".to_string()));
+    }
+    image_extension(&resolved)?;
+    Ok(resolved.to_string_lossy().into_owned())
+}
+
 /// 在系统文件管理器中选中一个已存在的普通文件。
 #[tauri::command]
 pub fn lume_reveal_file(path: String) -> LumeResult<()> {
     let file_path = Path::new(&path);
     if !file_path.is_file() {
-        return Err(LumeError::InvalidPath("文件不存在或不是普通文件".to_string()));
+        return Err(LumeError::InvalidPath(
+            "文件不存在或不是普通文件".to_string(),
+        ));
     }
 
     #[cfg(target_os = "windows")]

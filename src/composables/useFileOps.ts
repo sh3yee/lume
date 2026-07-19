@@ -7,7 +7,12 @@
  */
 import { computed } from 'vue'
 import { useDocument } from '@composables/useDocument'
-import { isTauri, readDroppedMarkdownFile } from '../types/tauri'
+import {
+  clearStagedImages,
+  isTauri,
+  materializeStagedImages,
+  readDroppedMarkdownFile,
+} from '../types/tauri'
 
 export interface OpenFilesResult {
   opened: number
@@ -148,24 +153,34 @@ export function useFileOps() {
   async function saveFileTauri(): Promise<void> {
     try {
       const { save } = await import('@tauri-apps/plugin-dialog')
-      const { writeFile, exists, mkdir } = await import('@tauri-apps/plugin-fs')
-      const { dirname } = await import('@tauri-apps/api/path')
+      const { writeFile } = await import('@tauri-apps/plugin-fs')
 
       let path = currentFilePath.value
       if (!path) {
         path = await save({
-          defaultPath: currentFileName.value,
+          defaultPath: currentFileName.value.endsWith('.md')
+            ? currentFileName.value
+            : `${currentFileName.value}.md`,
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })
+        if (path && !/\.[^\\/]+$/.test(path)) path = `${path}.md`
       }
 
       if (path) {
-        // 确保父目录存在
-        const dir = await dirname(path)
-        if (!(await exists(dir))) {
-          await mkdir(dir, { recursive: true })
+        const documentId = activeDocument.value?.id
+        const hasStagedImages = documentId
+          ? content.value.includes(`lume-staged://${documentId}/`)
+          : false
+        const markdown = documentId && hasStagedImages
+          ? await materializeStagedImages(content.value, path, documentId)
+          : content.value
+        await writeFile(path, new TextEncoder().encode(markdown))
+        if (documentId && hasStagedImages) {
+          await clearStagedImages(documentId).catch((error) => {
+            console.warn('清理图片暂存区失败:', error)
+          })
         }
-        await writeFile(path, new TextEncoder().encode(content.value))
+        if (markdown !== content.value) content.value = markdown
         updateActiveDocument({
           path,
           name: path.split(/[\\/]/).pop() || currentFileName.value,
@@ -174,6 +189,7 @@ export function useFileOps() {
       }
     } catch (err) {
       console.error('保存文件失败:', err)
+      throw err
     }
   }
 

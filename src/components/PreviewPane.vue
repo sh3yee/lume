@@ -5,11 +5,15 @@
  * 使用 markdown-it 实时渲染编辑区的 Markdown 内容。
  * 后续将集成局部更新与滚动同步。
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
+import { isTauri, resolveImagePath } from '../types/tauri'
 
-const { content } = useDocument()
+const { activeDocument, content } = useDocument()
+const localImageUrls = ref<Record<string, string>>({})
+const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 
 /** 配置 markdown-it */
 const md = new MarkdownIt({
@@ -18,6 +22,53 @@ const md = new MarkdownIt({
   typographer: true,
   breaks: false,
 })
+
+const defaultImageRenderer = md.renderer.rules.image!
+md.renderer.rules.image = (tokens, index, options, env, renderer) => {
+  const token = tokens[index]
+  const originalSrc = token.attrGet('src') ?? ''
+  const displaySrc = localImageUrls.value[originalSrc]
+  if (displaySrc) token.attrSet('src', displaySrc)
+  const html = defaultImageRenderer(tokens, index, options, env, renderer)
+  if (displaySrc) token.attrSet('src', originalSrc)
+  return html
+}
+
+function collectImageSources(tokens: ReturnType<typeof md.parse>, result = new Set<string>()) {
+  for (const token of tokens) {
+    if (token.type === 'image') {
+      const src = token.attrGet('src')
+      if (src && !REMOTE_IMAGE_PATTERN.test(src)) result.add(src)
+    }
+    if (token.children) collectImageSources(token.children, result)
+  }
+  return result
+}
+
+let imageLoadSequence = 0
+watch(
+  [content, () => activeDocument.value?.path, () => activeDocument.value?.id],
+  async ([markdown, documentPath, documentId]) => {
+    const sequence = ++imageLoadSequence
+    if (!isTauri() || !documentId) {
+      localImageUrls.value = {}
+      return
+    }
+
+    const sources = collectImageSources(md.parse(markdown ?? '', {}))
+    const entries = await Promise.all(Array.from(sources, async (src) => {
+      try {
+        const path = await resolveImagePath(src, documentPath ?? null, documentId)
+        return [src, convertFileSrc(path)] as const
+      } catch {
+        return null
+      }
+    }))
+    if (sequence !== imageLoadSequence) return
+    localImageUrls.value = Object.fromEntries(entries.filter((entry) => entry !== null))
+  },
+  { immediate: true },
+)
 
 /** 实时渲染 HTML */
 const renderedHtml = computed(() => md.render(content.value))

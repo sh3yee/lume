@@ -13,6 +13,7 @@ import type { CmdKey } from '@milkdown/kit/core'
 import {
   commonmark,
   createCodeBlockCommand,
+  imageSchema,
   insertHrCommand,
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
@@ -23,10 +24,18 @@ import { AllSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { $prose, callCommand, replaceAll } from '@milkdown/kit/utils'
+import { $prose, $view, callCommand, replaceAll } from '@milkdown/kit/utils'
+import type { Node as ProseNode } from '@milkdown/kit/prose/model'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
+import {
+  importImageFile,
+  isTauri,
+  resolveImagePath,
+  storeClipboardImage,
+} from '../types/tauri'
 
-const { content, updateCursor } = useDocument()
+const { activeDocument, content, updateCursor } = useDocument()
 
 const editorRef = ref<HTMLDivElement | null>(null)
 const contextMenu = ref<HTMLDivElement | null>(null)
@@ -38,6 +47,23 @@ const bubbleToolbarPosition = ref({ x: 0, y: 0 })
 let editor: Editor | null = null
 let editorMarkdown = content.value
 let editorClipboardText = ''
+
+interface NativeImageDropDetail {
+  paths: string[]
+  x: number
+  y: number
+}
+
+const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
+const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/bmp': 'bmp',
+  'image/avif': 'avif',
+  'image/svg+xml': 'svg',
+}
 
 function createParagraphAfterCodeBlock(state: EditorState) {
   const { $from } = state.selection
@@ -64,6 +90,147 @@ function convertEmptyCodeBlockToParagraph(state: EditorState) {
     .setSelection(TextSelection.near(tr.doc.resolve(blockPos + 1)))
     .scrollIntoView()
 }
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error ?? new Error('读取图片失败'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function insertImage(
+  view: EditorView,
+  src: string,
+  alt: string,
+  point?: { x: number; y: number },
+) {
+  const image = view.state.schema.nodes.image.create({ src, alt, title: '' })
+  let tr = view.state.tr
+  if (point) {
+    const dropPosition = view.posAtCoords({ left: point.x, top: point.y })
+    if (dropPosition) {
+      tr = tr.setSelection(TextSelection.near(tr.doc.resolve(dropPosition.pos)))
+    }
+  }
+  view.dispatch(tr.replaceSelectionWith(image).scrollIntoView())
+  view.focus()
+}
+
+async function importClipboardImages(view: EditorView, files: File[]) {
+  const documentId = activeDocument.value?.id
+  const documentPath = activeDocument.value?.path ?? null
+  if (!documentId) return
+
+  for (const file of files) {
+    try {
+      const extension = IMAGE_MIME_EXTENSIONS[file.type]
+      if (!extension) continue
+      const src = isTauri()
+        ? (await storeClipboardImage(
+            Array.from(new Uint8Array(await file.arrayBuffer())),
+            extension,
+            documentPath,
+            documentId,
+          )).markdownPath
+        : await fileToDataUrl(file)
+
+      if (activeDocument.value?.id !== documentId || view.isDestroyed) return
+      insertImage(view, src, file.name.replace(/\.[^.]+$/, '') || 'image')
+    } catch (error) {
+      console.error('粘贴图片失败:', error)
+    }
+  }
+}
+
+async function importNativeImages(view: EditorView, detail: NativeImageDropDetail) {
+  const documentId = activeDocument.value?.id
+  const documentPath = activeDocument.value?.path ?? null
+  if (!documentId) return
+
+  let useDropPoint = true
+  for (const path of detail.paths) {
+    try {
+      const asset = await importImageFile(path, documentPath, documentId)
+      if (activeDocument.value?.id !== documentId || view.isDestroyed) return
+      const fileName = path.split(/[\\/]/).at(-1) ?? 'image'
+      insertImage(
+        view,
+        asset.markdownPath,
+        fileName.replace(/\.[^.]+$/, ''),
+        useDropPoint ? { x: detail.x, y: detail.y } : undefined,
+      )
+      useDropPoint = false
+    } catch (error) {
+      console.error('导入图片失败:', error)
+    }
+  }
+}
+
+const localImageView = $view(imageSchema.node, () => (node: ProseNode) => {
+  const dom = document.createElement('img')
+  let currentNode = node
+  let loadSequence = 0
+
+  const updateImage = (updatedNode: ProseNode) => {
+    currentNode = updatedNode
+    const sequence = ++loadSequence
+    const { src, alt, title } = updatedNode.attrs as { src: string; alt: string; title: string }
+    dom.alt = alt || ''
+    dom.title = title || ''
+    dom.classList.remove('lume-image--error')
+
+    if (!src || REMOTE_IMAGE_PATTERN.test(src) || !isTauri()) {
+      dom.src = src
+      return
+    }
+
+    dom.removeAttribute('src')
+    void resolveImagePath(
+      src,
+      activeDocument.value?.path ?? null,
+      activeDocument.value?.id ?? '',
+    ).then((path) => {
+      if (sequence === loadSequence) dom.src = convertFileSrc(path)
+    }).catch((error) => {
+      if (sequence === loadSequence) dom.classList.add('lume-image--error')
+      console.warn(`无法加载本地图片 ${src}:`, error)
+    })
+  }
+
+  dom.addEventListener('error', () => dom.classList.add('lume-image--error'))
+  updateImage(node)
+  return {
+    dom,
+    update(updatedNode: ProseNode) {
+      if (updatedNode.type !== currentNode.type) return false
+      updateImage(updatedNode)
+      return true
+    },
+  }
+})
+
+const imageInputPlugin = $prose(() => new Plugin({
+  props: {
+    handlePaste(view, event) {
+      const images = Array.from(event.clipboardData?.files ?? [])
+        .filter((file) => file.type in IMAGE_MIME_EXTENSIONS)
+      if (images.length === 0) return false
+      event.preventDefault()
+      void importClipboardImages(view, images)
+      return true
+    },
+    handleDrop(view, event) {
+      const images = Array.from(event.dataTransfer?.files ?? [])
+        .filter((file) => file.type in IMAGE_MIME_EXTENSIONS)
+      if (images.length === 0) return false
+      event.preventDefault()
+      void importClipboardImages(view, images)
+      return true
+    },
+  },
+}))
 
 const codeBlockExitPlugin = $prose(() => new Plugin({
   appendTransaction(_transactions, _oldState, newState) {
@@ -268,6 +435,14 @@ function handleWindowKeydown(event: KeyboardEvent) {
   closeBubbleToolbar()
 }
 
+function handleNativeImageDrop(event: Event) {
+  const detail = (event as CustomEvent<NativeImageDropDetail>).detail
+  if (!detail?.paths.length) return
+  editor?.action((ctx) => {
+    void importNativeImages(ctx.get(editorViewCtx), detail)
+  })
+}
+
 onMounted(async () => {
   if (!editorRef.value) return
 
@@ -290,6 +465,8 @@ onMounted(async () => {
     })
     .use(commonmark)
     .use(history)
+    .use(localImageView)
+    .use(imageInputPlugin)
     .use(codeBlockExitPlugin)
     .use(listener)
     .create()
@@ -298,6 +475,7 @@ onMounted(async () => {
   window.addEventListener('blur', handleWindowResize)
   window.addEventListener('resize', handleWindowResize)
   window.addEventListener('keydown', handleWindowKeydown)
+  window.addEventListener('lume:image-drop', handleNativeImageDrop)
 })
 
 /** 打开文件或新建文档时，将外部 Markdown 更新到 Milkdown。 */
@@ -312,6 +490,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('blur', handleWindowResize)
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('keydown', handleWindowKeydown)
+  window.removeEventListener('lume:image-drop', handleNativeImageDrop)
   void editor?.destroy()
   editor = null
 })

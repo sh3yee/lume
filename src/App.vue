@@ -36,6 +36,7 @@ type ResolvedTheme = 'light' | 'dark' | 'glass'
 
 const THEME_STORAGE_KEY = 'lume-theme'
 const WINDOW_STATE_STORAGE_KEY = 'lume-window-state'
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg'])
 
 /** 读取已保存的主题偏好，无有效记录时跟随系统。 */
 function getInitialTheme(): ThemePreference {
@@ -155,6 +156,20 @@ function showFileDropMessage(message: string) {
   fileDropMessageTimer = setTimeout(dismissFileDropMessage, 6000)
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) return String(error.message)
+  return String(error || '未知错误')
+}
+
+async function saveCurrentFile() {
+  try {
+    await saveFile()
+  } catch (error) {
+    showFileDropMessage(`保存失败：${getErrorMessage(error)}`)
+  }
+}
+
 async function handleDroppedFiles(paths: string[]) {
   const result = await openFilesFromPaths(paths)
   if (result.rejected.length > 0) {
@@ -174,6 +189,16 @@ function queueDroppedFiles(paths: string[]) {
     .catch(() => showFileDropMessage('打开拖入文件失败'))
 }
 
+function isImagePath(path: string) {
+  const extension = path.split('.').at(-1)?.toLowerCase()
+  return extension ? IMAGE_EXTENSIONS.has(extension) : false
+}
+
+function getDropPoint(position: { x: number; y: number }) {
+  const scale = window.devicePixelRatio || 1
+  return { x: position.x / scale, y: position.y / scale }
+}
+
 function handleFileDragDrop(event: FileDragDropEvent) {
   if (event.type === 'enter') {
     dismissFileDropMessage()
@@ -181,7 +206,24 @@ function handleFileDragDrop(event: FileDragDropEvent) {
     return
   }
   if (event.type === 'drop') {
-    queueDroppedFiles(event.paths)
+    const point = getDropPoint(event.position)
+    const editorBounds = document.querySelector('.lume-wysiwyg-pane')?.getBoundingClientRect()
+    const droppedInEditor = viewMode.value === 'wysiwyg'
+      && editorBounds
+      && point.x >= editorBounds.left
+      && point.x <= editorBounds.right
+      && point.y >= editorBounds.top
+      && point.y <= editorBounds.bottom
+    const imagePaths = droppedInEditor ? event.paths.filter(isImagePath) : []
+    const otherPaths = event.paths.filter((path) => !imagePaths.includes(path))
+
+    fileDragPaths.value = []
+    if (imagePaths.length > 0) {
+      window.dispatchEvent(new CustomEvent('lume:image-drop', {
+        detail: { paths: imagePaths, x: point.x, y: point.y },
+      }))
+    }
+    if (otherPaths.length > 0) queueDroppedFiles(otherPaths)
     return
   }
   if (event.type === 'leave') fileDragPaths.value = []
@@ -209,7 +251,7 @@ function handleShortcut(event: KeyboardEvent) {
 
   if (key === 'n' || key === 't') newFile()
   if (key === 'o') void openFile()
-  if (key === 's') void saveFile()
+  if (key === 's') void saveCurrentFile()
   if (key === 'w') closeActiveDocument()
 }
 
