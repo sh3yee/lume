@@ -7,7 +7,7 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Copy, Italic, RemoveFormatting } from 'lucide-vue-next'
+import { AlignCenter, AlignLeft, AlignRight, Bold, ChevronDown, ChevronUp, Code, Copy, Italic, RemoveFormatting, X } from 'lucide-vue-next'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
 import type { CmdKey } from '@milkdown/kit/core'
 import {
@@ -20,8 +20,9 @@ import {
   toggleStrongCommand,
 } from '@milkdown/kit/preset/commonmark'
 import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
-import { AllSelection, NodeSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
+import { AllSelection, NodeSelection, Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { $prose, $remark, $view, callCommand, replaceAll } from '@milkdown/kit/utils'
@@ -53,6 +54,8 @@ const {
 const boundDocumentId = activeDocument.value?.id ?? null
 
 const editorRef = ref<HTMLDivElement | null>(null)
+const findInput = ref<HTMLInputElement | null>(null)
+const replaceInput = ref<HTMLInputElement | null>(null)
 const contextMenu = ref<HTMLDivElement | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -62,6 +65,11 @@ const bubbleToolbarPosition = ref({ x: 0, y: 0 })
 const imageToolbarOpen = ref(false)
 const imageToolbarPosition = ref({ x: 0, y: 0 })
 const selectedImageAlign = ref<ImageAlign>('left')
+const findReplaceOpen = ref(false)
+const findQuery = ref('')
+const replaceValue = ref('')
+const findMatches = ref<SearchMatch[]>([])
+const activeFindMatchIndex = ref(-1)
 let editor: Editor | null = null
 let editorMarkdown = content.value
 let editorClipboardText = ''
@@ -71,6 +79,18 @@ interface NativeImageDropDetail {
   x: number
   y: number
 }
+
+interface SearchMatch {
+  from: number
+  to: number
+}
+
+interface SearchPluginState {
+  activeIndex: number
+  matches: SearchMatch[]
+}
+
+const searchPluginKey = new PluginKey<SearchPluginState>('lume-current-document-search')
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 const ONLINE_IMAGE_URL_PATTERN = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp|avif|svg)(?:[?#]\S*)?$/i
@@ -230,6 +250,57 @@ function getImageAlt(src: string) {
     return 'image'
   }
 }
+
+function findTextMatches(doc: ProseNode, query: string): SearchMatch[] {
+  const needle = query.trim().toLocaleLowerCase()
+  if (!needle) return []
+
+  const matches: SearchMatch[] = []
+  doc.descendants((node, pos) => {
+    if (!node.isText || !node.text) return
+    const text = node.text.toLocaleLowerCase()
+    let index = text.indexOf(needle)
+    while (index >= 0) {
+      matches.push({ from: pos + index, to: pos + index + needle.length })
+      index = text.indexOf(needle, index + Math.max(needle.length, 1))
+    }
+  })
+  return matches
+}
+
+function updateSearchPlugin(view: EditorView, matches = findMatches.value, activeIndex = activeFindMatchIndex.value) {
+  view.dispatch(view.state.tr.setMeta(searchPluginKey, { matches, activeIndex }))
+}
+
+const searchHighlightPlugin = $prose(() => new Plugin<SearchPluginState>({
+  key: searchPluginKey,
+  state: {
+    init: () => ({ matches: [], activeIndex: -1 }),
+    apply(tr, value) {
+      const next = tr.getMeta(searchPluginKey) as SearchPluginState | undefined
+      if (next) return next
+      if (!tr.docChanged || value.matches.length === 0) return value
+      const matches = value.matches
+        .map((match) => ({ from: tr.mapping.map(match.from), to: tr.mapping.map(match.to) }))
+        .filter((match) => match.from < match.to)
+      return {
+        matches,
+        activeIndex: matches[value.activeIndex] ? value.activeIndex : matches.length > 0 ? 0 : -1,
+      }
+    },
+  },
+  props: {
+    decorations(state) {
+      const pluginState = searchPluginKey.getState(state)
+      if (!pluginState?.matches.length) return DecorationSet.empty
+      return DecorationSet.create(state.doc, pluginState.matches.map((match, index) => Decoration.inline(
+        match.from,
+        match.to,
+        { class: index === pluginState.activeIndex ? 'lume-search-match lume-search-match--active' : 'lume-search-match' },
+      )))
+    },
+  },
+}))
 
 function convertImageUrlBeforeCursor(view: EditorView, createFollowingParagraph: boolean) {
   const { state } = view
@@ -797,6 +868,117 @@ function selectAllContent() {
   })
 }
 
+function syncFindMatches(view: EditorView, preferredIndex = activeFindMatchIndex.value) {
+  const matches = findTextMatches(view.state.doc, findQuery.value)
+  const activeIndex = matches.length === 0 ? -1 : Math.max(0, Math.min(preferredIndex, matches.length - 1))
+  findMatches.value = matches
+  activeFindMatchIndex.value = activeIndex
+  updateSearchPlugin(view, matches, activeIndex)
+  return { activeIndex, matches }
+}
+
+function focusFindInput(select = false) {
+  void nextTick(() => {
+    findInput.value?.focus()
+    if (select) findInput.value?.select()
+  })
+}
+
+function openFindReplace(select = true) {
+  findReplaceOpen.value = true
+  closeContextMenu()
+  closeBubbleToolbar()
+  closeImageToolbar()
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    syncFindMatches(view)
+  })
+  focusFindInput(select)
+}
+
+function closeFindReplace() {
+  findReplaceOpen.value = false
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    findMatches.value = []
+    activeFindMatchIndex.value = -1
+    updateSearchPlugin(view, [], -1)
+    view.focus()
+  })
+}
+
+function selectFindMatch(view: EditorView, index: number) {
+  const match = findMatches.value[index]
+  if (!match) return
+  activeFindMatchIndex.value = index
+  updateSearchPlugin(view, findMatches.value, index)
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, match.from, match.to)).scrollIntoView())
+}
+
+function moveFindMatch(direction: 1 | -1) {
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const { matches } = syncFindMatches(view)
+    if (matches.length === 0) return
+    const nextIndex = (activeFindMatchIndex.value + direction + matches.length) % matches.length
+    selectFindMatch(view, nextIndex)
+    view.focus()
+  })
+}
+
+function handleFindQueryInput() {
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const { activeIndex } = syncFindMatches(view, 0)
+    if (activeIndex >= 0) selectFindMatch(view, activeIndex)
+  })
+}
+
+function replaceCurrentMatch() {
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const { matches, activeIndex } = syncFindMatches(view)
+    const match = matches[activeIndex]
+    if (!match) return
+    const tr = view.state.tr.insertText(replaceValue.value, match.from, match.to)
+    view.dispatch(tr.scrollIntoView())
+    const nextMatches = findTextMatches(view.state.doc, findQuery.value)
+    const nextIndex = nextMatches.length === 0 ? -1 : Math.min(activeIndex, nextMatches.length - 1)
+    findMatches.value = nextMatches
+    activeFindMatchIndex.value = nextIndex
+    updateSearchPlugin(view, nextMatches, nextIndex)
+    if (nextIndex >= 0) selectFindMatch(view, nextIndex)
+  })
+}
+
+function replaceAllMatches() {
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const { matches } = syncFindMatches(view)
+    if (matches.length === 0) return
+    const tr = matches.reduceRight(
+      (transaction, match) => transaction.insertText(replaceValue.value, match.from, match.to),
+      view.state.tr,
+    )
+    view.dispatch(tr.scrollIntoView())
+    findMatches.value = []
+    activeFindMatchIndex.value = -1
+    updateSearchPlugin(view, [], -1)
+  })
+}
+
+function handleFindKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    moveFindMatch(event.shiftKey ? -1 : 1)
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeFindReplace()
+  }
+}
+
 function handleContextMenuKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
@@ -834,7 +1016,18 @@ function handleWindowResize() {
 }
 
 function handleWindowKeydown(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+    event.preventDefault()
+    openFindReplace(true)
+    return
+  }
+
   if (event.key !== 'Escape') return
+  if (findReplaceOpen.value) {
+    event.preventDefault()
+    closeFindReplace()
+    return
+  }
   closeContextMenu()
   closeBubbleToolbar()
   closeImageToolbar()
@@ -857,10 +1050,17 @@ onMounted(async () => {
       ctx.set(defaultValueCtx, content.value)
 
       ctx.get(listenerCtx)
-        .markdownUpdated((_ctx, markdown) => {
+        .markdownUpdated((ctx, markdown) => {
           editorMarkdown = markdown
           if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
             persistDocumentSession()
+          }
+          if (findReplaceOpen.value) {
+            try {
+              syncFindMatches(ctx.get(editorViewCtx))
+            } catch {
+              // editorViewCtx may not be available during initial listener hydration.
+            }
           }
         })
         .selectionUpdated((ctx, selection) => {
@@ -881,6 +1081,7 @@ onMounted(async () => {
     .use(sizedImageRemarkPlugin)
     .use(history)
     .use(localImageView)
+    .use(searchHighlightPlugin)
     .use(imageInputPlugin)
     .use(codeBlockExitPlugin)
     .use(listener)
@@ -914,6 +1115,46 @@ onBeforeUnmount(() => {
 <template>
   <section class="lume-wysiwyg-pane">
     <div ref="editorRef" class="lume-wysiwyg-pane__content" @contextmenu.prevent="openContextMenu"></div>
+
+    <div v-if="findReplaceOpen" class="lume-wysiwyg-pane__find-widget" @keydown="handleFindKeydown">
+      <div class="lume-wysiwyg-pane__find-row">
+        <input
+          ref="findInput"
+          v-model="findQuery"
+          class="lume-wysiwyg-pane__find-input"
+          type="text"
+          placeholder="查找"
+          @input="handleFindQueryInput"
+        />
+        <span class="lume-wysiwyg-pane__find-count">
+          {{ findMatches.length > 0 ? `${activeFindMatchIndex + 1} / ${findMatches.length}` : '0 / 0' }}
+        </span>
+        <button type="button" title="上一个" aria-label="上一个" :disabled="findMatches.length === 0" @click="moveFindMatch(-1)">
+          <ChevronUp :size="14" :stroke-width="2" />
+        </button>
+        <button type="button" title="下一个" aria-label="下一个" :disabled="findMatches.length === 0" @click="moveFindMatch(1)">
+          <ChevronDown :size="14" :stroke-width="2" />
+        </button>
+        <button type="button" title="关闭" aria-label="关闭" @click="closeFindReplace">
+          <X :size="14" :stroke-width="2" />
+        </button>
+      </div>
+      <div class="lume-wysiwyg-pane__find-row">
+        <input
+          ref="replaceInput"
+          v-model="replaceValue"
+          class="lume-wysiwyg-pane__find-input"
+          type="text"
+          placeholder="替换"
+        />
+        <button type="button" :disabled="findMatches.length === 0" @click="replaceCurrentMatch">
+          替换
+        </button>
+        <button type="button" :disabled="findMatches.length === 0" @click="replaceAllMatches">
+          全部替换
+        </button>
+      </div>
+    </div>
   </section>
 
   <Teleport to="body">
@@ -1039,6 +1280,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lume-wysiwyg-pane {
+  position: relative;
   flex: 1;
   display: flex;
   background-color: var(--lume-bg-surface-raised);
@@ -1295,6 +1537,98 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode .lume-image-resizer__handle) {
   opacity: 1;
   pointer-events: auto;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-search-match) {
+  background-color: color-mix(in srgb, var(--lume-accent-default) 24%, transparent);
+  border-radius: 2px;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-search-match--active) {
+  background-color: color-mix(in srgb, var(--lume-accent-default) 48%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lume-accent-default) 70%, transparent);
+}
+
+.lume-wysiwyg-pane__find-widget {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: var(--lume-z-tooltip);
+  width: 348px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 70%, transparent);
+  border-radius: 12px;
+  background-color: color-mix(in srgb, var(--lume-bg-overlay) 82%, transparent);
+  color: var(--lume-text-secondary);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 16%), 0 2px 8px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 18%);
+  backdrop-filter: blur(28px) saturate(1.35);
+}
+
+.lume-wysiwyg-pane__find-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lume-wysiwyg-pane__find-input {
+  min-width: 0;
+  flex: 1;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 84%, transparent);
+  border-radius: 7px;
+  background-color: color-mix(in srgb, var(--lume-bg-surface-raised) 86%, transparent);
+  color: var(--lume-text-primary);
+  font-size: 13px;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.lume-wysiwyg-pane__find-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--lume-accent-default) 72%, var(--lume-border-subtle));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lume-accent-default) 16%, transparent), inset 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.lume-wysiwyg-pane__find-count {
+  width: 52px;
+  color: var(--lume-text-tertiary);
+  font-size: 12px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lume-wysiwyg-pane__find-widget button {
+  height: 28px;
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--lume-text-secondary);
+  font-size: 13px;
+  cursor: default;
+}
+
+.lume-wysiwyg-pane__find-widget button:hover:not(:disabled),
+.lume-wysiwyg-pane__find-widget button:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--lume-border-subtle) 72%, transparent);
+  background-color: color-mix(in srgb, var(--lume-text-primary) 7%, transparent);
+  color: var(--lume-text-primary);
+}
+
+.lume-wysiwyg-pane__find-widget button:disabled {
+  color: var(--lume-text-disabled);
+}
+
+.lume-wysiwyg-pane__find-widget svg {
+  flex: none;
 }
 
 .lume-wysiwyg-pane__bubble-toolbar {
