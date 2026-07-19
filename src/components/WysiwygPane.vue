@@ -6,18 +6,158 @@
  * 编辑器负责 Markdown 快捷输入、选区、撤销历史和输入法兼容，
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Editor, defaultValueCtx, rootCtx } from '@milkdown/kit/core'
-import { commonmark } from '@milkdown/kit/preset/commonmark'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
+import type { CmdKey } from '@milkdown/kit/core'
+import {
+  commonmark,
+  createCodeBlockCommand,
+  insertHrCommand,
+  toggleEmphasisCommand,
+  toggleInlineCodeCommand,
+  toggleStrongCommand,
+} from '@milkdown/kit/preset/commonmark'
+import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
+import { AllSelection, TextSelection } from '@milkdown/kit/prose/state'
+import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { replaceAll } from '@milkdown/kit/utils'
+import { callCommand, replaceAll } from '@milkdown/kit/utils'
 import { useDocument } from '@composables/useDocument'
 
 const { content, updateCursor } = useDocument()
 
 const editorRef = ref<HTMLDivElement | null>(null)
+const contextMenu = ref<HTMLDivElement | null>(null)
+const contextMenuOpen = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const selectionHasText = ref(false)
 let editor: Editor | null = null
 let editorMarkdown = content.value
+let editorClipboardText = ''
+
+function closeContextMenu() {
+  contextMenuOpen.value = false
+}
+
+function getSelectionHasText(view: EditorView) {
+  const { from, to, empty } = view.state.selection
+  return !empty && view.state.doc.textBetween(from, to, '\n', '\n').trim().length > 0
+}
+
+async function openContextMenu(event: MouseEvent) {
+  if (!editor) return
+  const menuWidth = 192
+  const menuHeight = 292
+  const margin = 8
+
+  editor.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })
+
+    if (pos && view.state.selection.empty) {
+      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos.pos))))
+    }
+
+    view.focus()
+    selectionHasText.value = getSelectionHasText(view)
+  })
+
+  contextMenuPosition.value = {
+    x: Math.max(margin, Math.min(event.clientX, window.innerWidth - menuWidth - margin)),
+    y: Math.max(margin, Math.min(event.clientY, window.innerHeight - menuHeight - margin)),
+  }
+  contextMenuOpen.value = true
+  await nextTick()
+  contextMenu.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+}
+
+function runCommand(command: CmdKey<unknown>, payload?: unknown) {
+  closeContextMenu()
+  editor?.action((ctx) => {
+    ctx.get(editorViewCtx).focus()
+    return callCommand(command, payload)(ctx)
+  })
+}
+
+function runWithView(action: (view: EditorView) => void) {
+  closeContextMenu()
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    view.focus()
+    action(view)
+  })
+}
+
+function runNativeEditCommand(command: 'copy' | 'cut') {
+  runWithView((view) => {
+    const { from, to, empty } = view.state.selection
+    if (empty) return
+
+    editorClipboardText = view.state.doc.textBetween(from, to, '\n', '\n')
+    document.execCommand(command)
+
+    if (command === 'cut') {
+      view.dispatch(view.state.tr.delete(from, to).scrollIntoView())
+    }
+  })
+}
+
+function pasteText() {
+  runWithView((view) => {
+    if (editorClipboardText) {
+      view.dispatch(view.state.tr.insertText(editorClipboardText).scrollIntoView())
+      return
+    }
+
+    document.execCommand('paste')
+  })
+}
+
+function clearFormatting() {
+  runWithView((view) => {
+    const { state } = view
+    const { from, to } = state.selection
+    const tr = Object.values(state.schema.marks).reduce(
+      (transaction, markType) => transaction.removeMark(from, to, markType),
+      state.tr,
+    )
+    view.dispatch(tr.scrollIntoView())
+  })
+}
+
+function selectAllContent() {
+  runWithView((view) => {
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)))
+  })
+}
+
+function handleContextMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeContextMenu()
+    return
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+
+  const items = Array.from(
+    contextMenu.value?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
+  )
+  if (items.length === 0) return
+  event.preventDefault()
+
+  const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement)
+  if (event.key === 'Home') items[0].focus()
+  else if (event.key === 'End') items[items.length - 1].focus()
+  else {
+    const direction = event.key === 'ArrowDown' ? 1 : -1
+    const nextIndex = (currentIndex + direction + items.length) % items.length
+    items[nextIndex].focus()
+  }
+}
+
+function handleWindowKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closeContextMenu()
+}
 
 onMounted(async () => {
   if (!editorRef.value) return
@@ -39,8 +179,14 @@ onMounted(async () => {
         })
     })
     .use(commonmark)
+    .use(history)
     .use(listener)
     .create()
+
+  window.addEventListener('pointerdown', closeContextMenu)
+  window.addEventListener('blur', closeContextMenu)
+  window.addEventListener('resize', closeContextMenu)
+  window.addEventListener('keydown', handleWindowKeydown)
 })
 
 /** 打开文件或新建文档时，将外部 Markdown 更新到 Milkdown。 */
@@ -51,6 +197,10 @@ watch(content, (markdown) => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', closeContextMenu)
+  window.removeEventListener('blur', closeContextMenu)
+  window.removeEventListener('resize', closeContextMenu)
+  window.removeEventListener('keydown', handleWindowKeydown)
   void editor?.destroy()
   editor = null
 })
@@ -58,8 +208,65 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="lume-wysiwyg-pane">
-    <div ref="editorRef" class="lume-wysiwyg-pane__content"></div>
+    <div ref="editorRef" class="lume-wysiwyg-pane__content" @contextmenu.prevent="openContextMenu"></div>
   </section>
+
+  <Teleport to="body">
+    <div
+      v-if="contextMenuOpen"
+      ref="contextMenu"
+      class="lume-wysiwyg-pane__context-menu"
+      role="menu"
+      aria-label="编辑区操作"
+      :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+      @contextmenu.prevent
+      @keydown="handleContextMenuKeydown"
+      @pointerdown.stop
+    >
+      <template v-if="selectionHasText">
+        <button type="button" role="menuitem" @click="runNativeEditCommand('copy')">
+          <span>复制</span>
+        </button>
+        <button type="button" role="menuitem" @click="runNativeEditCommand('cut')">
+          <span>剪切</span>
+        </button>
+        <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
+        <button type="button" role="menuitem" @click="runCommand(toggleStrongCommand.key)">
+          <span>加粗</span>
+        </button>
+        <button type="button" role="menuitem" @click="runCommand(toggleEmphasisCommand.key)">
+          <span>斜体</span>
+        </button>
+        <button type="button" role="menuitem" @click="runCommand(toggleInlineCodeCommand.key)">
+          <span>行内代码</span>
+        </button>
+        <button type="button" role="menuitem" @click="clearFormatting">
+          <span>清除格式</span>
+        </button>
+        <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
+      </template>
+
+      <button type="button" role="menuitem" @click="pasteText">
+        <span>粘贴</span>
+      </button>
+      <button type="button" role="menuitem" @click="runCommand(insertHrCommand.key)">
+        <span>插入分割线</span>
+      </button>
+      <button type="button" role="menuitem" @click="runCommand(createCodeBlockCommand.key)">
+        <span>插入代码块</span>
+      </button>
+      <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
+      <button type="button" role="menuitem" @click="runCommand(undoCommand.key)">
+        <span>撤销</span>
+      </button>
+      <button type="button" role="menuitem" @click="runCommand(redoCommand.key)">
+        <span>重做</span>
+      </button>
+      <button type="button" role="menuitem" @click="selectAllContent">
+        <span>全选</span>
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -75,7 +282,7 @@ onBeforeUnmount(() => {
 
 .lume-wysiwyg-pane__content {
   flex: 1;
-    display: flex;
+  display: flex;
   width: 100%;
   min-height: 100%;
   color: var(--lume-text-primary);
@@ -106,7 +313,7 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(.milkdown) {
   box-sizing: border-box;
   flex: 1;
-    display: flex;
+  display: flex;
   width: 100%;
   max-width: var(--lume-preview-max-width);
   min-height: 100%;
@@ -119,7 +326,7 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(.ProseMirror:focus),
 .lume-wysiwyg-pane__content :deep(.ProseMirror-focused) {
   flex: 1;
-    width: 100%;
+  width: 100%;
   min-height: 100%;
   border: none;
   outline: none;
@@ -257,5 +464,47 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(img) {
   max-width: 100%;
   border-radius: var(--lume-radius-md);
+}
+
+.lume-wysiwyg-pane__context-menu {
+  position: fixed;
+  z-index: var(--lume-z-tooltip);
+  width: 192px;
+  padding: var(--lume-space-2);
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-md);
+  background-color: var(--lume-bg-overlay);
+  color: var(--lume-text-secondary);
+  box-shadow: var(--lume-shadow-md);
+  user-select: none;
+  backdrop-filter: blur(14px);
+}
+
+.lume-wysiwyg-pane__context-menu button {
+  width: 100%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--lume-space-3);
+  border: 0;
+  border-radius: var(--lume-radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--lume-font-size-sm);
+  text-align: left;
+  cursor: default;
+}
+
+.lume-wysiwyg-pane__context-menu button:hover,
+.lume-wysiwyg-pane__context-menu button:focus-visible {
+  outline: none;
+  background-color: color-mix(in srgb, var(--lume-text-primary) 7%, transparent);
+  color: var(--lume-text-primary);
+}
+
+.lume-wysiwyg-pane__context-separator {
+  height: 1px;
+  margin: var(--lume-space-2) var(--lume-space-3);
+  background-color: var(--lume-border-subtle);
 }
 </style>
