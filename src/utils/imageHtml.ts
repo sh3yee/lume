@@ -1,8 +1,11 @@
+export type ImageAlign = 'left' | 'center' | 'right'
+
 export interface SizedImageAttributes {
   src: string
   alt: string
   title: string
   zoom: number
+  align: ImageAlign
 }
 
 export const MIN_IMAGE_ZOOM = 10
@@ -18,6 +21,12 @@ function parseZoom(value: string) {
   const numeric = Number.parseFloat(trimmed)
   if (!Number.isFinite(numeric) || numeric <= 0) return null
   return clampImageZoom(trimmed.endsWith('%') ? numeric : numeric * 100)
+}
+
+function parseAlign(element: HTMLImageElement): ImageAlign {
+  if (element.style.marginLeft === 'auto' && element.style.marginRight === 'auto') return 'center'
+  if (element.style.marginLeft === 'auto') return 'right'
+  return 'left'
 }
 
 export function parseSizedImageHtml(value: string): SizedImageAttributes | null {
@@ -38,6 +47,7 @@ export function parseSizedImageHtml(value: string): SizedImageAttributes | null 
     alt: element.getAttribute('alt') ?? '',
     title: element.getAttribute('title') ?? '',
     zoom,
+    align: parseAlign(element),
   }
 }
 
@@ -47,5 +57,10 @@ export function serializeSizedImageHtml(attributes: SizedImageAttributes) {
   if (attributes.alt) image.setAttribute('alt', attributes.alt)
   if (attributes.title) image.setAttribute('title', attributes.title)
   image.style.zoom = `${clampImageZoom(attributes.zoom)}%`
+  if (attributes.align !== 'left') {
+    image.style.display = 'block'
+    image.style.marginLeft = attributes.align === 'center' ? 'auto' : 'auto'
+    image.style.marginRight = attributes.align === 'center' ? 'auto' : '0'
+  }
   return image.outerHTML
 }

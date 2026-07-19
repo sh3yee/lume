@@ -272,4 +272,8 @@ const renderedHtml = computed(() => md.render(content.value))
   border-radius: var(--lume-radius-md);
   vertical-align: text-bottom;
 }
+
+.lume-preview-pane__content :deep(img[style*='display: block']) {
+  margin-block: var(--lume-space-3);
+}
 </style>

@@ -7,7 +7,7 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Bold, Code, Copy, Italic, RemoveFormatting } from 'lucide-vue-next'
+import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Copy, Italic, RemoveFormatting } from 'lucide-vue-next'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
 import type { CmdKey } from '@milkdown/kit/core'
 import {
@@ -40,6 +40,7 @@ import {
   clampImageZoom,
   parseSizedImageHtml,
   serializeSizedImageHtml,
+  type ImageAlign,
 } from '../utils/imageHtml'
 
 const {
@@ -58,6 +59,9 @@ const contextMenuPosition = ref({ x: 0, y: 0 })
 const selectionHasText = ref(false)
 const bubbleToolbarOpen = ref(false)
 const bubbleToolbarPosition = ref({ x: 0, y: 0 })
+const imageToolbarOpen = ref(false)
+const imageToolbarPosition = ref({ x: 0, y: 0 })
+const selectedImageAlign = ref<ImageAlign>('left')
 let editor: Editor | null = null
 let editorMarkdown = content.value
 let editorClipboardText = ''
@@ -83,7 +87,7 @@ const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
 type MarkdownTreeNode = MarkdownNode & {
   alt?: unknown
   children?: MarkdownTreeNode[]
-  data?: { zoom?: unknown }
+  data?: { align?: unknown; zoom?: unknown }
   title?: unknown
   url?: unknown
   value?: unknown
@@ -98,7 +102,7 @@ function transformSizedImageHtml(node: MarkdownTreeNode): MarkdownTreeNode {
         url: image.src,
         alt: image.alt,
         title: image.title,
-        data: { zoom: image.zoom },
+        data: { align: image.align, zoom: image.zoom },
       } as MarkdownTreeNode
     }
   }
@@ -121,6 +125,7 @@ const sizedImageSchema = imageSchema.extendSchema((previous) => (ctx) => {
     attrs: {
       ...schema.attrs,
       zoom: { default: 100, validate: 'number' },
+      align: { default: 'left', validate: 'string' },
     },
     parseMarkdown: {
       match: ({ type }) => type === 'image',
@@ -129,11 +134,15 @@ const sizedImageSchema = imageSchema.extendSchema((previous) => (ctx) => {
         const zoom = typeof image.data?.zoom === 'number'
           ? clampImageZoom(image.data.zoom)
           : 100
+        const align = image.data?.align === 'center' || image.data?.align === 'right'
+          ? image.data.align
+          : 'left'
         state.addNode(type, {
           src: String(image.url ?? ''),
           alt: String(image.alt ?? ''),
           title: String(image.title ?? ''),
           zoom,
+          align,
         })
       },
     },
@@ -141,7 +150,10 @@ const sizedImageSchema = imageSchema.extendSchema((previous) => (ctx) => {
       match: (node) => node.type.name === 'image',
       runner: (state, node) => {
         const zoom = clampImageZoom(Number(node.attrs.zoom) || 100)
-        if (zoom === 100) {
+        const align = node.attrs.align === 'center' || node.attrs.align === 'right'
+          ? node.attrs.align
+          : 'left'
+        if (zoom === 100 && align === 'left') {
           schema.toMarkdown.runner(state, node)
           return
         }
@@ -150,6 +162,7 @@ const sizedImageSchema = imageSchema.extendSchema((previous) => (ctx) => {
           alt: String(node.attrs.alt ?? ''),
           title: String(node.attrs.title ?? ''),
           zoom,
+          align,
         }))
       },
     },
@@ -395,13 +408,16 @@ const localImageView = $view(sizedImageSchema.node, () => (
   const updateImage = (updatedNode: ProseNode) => {
     currentNode = updatedNode
     const sequence = ++loadSequence
-    const { src, alt, title, zoom } = updatedNode.attrs as {
+    const { src, alt, title, zoom, align } = updatedNode.attrs as {
       src: string
       alt: string
       title: string
       zoom: number
+      align: ImageAlign
     }
+    const currentAlign = align === 'center' || align === 'right' ? align : 'left'
     currentZoom = clampImageZoom(Number(zoom) || 100)
+    dom.dataset.align = currentAlign
     imageElement.alt = alt || ''
     imageElement.title = title || ''
     imageElement.classList.remove('lume-image--error')
@@ -478,6 +494,8 @@ const localImageView = $view(sizedImageSchema.node, () => (
     event.stopPropagation()
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)).scrollIntoView())
     view.focus()
+    const selection = view.state.selection
+    if (selection instanceof NodeSelection) updateSelectedImageToolbar(view, selection)
   }
 
   dom.addEventListener('pointerdown', selectImage)
@@ -595,12 +613,52 @@ function closeBubbleToolbar() {
   bubbleToolbarOpen.value = false
 }
 
+function closeImageToolbar() {
+  imageToolbarOpen.value = false
+}
+
+function updateSelectedImageToolbar(view: EditorView, selection: NodeSelection) {
+  if (selection.node.type.name !== 'image' || contextMenuOpen.value || !view.hasFocus()) {
+    closeImageToolbar()
+    return
+  }
+
+  const imageElement = view.nodeDOM(selection.from) as HTMLElement | null
+  if (!imageElement) {
+    closeImageToolbar()
+    return
+  }
+
+  const bounds = imageElement.getBoundingClientRect()
+  const toolbarWidth = 90
+  const toolbarHeight = 34
+  const margin = 8
+  const preferredY = bounds.top - toolbarHeight - margin
+  const fallbackY = bounds.bottom + margin
+  imageToolbarPosition.value = {
+    x: Math.max(margin, Math.min(bounds.left + bounds.width / 2 - toolbarWidth / 2, window.innerWidth - toolbarWidth - margin)),
+    y: preferredY >= margin ? preferredY : Math.min(fallbackY, window.innerHeight - toolbarHeight - margin),
+  }
+  selectedImageAlign.value = selection.node.attrs.align === 'center' || selection.node.attrs.align === 'right'
+    ? selection.node.attrs.align
+    : 'left'
+  imageToolbarOpen.value = true
+  closeBubbleToolbar()
+}
+
 function updateBubbleToolbar(view: EditorView | null | undefined) {
   const selection = view?.state?.selection
   if (!view || !selection) {
     closeBubbleToolbar()
+    closeImageToolbar()
     return
   }
+
+  if (selection instanceof NodeSelection && selection.node.type.name === 'image') {
+    updateSelectedImageToolbar(view, selection)
+    return
+  }
+  closeImageToolbar()
 
   const { from, to } = selection
   const hasText = getSelectionHasText(view)
@@ -716,6 +774,23 @@ function clearFormatting() {
   })
 }
 
+function setSelectedImageAlign(align: ImageAlign) {
+  runWithView((view) => {
+    const selection = view.state.selection
+    if (!(selection instanceof NodeSelection) || selection.node.type.name !== 'image') return
+    const tr = view.state.tr.setNodeMarkup(selection.from, undefined, {
+      ...selection.node.attrs,
+      align,
+    })
+    view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, selection.from)).scrollIntoView())
+    selectedImageAlign.value = align
+    requestAnimationFrame(() => {
+      const nextSelection = view.state.selection
+      if (nextSelection instanceof NodeSelection) updateSelectedImageToolbar(view, nextSelection)
+    })
+  })
+}
+
 function selectAllContent() {
   runWithView((view) => {
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)))
@@ -749,17 +824,20 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
 function handleWindowPointerDown() {
   closeContextMenu()
   closeBubbleToolbar()
+  closeImageToolbar()
 }
 
 function handleWindowResize() {
   closeContextMenu()
   closeBubbleToolbar()
+  closeImageToolbar()
 }
 
 function handleWindowKeydown(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
   closeContextMenu()
   closeBubbleToolbar()
+  closeImageToolbar()
 }
 
 function handleNativeImageDrop(event: Event) {
@@ -862,6 +940,43 @@ onBeforeUnmount(() => {
       </button>
       <button type="button" title="复制" aria-label="复制" @click="runNativeEditCommand('copy')">
         <Copy :size="15" :stroke-width="2.1" />
+      </button>
+    </div>
+
+    <div
+      v-if="imageToolbarOpen"
+      class="lume-wysiwyg-pane__bubble-toolbar lume-wysiwyg-pane__image-toolbar"
+      role="toolbar"
+      aria-label="图片对齐"
+      :style="{ left: imageToolbarPosition.x + 'px', top: imageToolbarPosition.y + 'px' }"
+      @pointerdown.stop.prevent
+    >
+      <button
+        type="button"
+        title="左对齐"
+        aria-label="左对齐"
+        :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'left' }"
+        @click="setSelectedImageAlign('left')"
+      >
+        <AlignLeft :size="15" :stroke-width="2.1" />
+      </button>
+      <button
+        type="button"
+        title="居中"
+        aria-label="居中"
+        :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'center' }"
+        @click="setSelectedImageAlign('center')"
+      >
+        <AlignCenter :size="15" :stroke-width="2.1" />
+      </button>
+      <button
+        type="button"
+        title="右对齐"
+        aria-label="右对齐"
+        :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'right' }"
+        @click="setSelectedImageAlign('right')"
+      >
+        <AlignRight :size="15" :stroke-width="2.1" />
       </button>
     </div>
 
@@ -1137,6 +1252,18 @@ onBeforeUnmount(() => {
   user-select: none;
 }
 
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-align='center']) {
+  display: block;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-align='right']) {
+  display: block;
+  margin-right: 0;
+  margin-left: auto;
+}
+
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode) {
   outline: none;
 }
@@ -1202,10 +1329,15 @@ onBeforeUnmount(() => {
 }
 
 .lume-wysiwyg-pane__bubble-toolbar button:hover,
-.lume-wysiwyg-pane__bubble-toolbar button:focus-visible {
+.lume-wysiwyg-pane__bubble-toolbar button:focus-visible,
+.lume-wysiwyg-pane__bubble-toolbar .lume-wysiwyg-pane__toolbar-button--active {
   outline: none;
   background-color: color-mix(in srgb, var(--lume-text-primary) 8%, transparent);
   color: var(--lume-text-primary);
+}
+
+.lume-wysiwyg-pane__image-toolbar {
+  width: 90px;
 }
 
 .lume-wysiwyg-pane__bubble-toolbar svg {
