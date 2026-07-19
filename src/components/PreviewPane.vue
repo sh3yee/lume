@@ -10,6 +10,7 @@ import MarkdownIt from 'markdown-it'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
 import { isTauri, resolveImagePath } from '../types/tauri'
+import { parseSizedImageHtml, serializeSizedImageHtml } from '../utils/imageHtml'
 
 const { activeDocument, content } = useDocument()
 const localImageUrls = ref<Record<string, string>>({})
@@ -17,11 +18,23 @@ const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 
 /** 配置 markdown-it */
 const md = new MarkdownIt({
-  html: false,
+  html: true,
   linkify: true,
   typographer: true,
   breaks: false,
 })
+
+function renderSafeHtmlImage(value: string) {
+  const image = parseSizedImageHtml(value)
+  if (!image) return md.utils.escapeHtml(value)
+  return serializeSizedImageHtml({
+    ...image,
+    src: localImageUrls.value[image.src] ?? image.src,
+  })
+}
+
+md.renderer.rules.html_inline = (tokens, index) => renderSafeHtmlImage(tokens[index].content)
+md.renderer.rules.html_block = (tokens, index) => renderSafeHtmlImage(tokens[index].content)
 
 const defaultImageRenderer = md.renderer.rules.image!
 md.renderer.rules.image = (tokens, index, options, env, renderer) => {
@@ -39,6 +52,10 @@ function collectImageSources(tokens: ReturnType<typeof md.parse>, result = new S
     if (token.type === 'image') {
       const src = token.attrGet('src')
       if (src && !REMOTE_IMAGE_PATTERN.test(src)) result.add(src)
+    }
+    if (token.type === 'html_inline' || token.type === 'html_block') {
+      const image = parseSizedImageHtml(token.content)
+      if (image && !REMOTE_IMAGE_PATTERN.test(image.src)) result.add(image.src)
     }
     if (token.children) collectImageSources(token.children, result)
   }
@@ -251,6 +268,8 @@ const renderedHtml = computed(() => md.render(content.value))
 
 .lume-preview-pane__content :deep(img) {
   max-width: 100%;
+  margin-inline: var(--lume-space-3);
   border-radius: var(--lume-radius-md);
+  vertical-align: text-bottom;
 }
 </style>

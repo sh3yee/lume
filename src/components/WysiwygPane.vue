@@ -24,8 +24,9 @@ import { AllSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { $prose, $view, callCommand, replaceAll } from '@milkdown/kit/utils'
+import { $prose, $remark, $view, callCommand, replaceAll } from '@milkdown/kit/utils'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
+import type { Node as MarkdownNode } from '@milkdown/kit/transformer'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
 import {
@@ -34,6 +35,12 @@ import {
   resolveImagePath,
   storeClipboardImage,
 } from '../types/tauri'
+import {
+  MIN_IMAGE_ZOOM,
+  clampImageZoom,
+  parseSizedImageHtml,
+  serializeSizedImageHtml,
+} from '../utils/imageHtml'
 
 const { activeDocument, content, updateCursor } = useDocument()
 
@@ -55,6 +62,7 @@ interface NativeImageDropDetail {
 }
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
+const ONLINE_IMAGE_URL_PATTERN = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp|avif|svg)(?:[?#]\S*)?$/i
 const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -64,6 +72,82 @@ const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
   'image/avif': 'avif',
   'image/svg+xml': 'svg',
 }
+
+type MarkdownTreeNode = MarkdownNode & {
+  alt?: unknown
+  children?: MarkdownTreeNode[]
+  data?: { zoom?: unknown }
+  title?: unknown
+  url?: unknown
+  value?: unknown
+}
+
+function transformSizedImageHtml(node: MarkdownTreeNode): MarkdownTreeNode {
+  if (node.type === 'html' && typeof node.value === 'string') {
+    const image = parseSizedImageHtml(node.value)
+    if (image) {
+      return {
+        type: 'image',
+        url: image.src,
+        alt: image.alt,
+        title: image.title,
+        data: { zoom: image.zoom },
+      } as MarkdownTreeNode
+    }
+  }
+
+  if (node.children) node.children = node.children.map(transformSizedImageHtml)
+  return node
+}
+
+const sizedImageRemarkPlugin = $remark(
+  'sizedImageHtml',
+  () => () => (tree: MarkdownNode) => {
+    transformSizedImageHtml(tree as MarkdownTreeNode)
+  },
+)
+
+const sizedImageSchema = imageSchema.extendSchema((previous) => (ctx) => {
+  const schema = previous(ctx)
+  return {
+    ...schema,
+    attrs: {
+      ...schema.attrs,
+      zoom: { default: 100, validate: 'number' },
+    },
+    parseMarkdown: {
+      match: ({ type }) => type === 'image',
+      runner: (state, node, type) => {
+        const image = node as MarkdownTreeNode
+        const zoom = typeof image.data?.zoom === 'number'
+          ? clampImageZoom(image.data.zoom)
+          : 100
+        state.addNode(type, {
+          src: String(image.url ?? ''),
+          alt: String(image.alt ?? ''),
+          title: String(image.title ?? ''),
+          zoom,
+        })
+      },
+    },
+    toMarkdown: {
+      match: (node) => node.type.name === 'image',
+      runner: (state, node) => {
+        const zoom = clampImageZoom(Number(node.attrs.zoom) || 100)
+        if (zoom === 100) {
+          schema.toMarkdown.runner(state, node)
+          return
+        }
+        state.addNode('html', undefined, serializeSizedImageHtml({
+          src: String(node.attrs.src ?? ''),
+          alt: String(node.attrs.alt ?? ''),
+          title: String(node.attrs.title ?? ''),
+          zoom,
+        }))
+      },
+    },
+  }
+})
 
 function createParagraphAfterCodeBlock(state: EditorState) {
   const { $from } = state.selection
@@ -118,6 +202,58 @@ function insertImage(
   view.focus()
 }
 
+function getImageAlt(src: string) {
+  try {
+    const fileName = decodeURIComponent(new URL(src).pathname.split('/').at(-1) ?? '')
+    return fileName.replace(/\.[^.]+$/, '') || 'image'
+  } catch {
+    return 'image'
+  }
+}
+
+function convertImageUrlBeforeCursor(view: EditorView, createFollowingParagraph: boolean) {
+  const { state } = view
+  const { $from, empty } = state.selection
+  if (
+    !empty
+    || $from.parent.type.name !== 'paragraph'
+    || $from.parentOffset !== $from.parent.content.size
+  ) return false
+
+  const textBeforeCursor = $from.parent.textBetween(0, $from.parentOffset, undefined, '\ufffc')
+  const src = textBeforeCursor.match(
+    /https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp|avif|svg)(?:[?#]\S*)?$/i,
+  )?.[0]
+  if (!src) return false
+
+  const contentFrom = $from.pos - src.length
+  const contentTo = $from.pos
+  const blockEnd = $from.after()
+  const image = state.schema.nodes.image.create({ src, alt: getImageAlt(src), title: '' })
+  let tr = state.tr.replaceWith(contentFrom, contentTo, image)
+
+  if (createFollowingParagraph) {
+    const insertPos = tr.mapping.map(blockEnd)
+    tr = tr
+      .insert(insertPos, state.schema.nodes.paragraph.create())
+      .setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)))
+  } else {
+    tr = tr.setSelection(TextSelection.near(tr.doc.resolve(contentFrom + image.nodeSize)))
+  }
+
+  view.dispatch(tr.scrollIntoView())
+  return true
+}
+
+function insertPastedImageUrl(view: EditorView, event: ClipboardEvent) {
+  const src = event.clipboardData?.getData('text/plain').trim() ?? ''
+  if (!ONLINE_IMAGE_URL_PATTERN.test(src)) return false
+
+  event.preventDefault()
+  insertImage(view, src, getImageAlt(src))
+  return true
+}
+
 async function importClipboardImages(view: EditorView, files: File[]) {
   const documentId = activeDocument.value?.id
   const documentPath = activeDocument.value?.path ?? null
@@ -168,38 +304,119 @@ async function importNativeImages(view: EditorView, detail: NativeImageDropDetai
   }
 }
 
-const localImageView = $view(imageSchema.node, () => (node: ProseNode) => {
-  const dom = document.createElement('img')
+const localImageView = $view(sizedImageSchema.node, () => (
+  node: ProseNode,
+  view: EditorView,
+  getPos: () => number | undefined,
+) => {
+  const dom = document.createElement('span')
+  const imageElement = document.createElement('img')
+  const resizeHandle = document.createElement('span')
   let currentNode = node
+  let currentZoom = 100
   let loadSequence = 0
+  let resizeCleanup: (() => void) | null = null
+  let animationFrame: number | null = null
+
+  dom.className = 'lume-image-resizer'
+  dom.contentEditable = 'false'
+  resizeHandle.className = 'lume-image-resizer__handle'
+  resizeHandle.title = '拖动调整图片大小'
+  dom.append(imageElement, resizeHandle)
+
+  const applyZoom = () => {
+    animationFrame = null
+    const parentWidth = dom.parentElement?.getBoundingClientRect().width ?? 0
+    const naturalWidth = imageElement.naturalWidth || parentWidth
+    if (parentWidth > 0 && naturalWidth > 0) {
+      const baseWidth = Math.min(parentWidth, naturalWidth)
+      dom.style.width = `${Math.min(parentWidth, baseWidth * currentZoom / 100)}px`
+    }
+  }
+
+  const scheduleZoom = () => {
+    if (animationFrame !== null) cancelAnimationFrame(animationFrame)
+    animationFrame = requestAnimationFrame(applyZoom)
+  }
 
   const updateImage = (updatedNode: ProseNode) => {
     currentNode = updatedNode
     const sequence = ++loadSequence
-    const { src, alt, title } = updatedNode.attrs as { src: string; alt: string; title: string }
-    dom.alt = alt || ''
-    dom.title = title || ''
-    dom.classList.remove('lume-image--error')
+    const { src, alt, title, zoom } = updatedNode.attrs as {
+      src: string
+      alt: string
+      title: string
+      zoom: number
+    }
+    currentZoom = clampImageZoom(Number(zoom) || 100)
+    imageElement.alt = alt || ''
+    imageElement.title = title || ''
+    imageElement.classList.remove('lume-image--error')
+    scheduleZoom()
 
     if (!src || REMOTE_IMAGE_PATTERN.test(src) || !isTauri()) {
-      dom.src = src
+      imageElement.src = src
       return
     }
 
-    dom.removeAttribute('src')
+    imageElement.removeAttribute('src')
     void resolveImagePath(
       src,
       activeDocument.value?.path ?? null,
       activeDocument.value?.id ?? '',
     ).then((path) => {
-      if (sequence === loadSequence) dom.src = convertFileSrc(path)
+      if (sequence === loadSequence) imageElement.src = convertFileSrc(path)
     }).catch((error) => {
-      if (sequence === loadSequence) dom.classList.add('lume-image--error')
+      if (sequence === loadSequence) imageElement.classList.add('lume-image--error')
       console.warn(`无法加载本地图片 ${src}:`, error)
     })
   }
 
-  dom.addEventListener('error', () => dom.classList.add('lume-image--error'))
+  const handleResizeStart = (event: PointerEvent) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    const startX = event.clientX
+    const startWidth = dom.getBoundingClientRect().width
+    const baseWidth = startWidth / (currentZoom / 100)
+    const parentWidth = dom.parentElement?.getBoundingClientRect().width ?? startWidth
+    let nextZoom = currentZoom
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const width = Math.min(parentWidth, Math.max(baseWidth * MIN_IMAGE_ZOOM / 100, startWidth + moveEvent.clientX - startX))
+      nextZoom = clampImageZoom(width / baseWidth * 100)
+      dom.style.width = `${Math.min(parentWidth, baseWidth * nextZoom / 100)}px`
+    }
+
+    const finishResize = () => {
+      resizeCleanup?.()
+      resizeCleanup = null
+      const pos = getPos()
+      if (typeof pos !== 'number' || nextZoom === currentZoom) {
+        scheduleZoom()
+        return
+      }
+      view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, {
+        ...currentNode.attrs,
+        zoom: nextZoom,
+      }).scrollIntoView())
+    }
+
+    resizeCleanup = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', finishResize)
+      window.removeEventListener('pointercancel', finishResize)
+    }
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', finishResize)
+    window.addEventListener('pointercancel', finishResize)
+  }
+
+  imageElement.addEventListener('load', scheduleZoom)
+  imageElement.addEventListener('error', () => imageElement.classList.add('lume-image--error'))
+  resizeHandle.addEventListener('pointerdown', handleResizeStart)
+  window.addEventListener('resize', scheduleZoom)
   updateImage(node)
   return {
     dom,
@@ -207,6 +424,11 @@ const localImageView = $view(imageSchema.node, () => (node: ProseNode) => {
       if (updatedNode.type !== currentNode.type) return false
       updateImage(updatedNode)
       return true
+    },
+    destroy() {
+      resizeCleanup?.()
+      if (animationFrame !== null) cancelAnimationFrame(animationFrame)
+      window.removeEventListener('resize', scheduleZoom)
     },
   }
 })
@@ -216,10 +438,17 @@ const imageInputPlugin = $prose(() => new Plugin({
     handlePaste(view, event) {
       const images = Array.from(event.clipboardData?.files ?? [])
         .filter((file) => file.type in IMAGE_MIME_EXTENSIONS)
-      if (images.length === 0) return false
+      if (images.length === 0) return insertPastedImageUrl(view, event)
       event.preventDefault()
       void importClipboardImages(view, images)
       return true
+    },
+    handleKeyDown(view, event) {
+      if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return false
+      if (event.key !== 'Enter' && event.key !== ' ') return false
+      const converted = convertImageUrlBeforeCursor(view, event.key === 'Enter')
+      if (converted) event.preventDefault()
+      return converted
     },
     handleDrop(view, event) {
       const images = Array.from(event.dataTransfer?.files ?? [])
@@ -464,6 +693,8 @@ onMounted(async () => {
         })
     })
     .use(commonmark)
+    .use(sizedImageSchema)
+    .use(sizedImageRemarkPlugin)
     .use(history)
     .use(localImageView)
     .use(imageInputPlugin)
@@ -780,6 +1011,52 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane__content :deep(img) {
   max-width: 100%;
   border-radius: var(--lume-radius-md);
+  vertical-align: text-bottom;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer) {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0 var(--lume-space-3);
+  line-height: 0;
+  vertical-align: text-bottom;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer img) {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  user-select: none;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode) {
+  outline: none;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode img) {
+  box-shadow: 0 0 0 2px var(--lume-accent-default);
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer__handle) {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--lume-bg-surface-raised);
+  border-radius: 3px;
+  background-color: var(--lume-accent-default);
+  box-shadow: var(--lume-shadow-sm);
+  cursor: nwse-resize;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode .lume-image-resizer__handle) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .lume-wysiwyg-pane__bubble-toolbar {
