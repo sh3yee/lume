@@ -53,6 +53,18 @@ function createParagraphAfterCodeBlock(state: EditorState) {
     .scrollIntoView()
 }
 
+function convertEmptyCodeBlockToParagraph(state: EditorState) {
+  const { $from, empty } = state.selection
+  const codeBlock = $from.parent
+  if (!empty || codeBlock.type.name !== 'code_block' || codeBlock.content.size !== 0) return null
+
+  const blockPos = $from.before()
+  const tr = state.tr.setNodeMarkup(blockPos, state.schema.nodes.paragraph)
+  return tr
+    .setSelection(TextSelection.near(tr.doc.resolve(blockPos + 1)))
+    .scrollIntoView()
+}
+
 const codeBlockExitPlugin = $prose(() => new Plugin({
   appendTransaction(_transactions, _oldState, newState) {
     if (newState.doc.lastChild?.type.name !== 'code_block') return null
@@ -61,6 +73,22 @@ const codeBlockExitPlugin = $prose(() => new Plugin({
   },
   props: {
     handleKeyDown(view, event) {
+      if (
+        event.key === 'Backspace'
+        && !event.isComposing
+        && !event.shiftKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.altKey
+      ) {
+        const tr = convertEmptyCodeBlockToParagraph(view.state)
+        if (!tr) return false
+
+        event.preventDefault()
+        view.dispatch(tr)
+        return true
+      }
+
       if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
 
       const tr = createParagraphAfterCodeBlock(view.state)
