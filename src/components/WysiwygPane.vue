@@ -843,6 +843,54 @@ function pasteText() {
   })
 }
 
+function insertMarkdownTemplate(template: string, cursorOffset = template.length) {
+  runWithView((view) => {
+    const { from, to } = view.state.selection
+    const tr = view.state.tr.insertText(template, from, to)
+    const cursorPos = from + cursorOffset
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView())
+  })
+}
+
+function insertHeading(level: number) {
+  runWithView((view) => {
+    const heading = view.state.schema.nodes.heading
+    if (!heading) return
+    const { from, to } = view.state.selection
+    const text = view.state.doc.textBetween(from, to, '\n', '\n') || '标题'
+    const node = heading.create({ level }, view.state.schema.text(text))
+    const tr = view.state.tr.replaceRangeWith(from, to, node)
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 1, from + 1 + text.length)).scrollIntoView())
+  })
+}
+
+function insertBlockquote() {
+  runWithView((view) => {
+    const blockquote = view.state.schema.nodes.blockquote
+    const paragraph = view.state.schema.nodes.paragraph
+    if (!blockquote || !paragraph) return
+    const { from, to } = view.state.selection
+    const text = view.state.doc.textBetween(from, to, '\n', '\n') || '引用'
+    const node = blockquote.create(null, paragraph.create(null, view.state.schema.text(text)))
+    const tr = view.state.tr.replaceRangeWith(from, to, node)
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 2, from + 2 + text.length)).scrollIntoView())
+  })
+}
+
+function insertList(ordered: boolean) {
+  runWithView((view) => {
+    const list = ordered ? view.state.schema.nodes.ordered_list : view.state.schema.nodes.bullet_list
+    const listItem = view.state.schema.nodes.list_item
+    const paragraph = view.state.schema.nodes.paragraph
+    if (!list || !listItem || !paragraph) return
+    const { from, to } = view.state.selection
+    const text = view.state.doc.textBetween(from, to, '\n', '\n') || '列表项'
+    const node = list.create(null, listItem.create(null, paragraph.create(null, view.state.schema.text(text))))
+    const tr = view.state.tr.replaceRangeWith(from, to, node)
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 3, from + 3 + text.length)).scrollIntoView())
+  })
+}
+
 function clearFormatting() {
   runWithView((view) => {
     const { state } = view
@@ -1268,12 +1316,41 @@ onBeforeUnmount(() => {
       <button type="button" role="menuitem" @click="pasteText">
         <span>粘贴</span>
       </button>
-      <button type="button" role="menuitem" @click="runCommand(insertHrCommand.key)">
-        <span>插入分割线</span>
-      </button>
-      <button type="button" role="menuitem" @click="runCommand(createCodeBlockCommand.key)">
-        <span>插入代码块</span>
-      </button>
+      <div class="lume-wysiwyg-pane__context-submenu" role="none">
+        <button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+          <span>插入</span>
+          <span class="lume-wysiwyg-pane__context-submenu-arrow">›</span>
+        </button>
+        <div class="lume-wysiwyg-pane__context-submenu-menu" role="menu" aria-label="插入">
+          <button type="button" role="menuitem" @click="runCommand(insertHrCommand.key)">
+            <span>分割线</span>
+          </button>
+          <button type="button" role="menuitem" @click="runCommand(createCodeBlockCommand.key)">
+            <span>代码块</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertBlockquote">
+            <span>引用</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertList(false)">
+            <span>无序列表</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertList(true)">
+            <span>有序列表</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertHeading(1)">
+            <span>一级标题</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertHeading(2)">
+            <span>二级标题</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertHeading(3)">
+            <span>三级标题</span>
+          </button>
+          <button type="button" role="menuitem" @click="insertMarkdownTemplate('![图片描述](图片地址)', 7)">
+            <span>图片</span>
+          </button>
+        </div>
+      </div>
       <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
       <button type="button" role="menuitem" @click="runCommand(undoCommand.key)">
         <span>撤销</span>
@@ -1726,10 +1803,55 @@ onBeforeUnmount(() => {
 }
 
 .lume-wysiwyg-pane__context-menu button:hover,
-.lume-wysiwyg-pane__context-menu button:focus-visible {
+.lume-wysiwyg-pane__context-menu button:focus-visible,
+.lume-wysiwyg-pane__context-submenu:hover > button,
+.lume-wysiwyg-pane__context-submenu:focus-within > button {
   outline: none;
   background-color: color-mix(in srgb, var(--lume-text-primary) 7%, transparent);
   color: var(--lume-text-primary);
+}
+
+.lume-wysiwyg-pane__context-submenu {
+  position: relative;
+}
+
+.lume-wysiwyg-pane__context-submenu::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 10px;
+  height: calc(100% + 16px);
+}
+
+.lume-wysiwyg-pane__context-submenu > button {
+  justify-content: space-between;
+}
+
+.lume-wysiwyg-pane__context-submenu-arrow {
+  color: var(--lume-text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.lume-wysiwyg-pane__context-submenu-menu {
+  position: absolute;
+  top: -8px;
+  left: calc(100% + 2px);
+  width: 156px;
+  display: none;
+  padding: var(--lume-space-2);
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-md);
+  background-color: var(--lume-bg-overlay);
+  color: var(--lume-text-secondary);
+  box-shadow: var(--lume-shadow-md);
+  backdrop-filter: blur(14px);
+}
+
+.lume-wysiwyg-pane__context-submenu:hover .lume-wysiwyg-pane__context-submenu-menu,
+.lume-wysiwyg-pane__context-submenu:focus-within .lume-wysiwyg-pane__context-submenu-menu {
+  display: block;
 }
 
 .lume-wysiwyg-pane__context-separator {
