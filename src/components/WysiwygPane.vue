@@ -18,10 +18,11 @@ import {
   toggleStrongCommand,
 } from '@milkdown/kit/preset/commonmark'
 import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
-import { AllSelection, TextSelection } from '@milkdown/kit/prose/state'
+import { AllSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
+import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { callCommand, replaceAll } from '@milkdown/kit/utils'
+import { $prose, callCommand, replaceAll } from '@milkdown/kit/utils'
 import { useDocument } from '@composables/useDocument'
 
 const { content, updateCursor } = useDocument()
@@ -34,6 +35,40 @@ const selectionHasText = ref(false)
 let editor: Editor | null = null
 let editorMarkdown = content.value
 let editorClipboardText = ''
+
+function createParagraphAfterCodeBlock(state: EditorState) {
+  const { $from } = state.selection
+  const codeBlock = $from.parent
+  if (codeBlock.type.name !== 'code_block' || !$from.parentOffset) return null
+  if ($from.parentOffset !== codeBlock.content.size || !codeBlock.textContent.endsWith('\n')) return null
+
+  const paragraph = state.schema.nodes.paragraph.create()
+  const insertPos = $from.after()
+  const tr = state.tr.insert(insertPos, paragraph)
+  return tr
+    .setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)))
+    .scrollIntoView()
+}
+
+const codeBlockExitPlugin = $prose(() => new Plugin({
+  appendTransaction(_transactions, _oldState, newState) {
+    if (newState.doc.lastChild?.type.name !== 'code_block') return null
+
+    return newState.tr.insert(newState.doc.content.size, newState.schema.nodes.paragraph.create())
+  },
+  props: {
+    handleKeyDown(view, event) {
+      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
+
+      const tr = createParagraphAfterCodeBlock(view.state)
+      if (!tr) return false
+
+      event.preventDefault()
+      view.dispatch(tr)
+      return true
+    },
+  },
+}))
 
 function closeContextMenu() {
   contextMenuOpen.value = false
@@ -180,6 +215,7 @@ onMounted(async () => {
     })
     .use(commonmark)
     .use(history)
+    .use(codeBlockExitPlugin)
     .use(listener)
     .create()
 
