@@ -20,7 +20,7 @@ import {
   toggleStrongCommand,
 } from '@milkdown/kit/preset/commonmark'
 import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
-import { AllSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
+import { AllSelection, NodeSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
@@ -42,7 +42,14 @@ import {
   serializeSizedImageHtml,
 } from '../utils/imageHtml'
 
-const { activeDocument, content, updateCursor } = useDocument()
+const {
+  activeDocument,
+  content,
+  persistDocumentSession,
+  updateDocumentContent,
+  updateDocumentCursor,
+} = useDocument()
+const boundDocumentId = activeDocument.value?.id ?? null
 
 const editorRef = ref<HTMLDivElement | null>(null)
 const contextMenu = ref<HTMLDivElement | null>(null)
@@ -245,6 +252,52 @@ function convertImageUrlBeforeCursor(view: EditorView, createFollowingParagraph:
   return true
 }
 
+function selectImageFromEvent(view: EditorView, event: MouseEvent | PointerEvent) {
+  if (event.button !== 0) return false
+  const imageElement = (event.target as Element | null)?.closest('.lume-image-resizer')
+  if (!(imageElement instanceof HTMLElement)) return false
+
+  event.preventDefault()
+  event.stopPropagation()
+  view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, view.posAtDOM(imageElement, 0))).scrollIntoView())
+  view.focus()
+  return true
+}
+
+function deleteAdjacentImage(view: EditorView, event: KeyboardEvent) {
+  if (event.isComposing || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return false
+
+  const { state } = view
+  const { selection } = state
+  if (selection instanceof NodeSelection && selection.node.type.name === 'image') {
+    event.preventDefault()
+    view.dispatch(state.tr.delete(selection.from, selection.to).scrollIntoView())
+    return true
+  }
+  if (!selection.empty) return false
+
+  const { $from } = selection
+  const before = $from.nodeBefore
+  const after = $from.nodeAfter
+  const target = event.key === 'Delete'
+    ? after?.type.name === 'image'
+      ? { from: $from.pos, to: $from.pos + after.nodeSize }
+      : before?.type.name === 'image'
+        ? { from: $from.pos - before.nodeSize, to: $from.pos }
+        : null
+    : before?.type.name === 'image'
+      ? { from: $from.pos - before.nodeSize, to: $from.pos }
+      : after?.type.name === 'image'
+        ? { from: $from.pos, to: $from.pos + after.nodeSize }
+        : null
+
+  if (!target) return false
+  event.preventDefault()
+  view.dispatch(state.tr.delete(target.from, target.to).scrollIntoView())
+  return true
+}
+
 function insertPastedImageUrl(view: EditorView, event: ClipboardEvent) {
   const src = event.clipboardData?.getData('text/plain').trim() ?? ''
   if (!ONLINE_IMAGE_URL_PATTERN.test(src)) return false
@@ -413,6 +466,22 @@ const localImageView = $view(sizedImageSchema.node, () => (
     window.addEventListener('pointercancel', finishResize)
   }
 
+  const getImagePos = () => {
+    const pos = getPos()
+    return typeof pos === 'number' ? pos : view.posAtDOM(dom, 0)
+  }
+
+  const selectImage = (event: MouseEvent | PointerEvent) => {
+    if (event.button !== 0) return
+    const pos = getImagePos()
+    event.preventDefault()
+    event.stopPropagation()
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)).scrollIntoView())
+    view.focus()
+  }
+
+  dom.addEventListener('pointerdown', selectImage)
+  dom.addEventListener('mousedown', selectImage)
   imageElement.addEventListener('load', scheduleZoom)
   imageElement.addEventListener('error', () => imageElement.classList.add('lume-image--error'))
   resizeHandle.addEventListener('pointerdown', handleResizeStart)
@@ -420,6 +489,15 @@ const localImageView = $view(sizedImageSchema.node, () => (
   updateImage(node)
   return {
     dom,
+    selectNode() {
+      dom.classList.add('ProseMirror-selectednode')
+    },
+    deselectNode() {
+      dom.classList.remove('ProseMirror-selectednode')
+    },
+    stopEvent(event: Event) {
+      return event.type === 'mousedown' || event.type === 'pointerdown'
+    },
     update(updatedNode: ProseNode) {
       if (updatedNode.type !== currentNode.type) return false
       updateImage(updatedNode)
@@ -435,6 +513,17 @@ const localImageView = $view(sizedImageSchema.node, () => (
 
 const imageInputPlugin = $prose(() => new Plugin({
   props: {
+    handleClickOn(view, _pos, node, nodePos, event, direct) {
+      if (!direct || node.type.name !== 'image') return false
+      event.preventDefault()
+      view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)).scrollIntoView())
+      view.focus()
+      return true
+    },
+    handleDOMEvents: {
+      mousedown: selectImageFromEvent,
+      pointerdown: selectImageFromEvent,
+    },
     handlePaste(view, event) {
       const images = Array.from(event.clipboardData?.files ?? [])
         .filter((file) => file.type in IMAGE_MIME_EXTENSIONS)
@@ -444,6 +533,7 @@ const imageInputPlugin = $prose(() => new Plugin({
       return true
     },
     handleKeyDown(view, event) {
+      if (deleteAdjacentImage(view, event)) return true
       if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return false
       if (event.key !== 'Enter' && event.key !== ' ') return false
       const converted = convertImageUrlBeforeCursor(view, event.key === 'Enter')
@@ -505,8 +595,14 @@ function closeBubbleToolbar() {
   bubbleToolbarOpen.value = false
 }
 
-function updateBubbleToolbar(view: EditorView) {
-  const { from, to } = view.state.selection
+function updateBubbleToolbar(view: EditorView | null | undefined) {
+  const selection = view?.state?.selection
+  if (!view || !selection) {
+    closeBubbleToolbar()
+    return
+  }
+
+  const { from, to } = selection
   const hasText = getSelectionHasText(view)
   if (!hasText || contextMenuOpen.value || !view.hasFocus()) {
     closeBubbleToolbar()
@@ -532,7 +628,9 @@ function updateBubbleToolbar(view: EditorView) {
 }
 
 function getSelectionHasText(view: EditorView) {
-  const { from, to, empty } = view.state.selection
+  const selection = view.state?.selection
+  if (!selection) return false
+  const { from, to, empty } = selection
   return !empty && view.state.doc.textBetween(from, to, '\n', '\n').trim().length > 0
 }
 
@@ -683,13 +781,21 @@ onMounted(async () => {
       ctx.get(listenerCtx)
         .markdownUpdated((_ctx, markdown) => {
           editorMarkdown = markdown
-          if (content.value !== markdown) content.value = markdown
+          if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
+            persistDocumentSession()
+          }
         })
         .selectionUpdated((ctx, selection) => {
           const before = selection.$from.doc.textBetween(0, selection.from, '\n', '\n')
           const lines = before.split('\n')
-          updateCursor(lines.length, (lines.at(-1)?.length || 0) + 1)
-          updateBubbleToolbar(ctx.get(editorViewCtx))
+          if (boundDocumentId) updateDocumentCursor(boundDocumentId, lines.length, (lines.at(-1)?.length || 0) + 1)
+          let view: EditorView | null = null
+          try {
+            view = ctx.get(editorViewCtx)
+          } catch {
+            view = null
+          }
+          updateBubbleToolbar(view)
         })
     })
     .use(commonmark)
@@ -711,7 +817,7 @@ onMounted(async () => {
 
 /** 打开文件或新建文档时，将外部 Markdown 更新到 Milkdown。 */
 watch(content, (markdown) => {
-  if (!editor || markdown === editorMarkdown) return
+  if (!editor || activeDocument.value?.id !== boundDocumentId || markdown === editorMarkdown) return
   editorMarkdown = markdown
   editor.action(replaceAll(markdown))
 })
@@ -1037,6 +1143,11 @@ onBeforeUnmount(() => {
 
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode img) {
   box-shadow: 0 0 0 2px var(--lume-accent-default);
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer + .ProseMirror-separator) {
+  display: inline-block;
+  width: var(--lume-space-2);
 }
 
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer__handle) {

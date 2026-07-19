@@ -200,6 +200,19 @@ function updateCursor(line: number, column: number) {
   if (activeDocument.value) activeDocument.value.cursor = { line, column }
 }
 
+function updateDocumentCursor(id: string, line: number, column: number) {
+  const document = documents.value.find((item) => item.id === id)
+  if (document) document.cursor = { line, column }
+}
+
+function updateDocumentContent(id: string, text: string, markDirty = true) {
+  const document = documents.value.find((item) => item.id === id)
+  if (!document || document.content === text) return false
+  document.content = text
+  if (markDirty) document.isDirty = true
+  return true
+}
+
 /** 设置文档内容 */
 function setContent(text: string, markDirty = true) {
   if (!activeDocument.value) return
@@ -356,6 +369,8 @@ export function useDocument() {
     cursor,
     stats,
     updateCursor,
+    updateDocumentCursor,
+    updateDocumentContent,
     setContent,
     newDocument,
     openDocument,
