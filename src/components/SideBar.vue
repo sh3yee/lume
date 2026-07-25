@@ -313,7 +313,7 @@ onBeforeUnmount(() => {
      </div>
    </template>
 
-  <div v-else class="lume-sidebar__content lume-sidebar__content--outline" role="tabpanel">
+  <div v-else class="lume-sidebar__content lume-sidebar__content--outline" role="tabpanel" @contextmenu.prevent>
       <button v-for="item in outlineItems" :key="`${item.index}-${item.text}`" class="lume-sidebar__outline-item"
         :style="{ paddingLeft: `${12 + (item.level - 1) * 14}px` }" type="button" :title="item.text"
         @click="navigateToHeading(item.index)">

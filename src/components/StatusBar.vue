@@ -20,7 +20,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <footer class="lume-statusbar">
+ <footer class="lume-statusbar" @contextmenu.prevent>
     <div class="lume-statusbar__left">
      <button class="lume-statusbar__sidebar-trigger"
         :class="{ 'lume-statusbar__sidebar-trigger--active': props.sidebarVisible }" type="button"
