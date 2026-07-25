@@ -7,7 +7,7 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlignCenter, AlignLeft, AlignRight, Bold, ChevronDown, ChevronUp, Code, Copy, Italic, RemoveFormatting, X } from 'lucide-vue-next'
+import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Copy, Italic, RemoveFormatting } from 'lucide-vue-next'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
 import type { CmdKey } from '@milkdown/kit/core'
 import {
@@ -48,6 +48,7 @@ import {
   constrainOverlayPosition,
   positionOverlayAroundBounds,
 } from '@/features/editor/overlays/overlayPosition.ts'
+import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
 
 const {
   activeDocument,
@@ -59,7 +60,7 @@ const {
 const boundDocumentId = activeDocument.value?.id ?? null
 
 const editorRef = ref<HTMLDivElement | null>(null)
-const findInput = ref<HTMLInputElement | null>(null)
+const findReplaceWidget = ref<{ focus: (select?: boolean) => void } | null>(null)
 const contextMenu = ref<HTMLDivElement | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -72,8 +73,7 @@ const imageToolbarOpen = ref(false)
 const imageToolbarPosition = ref({ x: 0, y: 0 })
 const selectedImageAlign = ref<ImageAlign>('left')
 const findReplaceOpen = ref(false)
-const findQuery = ref('')
-const replaceValue = ref('')
+let activeFindQuery = ''
 const findMatches = ref<SearchMatch[]>([])
 const activeFindMatchIndex = ref(-1)
 let editor: Editor | null = null
@@ -982,20 +982,14 @@ function selectAllContent() {
   })
 }
 
-function syncFindMatches(view: EditorView, preferredIndex = activeFindMatchIndex.value) {
-  const matches = findTextMatches(view.state.doc, findQuery.value)
+function syncFindMatches(view: EditorView, query = activeFindQuery, preferredIndex = activeFindMatchIndex.value) {
+  activeFindQuery = query
+  const matches = findTextMatches(view.state.doc, query)
   const activeIndex = matches.length === 0 ? -1 : Math.max(0, Math.min(preferredIndex, matches.length - 1))
   findMatches.value = matches
   activeFindMatchIndex.value = activeIndex
   updateSearchPlugin(view, matches, activeIndex)
   return { activeIndex, matches }
-}
-
-function focusFindInput(select = false) {
-  void nextTick(() => {
-    findInput.value?.focus()
-    if (select) findInput.value?.select()
-  })
 }
 
 function openFindReplace(select = true) {
@@ -1007,7 +1001,7 @@ function openFindReplace(select = true) {
     const view = ctx.get(editorViewCtx)
     syncFindMatches(view)
   })
-  focusFindInput(select)
+  void nextTick(() => findReplaceWidget.value?.focus(select))
 }
 
 function closeFindReplace() {
@@ -1029,10 +1023,10 @@ function selectFindMatch(view: EditorView, index: number) {
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, match.from, match.to)).scrollIntoView())
 }
 
-function moveFindMatch(direction: 1 | -1) {
+function moveFindMatch(direction: 1 | -1, query = activeFindQuery) {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    const { matches } = syncFindMatches(view)
+    const { matches } = syncFindMatches(view, query)
     if (matches.length === 0) return
     const nextIndex = (activeFindMatchIndex.value + direction + matches.length) % matches.length
     selectFindMatch(view, nextIndex)
@@ -1040,23 +1034,23 @@ function moveFindMatch(direction: 1 | -1) {
   })
 }
 
-function handleFindQueryInput() {
+function handleFindQueryInput(query: string) {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    const { activeIndex } = syncFindMatches(view, 0)
+    const { activeIndex } = syncFindMatches(view, query, 0)
     if (activeIndex >= 0) selectFindMatch(view, activeIndex)
   })
 }
 
-function replaceCurrentMatch() {
+function replaceCurrentMatch(query: string, replacement: string) {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    const { matches, activeIndex } = syncFindMatches(view)
+    const { matches, activeIndex } = syncFindMatches(view, query)
     const match = matches[activeIndex]
     if (!match) return
-    const tr = view.state.tr.insertText(replaceValue.value, match.from, match.to)
+    const tr = view.state.tr.insertText(replacement, match.from, match.to)
     view.dispatch(tr.scrollIntoView())
-    const nextMatches = findTextMatches(view.state.doc, findQuery.value)
+    const nextMatches = findTextMatches(view.state.doc, query)
     const nextIndex = nextMatches.length === 0 ? -1 : Math.min(activeIndex, nextMatches.length - 1)
     findMatches.value = nextMatches
     activeFindMatchIndex.value = nextIndex
@@ -1065,13 +1059,13 @@ function replaceCurrentMatch() {
   })
 }
 
-function replaceAllMatches() {
+function replaceAllMatches(query: string, replacement: string) {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    const { matches } = syncFindMatches(view)
+    const { matches } = syncFindMatches(view, query)
     if (matches.length === 0) return
     const tr = matches.reduceRight(
-      (transaction, match) => transaction.insertText(replaceValue.value, match.from, match.to),
+      (transaction, match) => transaction.insertText(replacement, match.from, match.to),
       view.state.tr,
     )
     view.dispatch(tr.scrollIntoView())
@@ -1079,18 +1073,6 @@ function replaceAllMatches() {
     activeFindMatchIndex.value = -1
     updateSearchPlugin(view, [], -1)
   })
-}
-
-function handleFindKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
-    event.preventDefault()
-    moveFindMatch(event.shiftKey ? -1 : 1)
-    return
-  }
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeFindReplace()
-  }
 }
 
 function handleContextMenuKeydown(event: KeyboardEvent) {
@@ -1292,44 +1274,9 @@ onBeforeUnmount(() => {
    <div ref="editorRef" class="lume-wysiwyg-pane__content lume-markdown-content"
       @contextmenu.prevent="openContextMenu"></div>
 
-    <div v-if="findReplaceOpen" class="lume-wysiwyg-pane__find-widget" @keydown="handleFindKeydown">
-      <div class="lume-wysiwyg-pane__find-row">
-        <input
-          ref="findInput"
-          v-model="findQuery"
-          class="lume-wysiwyg-pane__find-input"
-          type="text"
-          placeholder="查找"
-          @input="handleFindQueryInput"
-        />
-        <span class="lume-wysiwyg-pane__find-count">
-          {{ findMatches.length > 0 ? `${activeFindMatchIndex + 1} / ${findMatches.length}` : '0 / 0' }}
-        </span>
-        <button type="button" title="上一个" aria-label="上一个" :disabled="findMatches.length === 0" @click="moveFindMatch(-1)">
-          <ChevronUp :size="14" :stroke-width="2" />
-        </button>
-        <button type="button" title="下一个" aria-label="下一个" :disabled="findMatches.length === 0" @click="moveFindMatch(1)">
-          <ChevronDown :size="14" :stroke-width="2" />
-        </button>
-        <button type="button" title="关闭" aria-label="关闭" @click="closeFindReplace">
-          <X :size="14" :stroke-width="2" />
-        </button>
-      </div>
-      <div class="lume-wysiwyg-pane__find-row">
-       <input
-          v-model="replaceValue"
-          class="lume-wysiwyg-pane__find-input"
-          type="text"
-          placeholder="替换"
-        />
-        <button type="button" :disabled="findMatches.length === 0" @click="replaceCurrentMatch">
-          替换
-        </button>
-        <button type="button" :disabled="findMatches.length === 0" @click="replaceAllMatches">
-          全部替换
-        </button>
-      </div>
-    </div>
+  <FindReplaceWidget v-show="findReplaceOpen" ref="findReplaceWidget" :active-index="activeFindMatchIndex"
+      :match-count="findMatches.length" @close="closeFindReplace" @find="handleFindQueryInput" @move="moveFindMatch"
+      @replace="replaceCurrentMatch" @replace-all="replaceAllMatches" />
   </section>
 
   <Teleport to="body">
@@ -1663,88 +1610,6 @@ data-tooltip="右对齐"
 .lume-wysiwyg-pane__content :deep(.lume-search-match--active) {
   background-color: color-mix(in srgb, var(--lume-accent-default) 48%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--lume-accent-default) 70%, transparent);
-}
-
-.lume-wysiwyg-pane__find-widget {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  z-index: var(--lume-z-tooltip);
-  width: 348px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 9px;
-  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 70%, transparent);
-  border-radius: 12px;
-  background-color: color-mix(in srgb, var(--lume-bg-overlay) 82%, transparent);
-  color: var(--lume-text-secondary);
-  box-shadow: 0 18px 48px rgb(0 0 0 / 16%), 0 2px 8px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 18%);
-  backdrop-filter: blur(28px) saturate(1.35);
-}
-
-.lume-wysiwyg-pane__find-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.lume-wysiwyg-pane__find-input {
-  min-width: 0;
-  flex: 1;
-  height: 28px;
-  padding: 0 9px;
-  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 84%, transparent);
-  border-radius: 7px;
-  background-color: color-mix(in srgb, var(--lume-bg-surface-raised) 86%, transparent);
-  color: var(--lume-text-primary);
-  font-size: 13px;
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 5%);
-}
-
-.lume-wysiwyg-pane__find-input:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--lume-accent-default) 72%, var(--lume-border-subtle));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lume-accent-default) 16%, transparent), inset 0 1px 2px rgb(0 0 0 / 5%);
-}
-
-.lume-wysiwyg-pane__find-count {
-  width: 52px;
-  color: var(--lume-text-tertiary);
-  font-size: 12px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.lume-wysiwyg-pane__find-widget button {
-  height: 28px;
-  min-width: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 9px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--lume-text-secondary);
-  font-size: 13px;
-  cursor: default;
-}
-
-.lume-wysiwyg-pane__find-widget button:hover:not(:disabled),
-.lume-wysiwyg-pane__find-widget button:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--lume-border-subtle) 72%, transparent);
-  background-color: color-mix(in srgb, var(--lume-text-primary) 7%, transparent);
-  color: var(--lume-text-primary);
-}
-
-.lume-wysiwyg-pane__find-widget button:disabled {
-  color: var(--lume-text-disabled);
-}
-
-.lume-wysiwyg-pane__find-widget svg {
-  flex: none;
 }
 
 .lume-wysiwyg-pane__bubble-toolbar {
