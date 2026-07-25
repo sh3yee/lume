@@ -44,6 +44,10 @@ import {
   serializeSizedImageHtml,
   type ImageAlign,
 } from '../utils/imageHtml'
+import {
+  constrainOverlayPosition,
+  positionOverlayAroundBounds,
+} from '@/features/editor/overlays/overlayPosition.ts'
 
 const {
   activeDocument,
@@ -56,7 +60,6 @@ const boundDocumentId = activeDocument.value?.id ?? null
 
 const editorRef = ref<HTMLDivElement | null>(null)
 const findInput = ref<HTMLInputElement | null>(null)
-const replaceInput = ref<HTMLInputElement | null>(null)
 const contextMenu = ref<HTMLDivElement | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -719,15 +722,7 @@ function updateSelectedImageToolbar(view: EditorView, selection: NodeSelection) 
   }
 
   const bounds = imageElement.getBoundingClientRect()
-  const toolbarWidth = 90
-  const toolbarHeight = 34
-  const margin = 8
-  const preferredY = bounds.top - toolbarHeight - margin
-  const fallbackY = bounds.bottom + margin
-  imageToolbarPosition.value = {
-    x: Math.max(margin, Math.min(bounds.left + bounds.width / 2 - toolbarWidth / 2, window.innerWidth - toolbarWidth - margin)),
-    y: preferredY >= margin ? preferredY : Math.min(fallbackY, window.innerHeight - toolbarHeight - margin),
-  }
+  imageToolbarPosition.value = positionOverlayAroundBounds(bounds, { width: 90, height: 34 })
   selectedImageAlign.value = selection.node.attrs.align === 'center' || selection.node.attrs.align === 'right'
     ? selection.node.attrs.align
     : 'left'
@@ -763,19 +758,14 @@ function updateBubbleToolbar(view: EditorView | null | undefined) {
 
   const start = view.coordsAtPos(from)
   const end = view.coordsAtPos(to)
-  const toolbarWidth = selectionTouchesCodeBlock(view.state) ? 34 : 184
-  const toolbarHeight = 34
-  const margin = 8
   const selectionLeft = Math.min(start.left, end.left)
   const selectionRight = Math.max(start.right, end.right)
-  const x = selectionLeft + (selectionRight - selectionLeft) / 2 - toolbarWidth / 2
-  const preferredY = Math.min(start.top, end.top) - toolbarHeight - margin
-  const fallbackY = Math.max(start.bottom, end.bottom) + margin
-
-  bubbleToolbarPosition.value = {
-    x: Math.max(margin, Math.min(x, window.innerWidth - toolbarWidth - margin)),
-    y: preferredY >= margin ? preferredY : Math.min(fallbackY, window.innerHeight - toolbarHeight - margin),
-  }
+  bubbleToolbarPosition.value = positionOverlayAroundBounds({
+    top: Math.min(start.top, end.top),
+    right: selectionRight,
+    bottom: Math.max(start.bottom, end.bottom),
+    left: selectionLeft,
+  }, { width: selectionTouchesCodeBlock(view.state) ? 34 : 184, height: 34 })
   selectionInCodeBlock.value = selectionTouchesCodeBlock(view.state)
   bubbleToolbarOpen.value = true
 }
@@ -820,7 +810,6 @@ function getConvertibleBlockPosition(state: EditorState) {
 async function openContextMenu(event: MouseEvent) {
   if (!editor) return
   const menuWidth = 192
-  const margin = 8
 
   editor.action((ctx) => {
     const view = ctx.get(editorViewCtx)
@@ -836,10 +825,10 @@ async function openContextMenu(event: MouseEvent) {
     contextBlockCanConvertToParagraph.value = getConvertibleBlockPosition(view.state) !== null
   })
 
-  contextMenuPosition.value = {
-    x: Math.max(margin, Math.min(event.clientX, window.innerWidth - menuWidth - margin)),
-    y: Math.max(margin, event.clientY),
-  }
+  contextMenuPosition.value = constrainOverlayPosition(
+    { x: event.clientX, y: event.clientY },
+    { width: menuWidth, height: 0 },
+  )
   closeBubbleToolbar()
   contextMenuOpen.value = true
   await nextTick()
@@ -849,10 +838,10 @@ async function openContextMenu(event: MouseEvent) {
 
   // 菜单项会随选区状态变化，必须渲染后按真实尺寸约束到窗口内。
   const bounds = menu.getBoundingClientRect()
-  contextMenuPosition.value = {
-    x: Math.max(margin, Math.min(event.clientX, window.innerWidth - bounds.width - margin)),
-    y: Math.max(margin, Math.min(event.clientY, window.innerHeight - bounds.height - margin)),
-  }
+  contextMenuPosition.value = constrainOverlayPosition(
+    { x: event.clientX, y: event.clientY },
+    { width: bounds.width, height: bounds.height },
+  )
   await nextTick()
   menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
 }
@@ -1327,8 +1316,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <div class="lume-wysiwyg-pane__find-row">
-        <input
-          ref="replaceInput"
+       <input
           v-model="replaceValue"
           class="lume-wysiwyg-pane__find-input"
           type="text"
@@ -1581,139 +1569,21 @@ data-tooltip="右对齐"
   outline: none;
   box-shadow: none;
 }
-/* Markdown 元素样式 */
-.lume-wysiwyg-pane__content :deep(h1) {
-  font-size: 1.8em;
-  font-weight: var(--lume-font-weight-bold);
-  margin: var(--lume-space-8) 0 var(--lume-space-4);
-  padding-bottom: var(--lume-space-2);
-  border-bottom: 1px solid var(--lume-border-subtle);
-}
-
-.lume-wysiwyg-pane__content :deep(h2) {
-  font-size: 1.4em;
-  font-weight: var(--lume-font-weight-semibold);
-  margin: var(--lume-space-7) 0 var(--lume-space-3);
-  padding-bottom: var(--lume-space-1);
-  border-bottom: 1px solid var(--lume-border-subtle);
-}
-
-.lume-wysiwyg-pane__content :deep(h3) {
-  font-size: 1.2em;
-  font-weight: var(--lume-font-weight-semibold);
-  margin: var(--lume-space-6) 0 var(--lume-space-3);
-}
-
-.lume-wysiwyg-pane__content :deep(h4),
-.lume-wysiwyg-pane__content :deep(h5),
-.lume-wysiwyg-pane__content :deep(h6) {
-  font-size: 1em;
-  font-weight: var(--lume-font-weight-semibold);
-  margin: var(--lume-space-5) 0 var(--lume-space-2);
-}
-
+/* WYSIWYG 编辑态保留换行、表格选区与 NodeView 专用样式。 */
 .lume-wysiwyg-pane__content :deep(p) {
-  margin: var(--lume-space-3) 0;
   white-space: pre-wrap;
-}
-
-.lume-wysiwyg-pane__content :deep(a) {
-  color: var(--lume-accent-default);
-  text-decoration: none;
-  transition: color var(--lume-transition-fast);
-}
-
-.lume-wysiwyg-pane__content :deep(a:hover) {
-  color: var(--lume-accent-hover);
-  text-decoration: underline;
-}
-
-.lume-wysiwyg-pane__content :deep(strong) {
-  font-weight: var(--lume-font-weight-bold);
-  color: var(--lume-text-primary);
-}
-
-.lume-wysiwyg-pane__content :deep(em) {
-  font-style: italic;
-}
-
-.lume-wysiwyg-pane__content :deep(ul),
-.lume-wysiwyg-pane__content :deep(ol) {
-  padding-left: var(--lume-space-6);
-  margin: var(--lume-space-3) 0;
-}
-
-.lume-wysiwyg-pane__content :deep(li) {
-  margin: var(--lume-space-1) 0;
-}
-
-.lume-wysiwyg-pane__content :deep(blockquote) {
-  margin: var(--lume-space-4) 0;
-  padding: var(--lume-space-2) var(--lume-space-5);
-  border-left: 3px solid var(--lume-accent-default);
-  background-color: var(--lume-accent-subtle);
-  border-radius: 0 var(--lume-radius-sm) var(--lume-radius-sm) 0;
-  color: var(--lume-text-secondary);
-}
-
-.lume-wysiwyg-pane__content :deep(blockquote p) {
-  margin: var(--lume-space-1) 0;
-}
-
-.lume-wysiwyg-pane__content :deep(code) {
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  font-size: 0.875em;
-  padding: var(--lume-space-1) var(--lume-space-2);
-  background-color: var(--lume-code-bg);
-  border: 1px solid var(--lume-code-border);
-  border-radius: var(--lume-radius-sm);
-}
-
-.lume-wysiwyg-pane__content :deep(pre) {
-  margin: var(--lume-space-4) 0;
-  padding: var(--lume-space-4) var(--lume-space-5);
-  background-color: var(--lume-code-bg);
-  border: 1px solid var(--lume-code-border);
-  border-radius: var(--lume-radius-md);
-  overflow-x: auto;
-}
-
-.lume-wysiwyg-pane__content :deep(pre code) {
-  padding: 0;
-  background: none;
-  border: none;
-  font-size: 0.875em;
-  line-height: 1.6;
-}
-
-.lume-wysiwyg-pane__content :deep(hr) {
-  margin: var(--lume-space-6) 0;
-  border: none;
-  border-top: 1px solid var(--lume-border-subtle);
 }
 
 .lume-wysiwyg-pane__content :deep(table) {
   display: block;
-  width: 100%;
   max-width: 100%;
-    overflow-x: auto;
-  border-collapse: collapse;
-  margin: var(--lume-space-4) 0;
-  font-size: 0.875em;
+  overflow-x: auto;
 }
 
 .lume-wysiwyg-pane__content :deep(th),
 .lume-wysiwyg-pane__content :deep(td) {
   position: relative;
-    min-width: 112px;
-  padding: var(--lume-space-2) var(--lume-space-4);
-  border: 1px solid var(--lume-border-default);
-  text-align: left;
-}
-
-.lume-wysiwyg-pane__content :deep(th) {
-  background-color: var(--lume-bg-surface);
-  font-weight: var(--lume-font-weight-semibold);
+  min-width: 112px;
 }
 
 .lume-wysiwyg-pane__content :deep(.selectedCell::after) {
@@ -1723,12 +1593,6 @@ data-tooltip="右对齐"
   background-color: color-mix(in srgb, var(--lume-accent-default) 14%, transparent);
   pointer-events: none;
 }
-.lume-wysiwyg-pane__content :deep(img) {
-  max-width: 100%;
-  border-radius: var(--lume-radius-md);
-  vertical-align: text-bottom;
-}
-
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer) {
   position: relative;
   display: inline-block;

@@ -161,9 +161,9 @@ src-tauri/src/
 
 ### 公共内容层
 
-- [ ] 提取 WYSIWYG 与 Preview 共用的 Markdown 内容样式。
-- [ ] 保留 WYSIWYG 的选区、NodeView 和编辑态专用样式。
-- [ ] 保留 Preview 的只读渲染和滚动容器专用样式。
+- [x] 提取 WYSIWYG 与 Preview 共用的 Markdown 内容样式。
+- [x] 保留 WYSIWYG 的选区、NodeView 和编辑态专用样式。
+- [x] 保留 Preview 的只读渲染和滚动容器专用样式。
 
 ### Overlay UI
 
@@ -171,7 +171,7 @@ src-tauri/src/
 - [ ] 提取图片工具栏。
 - [ ] 提取编辑器右键菜单。
 - [ ] 提取查找替换组件及其 UI 状态。
-- [ ] 提取 Overlay 定位与窗口边界约束逻辑。
+- [x] 提取 Overlay 定位与窗口边界约束逻辑。
 
 ### Milkdown 内核
 
