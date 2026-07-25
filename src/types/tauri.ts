@@ -22,6 +22,13 @@ export interface MarkdownFile {
   content: string
 }
 
+export interface WorkspaceEntry {
+  name: string
+  path: string
+  isDirectory: boolean
+  children: WorkspaceEntry[]
+}
+
 export interface ImageAsset {
   markdownPath: string
   localPath: string
@@ -96,6 +103,20 @@ export async function startupFilePaths(): Promise<string[]> {
 /** 读取用户从操作系统拖入的 Markdown 文件。 */
 export async function readDroppedMarkdownFile(path: string): Promise<MarkdownFile> {
   return invokeCommand<MarkdownFile>('lume_read_markdown_file', { path })
+}
+
+/** 读取工作区中的 Markdown 目录树。 */
+export async function readWorkspace(path: string): Promise<WorkspaceEntry[]> {
+  return invokeCommand<WorkspaceEntry[]>('lume_read_workspace', { path })
+}
+
+/** 在工作区目录中创建 Markdown 文件或子目录。 */
+export async function createWorkspaceEntry(
+  parentPath: string,
+  name: string,
+  isDirectory: boolean,
+): Promise<string> {
+  return invokeCommand<string>('lume_create_workspace_entry', { parentPath, name, isDirectory })
 }
 
 /** 将拖入的本地图片复制到文档资源目录。 */

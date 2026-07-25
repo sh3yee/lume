@@ -84,12 +84,12 @@ function handleSystemThemeChange() {
   if (themePreference.value === 'system') applyTheme()
 }
 
-function toggleViewMode() {
-  viewMode.value = viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'
-}
-
 function openSettings() {
   settingsOpen.value = true
+}
+
+function toggleSidebar() {
+  sidebarVisible.value = !sidebarVisible.value
 }
 
 function isValidWindowState(value: unknown): value is WindowState {
@@ -297,22 +297,24 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="lume-app">
-    <TitleBar :theme="resolvedTheme" @toggle-view-mode="toggleViewMode" @close-window="handleCloseWindow" />
-    <DocumentTabs :file-drop-paths="fileDragPaths" />
+   <TitleBar :theme="resolvedTheme" @open-settings="openSettings" @close-window="handleCloseWindow" />
 
     <div class="lume-app__body">
       <SideBar v-if="sidebarVisible" />
 
+    <div class="lume-app__workspace">
+        <DocumentTabs :file-drop-paths="fileDragPaths" />
       <main class="lume-app__main">
-        <WysiwygPane v-if="viewMode === 'wysiwyg'" :key="activeDocumentId" />
-        <template v-else>
-          <EditorPane />
-          <PreviewPane />
-        </template>
-      </main>
-    </div>
+          <WysiwygPane v-if="viewMode === 'wysiwyg'" :key="activeDocumentId" />
+          <template v-else>
+            <EditorPane />
+            <PreviewPane />
+          </template>
+        </main>
+      </div>
+   </div>
 
-    <StatusBar @new-file="newFile" @open-file="openFile" @open-settings="openSettings" />
+  <StatusBar :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
     <SettingsDialog :open="settingsOpen" :view-mode="viewMode" :theme="themePreference" @close="settingsOpen = false"
       @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
     <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
@@ -324,7 +326,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .lume-app {
   position: relative;
-    isolation: isolate;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -340,6 +342,14 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
+.lume-app__workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
 .lume-app__main {
   flex: 1;
   display: flex;

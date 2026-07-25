@@ -28,7 +28,7 @@ const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 
 const emit = defineEmits<{
-  (e: 'toggle-view-mode'): void
+  (e: 'open-settings'): void
   (e: 'close-window'): void
 }>()
 
@@ -114,8 +114,8 @@ onBeforeUnmount(() => {
 <template>
   <header class="lume-titlebar" data-tauri-drag-region @contextmenu.prevent="openContextMenu">
     <div class="lume-titlebar__left" data-tauri-drag-region>
-      <button class="lume-titlebar__logo" type="button" title="切换编辑与预览布局" aria-label="切换编辑与预览布局"
-        data-tauri-drag-region="false" @click="emit('toggle-view-mode')">
+     <button class="lume-titlebar__logo" type="button" title="偏好设置" aria-label="打开偏好设置" data-tauri-drag-region="false"
+        @click="emit('open-settings')">
         <img class="lume-titlebar__logo-image" :src="props.theme === 'dark' ? darkLogoUrl : lightLogoUrl" alt="" />
       </button>
     </div>
