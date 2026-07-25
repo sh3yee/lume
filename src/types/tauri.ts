@@ -263,6 +263,16 @@ export async function onWindowResized(handler: (state: WindowState) => void): Pr
   })
 }
 
+/** 监听系统发起的窗口关闭请求，并允许应用先执行未保存修改保护。 */
+export async function onWindowCloseRequested(handler: () => void): Promise<UnlistenFn | null> {
+  if (!isTauri()) return null
+  const { getCurrentWindow } = await import('@tauri-apps/api/window')
+  return getCurrentWindow().onCloseRequested((event) => {
+    event.preventDefault()
+    handler()
+  })
+}
+
 /** 显示当前桌面窗口 */
 export async function showWindow(): Promise<void> {
   if (!isTauri()) return
@@ -274,5 +284,5 @@ export async function showWindow(): Promise<void> {
 export async function closeWindow(): Promise<void> {
   if (!isTauri()) return
   const { getCurrentWindow } = await import('@tauri-apps/api/window')
-  await getCurrentWindow().close()
+  await getCurrentWindow().destroy()
 }

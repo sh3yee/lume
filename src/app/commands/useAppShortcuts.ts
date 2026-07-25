@@ -8,9 +8,10 @@ import { onBeforeUnmount, onMounted } from 'vue'
 export function useAppShortcuts(commands: {
   closeActiveDocument: () => void
   newFile: () => void
-  openFile: () => void | Promise<void>
+  openFile: () => unknown
   openSettings: () => void
-  saveFile: () => void | Promise<void>
+  saveFile: () => unknown
+  saveFileAs: () => unknown
 }) {
   /** 桌面编辑器常用文件快捷键。 */
   function handleShortcut(event: KeyboardEvent) {
@@ -27,7 +28,7 @@ export function useAppShortcuts(commands: {
 
     if (key === 'n' || key === 't') commands.newFile()
     if (key === 'o') void commands.openFile()
-    if (key === 's') void commands.saveFile()
+    if (key === 's') void (event.shiftKey ? commands.saveFileAs() : commands.saveFile())
     if (key === 'w') commands.closeActiveDocument()
   }
 

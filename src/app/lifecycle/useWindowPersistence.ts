@@ -7,6 +7,7 @@ import { onBeforeUnmount, onMounted } from 'vue'
 import {
   closeWindow,
   getWindowState,
+  onWindowCloseRequested,
   onWindowResized,
   restoreWindowState,
   showWindow,
@@ -41,7 +42,8 @@ function saveWindowState(state: WindowState) {
   localStorage.setItem(WINDOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
-export function useWindowPersistence() {
+export function useWindowPersistence(handleCloseRequest?: () => void) {
+  let unlistenWindowCloseRequested: (() => void) | null = null
   let unlistenWindowResized: (() => void) | null = null
 
   async function persistWindowState() {
@@ -63,9 +65,13 @@ export function useWindowPersistence() {
     }
 
     unlistenWindowResized = await onWindowResized(saveWindowState).catch(() => null)
+    if (handleCloseRequest) {
+      unlistenWindowCloseRequested = await onWindowCloseRequested(handleCloseRequest).catch(() => null)
+    }
   })
 
   onBeforeUnmount(() => {
+    unlistenWindowCloseRequested?.()
     unlistenWindowResized?.()
     void persistWindowState()
   })

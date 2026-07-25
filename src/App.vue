@@ -52,6 +52,7 @@ import { useDocumentSessionPersistence } from '@/app/lifecycle/useDocumentSessio
 import { useFileDrop } from '@/app/lifecycle/useFileDrop'
 import { useWindowPersistence } from '@/app/lifecycle/useWindowPersistence'
 import { useThemePreference } from '@/app/preferences/useThemePreference'
+import type { OpenDocument } from '@/features/documents/model/documentTypes'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
@@ -69,10 +70,10 @@ const {
   pendingCloseDocument,
   persistDocumentSession,
   requestCloseDocument,
+  requestCloseDocuments,
 } = useDocument()
 const { themePreference, resolvedTheme } = useThemePreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
-const { closeApplicationWindow } = useWindowPersistence()
 const { flushDocumentSession } = useDocumentSessionPersistence(
   documents,
   activeDocumentId,
@@ -96,12 +97,19 @@ function toggleSidebar() {
 /** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
 async function handleCloseWindow() {
   flushDocumentSession()
-  await closeApplicationWindow()
+  requestCloseDocuments(
+    documents.value.filter((document: OpenDocument) => document.isDirty).map((document: OpenDocument) => document.id),
+    (completed: boolean) => {
+      if (completed) void closeApplicationWindow()
+    },
+  )
 }
 
-async function saveCurrentFile() {
+const { closeApplicationWindow } = useWindowPersistence(handleCloseWindow)
+
+async function saveCurrentFile(saveAs = false) {
   try {
-    await saveFile()
+    await saveFile(saveAs)
   } catch (error) {
     showMessage(`保存失败：${getErrorMessage(error)}`)
   }
@@ -120,6 +128,7 @@ useAppShortcuts({
   openFile,
   openSettings,
   saveFile: saveCurrentFile,
+  saveFileAs: () => saveCurrentFile(true),
 })
 </script>
 
