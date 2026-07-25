@@ -19,6 +19,7 @@ import {
   toggleInlineCodeCommand,
   toggleStrongCommand,
 } from '@milkdown/kit/preset/commonmark'
+import { gfm, insertTableCommand } from '@milkdown/preset-gfm'
 import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
 import { AllSelection, NodeSelection, Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
@@ -856,7 +857,7 @@ async function openContextMenu(event: MouseEvent) {
   menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
 }
 
-function runCommand(command: CmdKey<unknown>, payload?: unknown) {
+function runCommand<T>(command: CmdKey<T>, payload?: T) {
   closeContextMenu()
   editor?.action((ctx) => {
     ctx.get(editorViewCtx).focus()
@@ -1258,6 +1259,7 @@ onMounted(async () => {
         })
     })
     .use(commonmark)
+    .use(gfm)
     .use(sizedImageSchema)
     .use(sizedImageRemarkPlugin)
     .use(history)
@@ -1464,6 +1466,9 @@ data-tooltip="右对齐"
           </button>
           <button type="button" role="menuitem" @click="runCommand(createCodeBlockCommand.key)">
             <span>代码块</span>
+          </button>
+         <button type="button" role="menuitem" @click="runCommand(insertTableCommand.key, { row: 3, col: 3 })">
+            <span>表格</span>
           </button>
           <button type="button" role="menuitem" @click="insertBlockquote">
             <span>引用</span>
@@ -1687,7 +1692,10 @@ data-tooltip="右对齐"
 }
 
 .lume-wysiwyg-pane__content :deep(table) {
+  display: block;
   width: 100%;
+  max-width: 100%;
+    overflow-x: auto;
   border-collapse: collapse;
   margin: var(--lume-space-4) 0;
   font-size: 0.875em;
@@ -1695,6 +1703,8 @@ data-tooltip="右对齐"
 
 .lume-wysiwyg-pane__content :deep(th),
 .lume-wysiwyg-pane__content :deep(td) {
+  position: relative;
+    min-width: 112px;
   padding: var(--lume-space-2) var(--lume-space-4);
   border: 1px solid var(--lume-border-default);
   text-align: left;
@@ -1705,6 +1715,13 @@ data-tooltip="右对齐"
   font-weight: var(--lume-font-weight-semibold);
 }
 
+.lume-wysiwyg-pane__content :deep(.selectedCell::after) {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--lume-accent-default) 14%, transparent);
+  pointer-events: none;
+}
 .lume-wysiwyg-pane__content :deep(img) {
   max-width: 100%;
   border-radius: var(--lume-radius-md);

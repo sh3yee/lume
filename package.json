@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@milkdown/kit": "^7.21.3",
+    "@milkdown/preset-gfm": "^7.21.3",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1",
