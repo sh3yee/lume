@@ -879,14 +879,12 @@ function runNativeEditCommand(command: 'copy' | 'cut') {
     if (empty) return
 
     editorClipboardText = view.state.doc.textBetween(from, to, '\n', '\n')
+    // 原生剪切事件会由 ProseMirror 写入剪贴板并删除选区，无需再次手动删除。
     document.execCommand(command)
 
     if (command === 'copy') {
       closeBubbleToolbar()
-      return
     }
-
-    view.dispatch(view.state.tr.delete(from, to).scrollIntoView())
   })
 }
 
