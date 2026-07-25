@@ -7,7 +7,6 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Copy, Italic, RemoveFormatting } from 'lucide-vue-next'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
 import type { CmdKey } from '@milkdown/kit/core'
 import {
@@ -49,6 +48,8 @@ import {
   positionOverlayAroundBounds,
 } from '@/features/editor/overlays/overlayPosition.ts'
 import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
+import ImageToolbar from '@/features/editor/overlays/ImageToolbar.vue'
+import TextSelectionToolbar from '@/features/editor/overlays/TextSelectionToolbar.vue'
 
 const {
   activeDocument,
@@ -1280,70 +1281,17 @@ onBeforeUnmount(() => {
   </section>
 
   <Teleport to="body">
-    <div
+   <TextSelectionToolbar
       v-if="bubbleToolbarOpen"
-      class="lume-wysiwyg-pane__bubble-toolbar"
-      role="toolbar"
-      aria-label="选中文本格式"
-      :style="{ left: bubbleToolbarPosition.x + 'px', top: bubbleToolbarPosition.y + 'px' }"
-      @pointerdown.stop.prevent
-    >
-     <template v-if="!selectionInCodeBlock">
-        <button type="button" aria-label="加粗" data-tooltip="加粗" @click="runCommand(toggleStrongCommand.key)">
-          <Bold :size="15" :stroke-width="2.25" />
-        </button>
-       <button type="button" aria-label="斜体" data-tooltip="斜体" @click="runCommand(toggleEmphasisCommand.key)">
-          <Italic :size="15" :stroke-width="2.25" />
-        </button>
-       <button type="button" aria-label="行内代码" data-tooltip="行内代码" @click="runCommand(toggleInlineCodeCommand.key)">
-          <Code :size="15" :stroke-width="2.1" />
-        </button>
-        <div class="lume-wysiwyg-pane__bubble-separator" role="separator"></div>
-       <button type="button" aria-label="清除行内格式" data-tooltip="清除行内格式" @click="clearInlineFormatting">
-          <RemoveFormatting :size="15" :stroke-width="2.1" />
-        </button>
-     </template>
-      <button type="button" aria-label="复制" data-tooltip="复制" @click="runNativeEditCommand('copy')">
-        <Copy :size="15" :stroke-width="2.1" />
-      </button>
-    </div>
+:in-code-block="selectionInCodeBlock"
+      :position="bubbleToolbarPosition" @clear-formatting="clearInlineFormatting" @copy="runNativeEditCommand('copy')"
+      @toggle-bold="runCommand(toggleStrongCommand.key)" @toggle-inline-code="runCommand(toggleInlineCodeCommand.key)"
+      @toggle-italic="runCommand(toggleEmphasisCommand.key)" />
 
-    <div
+  <ImageToolbar
       v-if="imageToolbarOpen"
-      class="lume-wysiwyg-pane__bubble-toolbar lume-wysiwyg-pane__image-toolbar"
-      role="toolbar"
-      aria-label="图片对齐"
-      :style="{ left: imageToolbarPosition.x + 'px', top: imageToolbarPosition.y + 'px' }"
-      @pointerdown.stop.prevent
-    >
-      <button
-type="button"
-        aria-label="左对齐"
-data-tooltip="左对齐"
-        :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'left' }"
-        @click="setSelectedImageAlign('left')"
-      >
-        <AlignLeft :size="15" :stroke-width="2.1" />
-      </button>
-      <button
-type="button"
-        aria-label="居中"
-data-tooltip="居中"
-        :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'center' }"
-        @click="setSelectedImageAlign('center')"
-      >
-        <AlignCenter :size="15" :stroke-width="2.1" />
-      </button>
-      <button
-type="button"
-        aria-label="右对齐"
-data-tooltip="右对齐"
-        :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'right' }"
-        @click="setSelectedImageAlign('right')"
-      >
-        <AlignRight :size="15" :stroke-width="2.1" />
-      </button>
-    </div>
+:align="selectedImageAlign" :position="imageToolbarPosition"
+      @align="setSelectedImageAlign" />
 
     <div
       v-if="contextMenuOpen"
@@ -1610,89 +1558,6 @@ data-tooltip="右对齐"
 .lume-wysiwyg-pane__content :deep(.lume-search-match--active) {
   background-color: color-mix(in srgb, var(--lume-accent-default) 48%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--lume-accent-default) 70%, transparent);
-}
-
-.lume-wysiwyg-pane__bubble-toolbar {
-  position: fixed;
-  z-index: var(--lume-z-tooltip);
-  height: 34px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 78%, transparent);
-  border-radius: 9px;
-  background-color: color-mix(in srgb, var(--lume-bg-overlay) 88%, transparent);
-  color: var(--lume-text-secondary);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 10%);
-  user-select: none;
-  backdrop-filter: blur(20px) saturate(1.35);
-}
-
-.lume-wysiwyg-pane__bubble-toolbar button {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  cursor: default;
-}
-
-.lume-wysiwyg-pane__bubble-toolbar button::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  z-index: 1;
-  width: max-content;
-  max-width: 140px;
-  padding: 4px 7px;
-  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 78%, transparent);
-  border-radius: 6px;
-  background-color: var(--lume-bg-overlay);
-  color: var(--lume-text-primary);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
-  font-size: 12px;
-  font-weight: var(--lume-font-weight-normal);
-  line-height: 1.4;
-  pointer-events: none;
-  opacity: 0;
-  transform: translate(-50%, -2px);
-  transition: opacity 100ms ease, transform 100ms ease;
-}
-
-.lume-wysiwyg-pane__bubble-toolbar button:hover::after,
-.lume-wysiwyg-pane__bubble-toolbar button:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-.lume-wysiwyg-pane__bubble-toolbar button:hover,
-.lume-wysiwyg-pane__bubble-toolbar button:focus-visible,
-.lume-wysiwyg-pane__bubble-toolbar .lume-wysiwyg-pane__toolbar-button--active {
-  outline: none;
-  background-color: color-mix(in srgb, var(--lume-text-primary) 8%, transparent);
-  color: var(--lume-text-primary);
-}
-
-.lume-wysiwyg-pane__image-toolbar {
-  width: 90px;
-}
-
-.lume-wysiwyg-pane__bubble-toolbar svg {
-  flex: none;
-}
-
-.lume-wysiwyg-pane__bubble-separator {
-  width: 1px;
-  height: 16px;
-  margin: 0 3px;
-  background-color: color-mix(in srgb, var(--lume-border-subtle) 82%, transparent);
 }
 
 .lume-wysiwyg-pane__context-menu {

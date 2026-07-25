@@ -1,0 +1,79 @@
+.lume-floating-toolbar {
+  position: fixed;
+  z-index: var(--lume-z-tooltip);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 78%, transparent);
+  border-radius: 9px;
+  background-color: color-mix(in srgb, var(--lume-bg-overlay) 88%, transparent);
+  color: var(--lume-text-secondary);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 10%);
+  user-select: none;
+  backdrop-filter: blur(20px) saturate(1.35);
+}
+
+.lume-floating-toolbar button {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+}
+
+.lume-floating-toolbar button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 140px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 78%, transparent);
+  border-radius: 6px;
+  background-color: var(--lume-bg-overlay);
+  color: var(--lume-text-primary);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
+  font-size: 12px;
+  font-weight: var(--lume-font-weight-normal);
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -2px);
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.lume-floating-toolbar button:hover::after,
+.lume-floating-toolbar button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.lume-floating-toolbar button:hover,
+.lume-floating-toolbar button:focus-visible,
+.lume-floating-toolbar button.is-active {
+  outline: none;
+  background-color: color-mix(in srgb, var(--lume-text-primary) 8%, transparent);
+  color: var(--lume-text-primary);
+}
+
+.lume-floating-toolbar svg {
+  flex: none;
+}
+
+.lume-floating-toolbar__separator {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background-color: color-mix(in srgb, var(--lume-border-subtle) 82%, transparent);
+}
