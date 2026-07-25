@@ -819,7 +819,6 @@ function getConvertibleBlockPosition(state: EditorState) {
 async function openContextMenu(event: MouseEvent) {
   if (!editor) return
   const menuWidth = 192
-  const menuHeight = 292
   const margin = 8
 
   editor.action((ctx) => {
@@ -838,12 +837,23 @@ async function openContextMenu(event: MouseEvent) {
 
   contextMenuPosition.value = {
     x: Math.max(margin, Math.min(event.clientX, window.innerWidth - menuWidth - margin)),
-    y: Math.max(margin, Math.min(event.clientY, window.innerHeight - menuHeight - margin)),
+    y: Math.max(margin, event.clientY),
   }
   closeBubbleToolbar()
   contextMenuOpen.value = true
   await nextTick()
-  contextMenu.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+
+  const menu = contextMenu.value
+  if (!menu) return
+
+  // 菜单项会随选区状态变化，必须渲染后按真实尺寸约束到窗口内。
+  const bounds = menu.getBoundingClientRect()
+  contextMenuPosition.value = {
+    x: Math.max(margin, Math.min(event.clientX, window.innerWidth - bounds.width - margin)),
+    y: Math.max(margin, Math.min(event.clientY, window.innerHeight - bounds.height - margin)),
+  }
+  await nextTick()
+  menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
 }
 
 function runCommand(command: CmdKey<unknown>, payload?: unknown) {
@@ -1509,6 +1519,7 @@ data-tooltip="右对齐"
 .lume-wysiwyg-pane__content {
   flex: 1;
   display: flex;
+  flex-direction: column;
   width: 100%;
   min-height: 100%;
   color: var(--lume-text-primary);
@@ -1516,6 +1527,13 @@ data-tooltip="右对齐"
   line-height: 1.8;
 }
 
+/* 独立占位区会真实增加滚动高度，不会被编辑器的 Flex 高度计算抵消。 */
+.lume-wysiwyg-pane__content::after {
+  content: '';
+  flex: 0 0 max(var(--lume-space-10), 5vh);
+  width: 100%;
+  pointer-events: none;
+}
 /* 滚动条 */
 .lume-wysiwyg-pane::-webkit-scrollbar {
   width: 10px;
@@ -1538,7 +1556,7 @@ data-tooltip="右对齐"
 /* Milkdown 外层保持全宽，正文维持适合阅读的居中宽度。 */
 .lume-wysiwyg-pane__content :deep(.milkdown) {
   box-sizing: border-box;
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   width: 100%;
   max-width: var(--lume-preview-max-width);
@@ -1551,6 +1569,7 @@ data-tooltip="右对齐"
 .lume-wysiwyg-pane__content :deep(.ProseMirror),
 .lume-wysiwyg-pane__content :deep(.ProseMirror:focus),
 .lume-wysiwyg-pane__content :deep(.ProseMirror-focused) {
+  box-sizing: border-box;
   flex: 1;
   width: 100%;
   min-height: 100%;
@@ -1994,7 +2013,7 @@ data-tooltip="右对齐"
 
 .lume-wysiwyg-pane__context-submenu-menu {
   position: absolute;
-  top: -8px;
+  bottom: -8px;
   left: calc(100% + 2px);
   width: 156px;
   display: none;
