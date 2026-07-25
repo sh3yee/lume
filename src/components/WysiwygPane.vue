@@ -48,6 +48,7 @@ import {
   positionOverlayAroundBounds,
 } from '@/features/editor/overlays/overlayPosition.ts'
 import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
+import EditorContextMenu from '@/features/editor/overlays/EditorContextMenu.vue'
 import ImageToolbar from '@/features/editor/overlays/ImageToolbar.vue'
 import TextSelectionToolbar from '@/features/editor/overlays/TextSelectionToolbar.vue'
 
@@ -62,7 +63,10 @@ const boundDocumentId = activeDocument.value?.id ?? null
 
 const editorRef = ref<HTMLDivElement | null>(null)
 const findReplaceWidget = ref<{ focus: (select?: boolean) => void } | null>(null)
-const contextMenu = ref<HTMLDivElement | null>(null)
+const contextMenu = ref<{
+  focusFirstItem: () => void
+  getBounds: () => DOMRect | null
+} | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const selectionHasText = ref(false)
@@ -834,17 +838,16 @@ async function openContextMenu(event: MouseEvent) {
   contextMenuOpen.value = true
   await nextTick()
 
-  const menu = contextMenu.value
-  if (!menu) return
+  const menuBounds = contextMenu.value?.getBounds()
+  if (!menuBounds) return
 
   // 菜单项会随选区状态变化，必须渲染后按真实尺寸约束到窗口内。
-  const bounds = menu.getBoundingClientRect()
   contextMenuPosition.value = constrainOverlayPosition(
     { x: event.clientX, y: event.clientY },
-    { width: bounds.width, height: bounds.height },
+    { width: menuBounds.width, height: menuBounds.height },
   )
   await nextTick()
-  menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+  contextMenu.value?.focusFirstItem()
 }
 
 function runCommand<T>(command: CmdKey<T>, payload?: T) {
@@ -1076,30 +1079,6 @@ function replaceAllMatches(query: string, replacement: string) {
   })
 }
 
-function handleContextMenuKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeContextMenu()
-    return
-  }
-  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
-
-  const items = Array.from(
-    contextMenu.value?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-  )
-  if (items.length === 0) return
-  event.preventDefault()
-
-  const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement)
-  if (event.key === 'Home') items[0].focus()
-  else if (event.key === 'End') items[items.length - 1].focus()
-  else {
-    const direction = event.key === 'ArrowDown' ? 1 : -1
-    const nextIndex = (currentIndex + direction + items.length) % items.length
-    items[nextIndex].focus()
-  }
-}
-
 function handleWindowPointerDown(event: PointerEvent) {
   // 新操作开始时立即关闭工具栏，并取消上一次尚未执行的选区折叠任务。
   cancelAnimationFrame(collapseSelectionFrame)
@@ -1293,101 +1272,20 @@ onBeforeUnmount(() => {
 :align="selectedImageAlign" :position="imageToolbarPosition"
       @align="setSelectedImageAlign" />
 
-    <div
+  <EditorContextMenu
       v-if="contextMenuOpen"
       ref="contextMenu"
-      class="lume-wysiwyg-pane__context-menu"
-      role="menu"
-      aria-label="编辑区操作"
-      :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
-      @contextmenu.prevent
-      @keydown="handleContextMenuKeydown"
-      @pointerdown.stop
-    >
-      <template v-if="selectionHasText">
-        <button type="button" role="menuitem" @click="runNativeEditCommand('copy')">
-          <span>复制</span>
-        </button>
-        <button type="button" role="menuitem" @click="runNativeEditCommand('cut')">
-          <span>剪切</span>
-        </button>
-        <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
-       <template v-if="!selectionInCodeBlock">
-         <button type="button" role="menuitem" @click="runCommand(toggleStrongCommand.key)">
-            <span>加粗</span>
-          </button>
-          <button type="button" role="menuitem" @click="runCommand(toggleEmphasisCommand.key)">
-            <span>斜体</span>
-          </button>
-          <button type="button" role="menuitem" @click="runCommand(toggleInlineCodeCommand.key)">
-            <span>行内代码</span>
-          </button>
-         <button type="button" role="menuitem" @click="clearInlineFormatting">
-            <span>清除行内格式</span>
-          </button>
-        </template>
-        <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
-      </template>
-
-      <template v-if="contextBlockCanConvertToParagraph">
-        <button type="button" role="menuitem" @click="convertCurrentBlockToParagraph">
-          <span>转为正文</span>
-        </button>
-        <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
-      </template>
-
-      <button type="button" role="menuitem" @click="pasteText">
-        <span>粘贴</span>
-      </button>
-      <div class="lume-wysiwyg-pane__context-submenu" role="none">
-        <button type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false">
-          <span>插入</span>
-          <span class="lume-wysiwyg-pane__context-submenu-arrow">›</span>
-        </button>
-        <div class="lume-wysiwyg-pane__context-submenu-menu" role="menu" aria-label="插入">
-          <button type="button" role="menuitem" @click="runCommand(insertHrCommand.key)">
-            <span>分割线</span>
-          </button>
-          <button type="button" role="menuitem" @click="runCommand(createCodeBlockCommand.key)">
-            <span>代码块</span>
-          </button>
-         <button type="button" role="menuitem" @click="runCommand(insertTableCommand.key, { row: 3, col: 3 })">
-            <span>表格</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertBlockquote">
-            <span>引用</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertList(false)">
-            <span>无序列表</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertList(true)">
-            <span>有序列表</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertHeading(1)">
-            <span>一级标题</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertHeading(2)">
-            <span>二级标题</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertHeading(3)">
-            <span>三级标题</span>
-          </button>
-          <button type="button" role="menuitem" @click="insertMarkdownTemplate('![图片描述](图片地址)', 7)">
-            <span>图片</span>
-          </button>
-        </div>
-      </div>
-      <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
-      <button type="button" role="menuitem" @click="runCommand(undoCommand.key)">
-        <span>撤销</span>
-      </button>
-      <button type="button" role="menuitem" @click="runCommand(redoCommand.key)">
-        <span>重做</span>
-      </button>
-      <button type="button" role="menuitem" @click="selectAllContent">
-        <span>全选</span>
-      </button>
-    </div>
+     :can-convert-to-paragraph="contextBlockCanConvertToParagraph" :has-selection="selectionHasText"
+      :in-code-block="selectionInCodeBlock" :position="contextMenuPosition" @clear-formatting="clearInlineFormatting"
+      @close="closeContextMenu" @convert-to-paragraph="convertCurrentBlockToParagraph"
+      @copy="runNativeEditCommand('copy')" @cut="runNativeEditCommand('cut')" @insert-blockquote="insertBlockquote"
+      @insert-code-block="runCommand(createCodeBlockCommand.key)" @insert-heading="insertHeading"
+      @insert-horizontal-rule="runCommand(insertHrCommand.key)"
+      @insert-image="insertMarkdownTemplate('![图片描述](图片地址)', 7)" @insert-list="insertList"
+      @insert-table="runCommand(insertTableCommand.key, { row: 3, col: 3 })" @paste="pasteText"
+      @redo="runCommand(redoCommand.key)" @select-all="selectAllContent"
+      @toggle-bold="runCommand(toggleStrongCommand.key)" @toggle-inline-code="runCommand(toggleInlineCodeCommand.key)"
+      @toggle-italic="runCommand(toggleEmphasisCommand.key)" @undo="runCommand(undoCommand.key)" />
   </Teleport>
 </template>
 
@@ -1560,90 +1458,4 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--lume-accent-default) 70%, transparent);
 }
 
-.lume-wysiwyg-pane__context-menu {
-  position: fixed;
-  z-index: var(--lume-z-tooltip);
-  width: 192px;
-  padding: var(--lume-space-2);
-  border: 1px solid var(--lume-border-subtle);
-  border-radius: var(--lume-radius-md);
-  background-color: var(--lume-bg-overlay);
-  color: var(--lume-text-secondary);
-  box-shadow: var(--lume-shadow-md);
-  user-select: none;
-  backdrop-filter: blur(14px);
-}
-
-.lume-wysiwyg-pane__context-menu button {
-  width: 100%;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  padding: 0 var(--lume-space-3);
-  border: 0;
-  border-radius: var(--lume-radius-sm);
-  background: transparent;
-  color: inherit;
-  font-size: var(--lume-font-size-sm);
-  text-align: left;
-  cursor: default;
-}
-
-.lume-wysiwyg-pane__context-menu button:hover,
-.lume-wysiwyg-pane__context-menu button:focus-visible,
-.lume-wysiwyg-pane__context-submenu:hover > button,
-.lume-wysiwyg-pane__context-submenu:focus-within > button {
-  outline: none;
-  background-color: color-mix(in srgb, var(--lume-text-primary) 7%, transparent);
-  color: var(--lume-text-primary);
-}
-
-.lume-wysiwyg-pane__context-submenu {
-  position: relative;
-}
-
-.lume-wysiwyg-pane__context-submenu::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 10px;
-  height: calc(100% + 16px);
-}
-
-.lume-wysiwyg-pane__context-submenu > button {
-  justify-content: space-between;
-}
-
-.lume-wysiwyg-pane__context-submenu-arrow {
-  color: var(--lume-text-tertiary);
-  font-size: 16px;
-  line-height: 1;
-}
-
-.lume-wysiwyg-pane__context-submenu-menu {
-  position: absolute;
-  bottom: -8px;
-  left: calc(100% + 2px);
-  width: 156px;
-  display: none;
-  padding: var(--lume-space-2);
-  border: 1px solid var(--lume-border-subtle);
-  border-radius: var(--lume-radius-md);
-  background-color: var(--lume-bg-overlay);
-  color: var(--lume-text-secondary);
-  box-shadow: var(--lume-shadow-md);
-  backdrop-filter: blur(14px);
-}
-
-.lume-wysiwyg-pane__context-submenu:hover .lume-wysiwyg-pane__context-submenu-menu,
-.lume-wysiwyg-pane__context-submenu:focus-within .lume-wysiwyg-pane__context-submenu-menu {
-  display: block;
-}
-
-.lume-wysiwyg-pane__context-separator {
-  height: 1px;
-  margin: var(--lume-space-2) var(--lume-space-3);
-  background-color: var(--lume-border-subtle);
-}
 </style>
