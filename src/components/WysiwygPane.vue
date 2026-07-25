@@ -73,6 +73,11 @@ const activeFindMatchIndex = ref(-1)
 let editor: Editor | null = null
 let editorMarkdown = content.value
 let editorClipboardText = ''
+// 记录指针按下位置，用于区分普通单击和拖动选择。
+let pointerDownPosition: { x: number; y: number } | null = null
+let collapseSelectionFrame = 0
+// 指针事件处理期间禁止选区更新重新打开浮动工具栏，避免关闭时闪烁。
+let bubbleToolbarSuppressed = false
 
 interface NativeImageDropDetail {
   paths: string[]
@@ -735,6 +740,11 @@ function updateBubbleToolbar(view: EditorView | null | undefined) {
     return
   }
 
+  if (bubbleToolbarSuppressed) {
+    closeBubbleToolbar()
+    return
+  }
+
   if (selection instanceof NodeSelection && selection.node.type.name === 'image') {
     updateSelectedImageToolbar(view, selection)
     return
@@ -1061,10 +1071,67 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
   }
 }
 
-function handleWindowPointerDown() {
+function handleWindowPointerDown(event: PointerEvent) {
+  // 新操作开始时立即关闭工具栏，并取消上一次尚未执行的选区折叠任务。
+  cancelAnimationFrame(collapseSelectionFrame)
+  collapseSelectionFrame = 0
+  pointerDownPosition = event.button === 0
+    ? { x: event.clientX, y: event.clientY }
+    : null
+  bubbleToolbarSuppressed = event.button === 0
   closeContextMenu()
   closeBubbleToolbar()
   closeImageToolbar()
+}
+
+function handleWindowPointerUp(event: PointerEvent) {
+  const start = pointerDownPosition
+  pointerDownPosition = null
+  if (!start || event.button !== 0) {
+    bubbleToolbarSuppressed = false
+    return
+  }
+
+  const target = event.target
+  const isEditorTarget = target instanceof Node && editorRef.value?.contains(target)
+  const isDragSelection = Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4
+
+  if (!isEditorTarget) {
+    bubbleToolbarSuppressed = false
+    return
+  }
+
+  const pointerPosition = { x: event.clientX, y: event.clientY }
+  // 等待 ProseMirror 完成本次指针事件，再根据最终选区决定显示或折叠。
+  collapseSelectionFrame = requestAnimationFrame(() => {
+    collapseSelectionFrame = 0
+    editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx)
+
+      // 拖选结束后恢复正常同步，由最终文本选区决定是否显示工具栏。
+      if (isDragSelection) {
+        bubbleToolbarSuppressed = false
+        updateBubbleToolbar(view)
+        return
+      }
+
+      const selection = view.state.selection
+      if (!(selection instanceof TextSelection) || selection.empty) {
+        bubbleToolbarSuppressed = false
+        closeBubbleToolbar()
+        return
+      }
+
+      const position = view.posAtCoords({ left: pointerPosition.x, top: pointerPosition.y })
+      const cursorPosition = position?.pos ?? view.state.doc.content.size
+      // 普通单击应折叠旧选区，防止遗留选区再次触发浮动工具栏。
+      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(cursorPosition))))
+      bubbleToolbarSuppressed = false
+      closeBubbleToolbar()
+    })
+
+    if (!editor) bubbleToolbarSuppressed = false
+  })
 }
 
 function handleWindowResize() {
@@ -1146,6 +1213,7 @@ onMounted(async () => {
     .create()
 
   window.addEventListener('pointerdown', handleWindowPointerDown)
+  window.addEventListener('pointerup', handleWindowPointerUp)
   window.addEventListener('blur', handleWindowResize)
   window.addEventListener('resize', handleWindowResize)
   window.addEventListener('keydown', handleWindowKeydown)
@@ -1160,7 +1228,9 @@ watch(content, (markdown) => {
 })
 
 onBeforeUnmount(() => {
+  cancelAnimationFrame(collapseSelectionFrame)
   window.removeEventListener('pointerdown', handleWindowPointerDown)
+  window.removeEventListener('pointerup', handleWindowPointerUp)
   window.removeEventListener('blur', handleWindowResize)
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('keydown', handleWindowKeydown)
