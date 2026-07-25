@@ -1300,7 +1300,8 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="lume-wysiwyg-pane">
-    <div ref="editorRef" class="lume-wysiwyg-pane__content" @contextmenu.prevent="openContextMenu"></div>
+   <div ref="editorRef" class="lume-wysiwyg-pane__content lume-markdown-content"
+      @contextmenu.prevent="openContextMenu"></div>
 
     <div v-if="findReplaceOpen" class="lume-wysiwyg-pane__find-widget" @keydown="handleFindKeydown">
       <div class="lume-wysiwyg-pane__find-row">

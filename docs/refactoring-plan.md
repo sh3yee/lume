@@ -16,7 +16,7 @@
 | 架构审查 | 已完成 | 识别当前热点文件、职责混合和后续扩展风险 |
 | Phase 0：应用壳 | 已完成 | 将全局生命周期和用户偏好移出根组件 |
 | Phase 1：文档与文件 | 已完成 | 分离状态、会话、业务命令与文件 IO |
-| Phase 2：编辑器内核 | 未开始 | 拆分 Milkdown 初始化、插件和 Overlay UI |
+| Phase 2：编辑器内核 | 进行中 | 拆分 Milkdown 初始化、插件和 Overlay UI |
 | Phase 3：Markdown 扩展 | 未开始 | 建立 WYSIWYG 与 Preview 的成对扩展约定 |
 | Phase 4：平台与 Rust | 未开始 | 按领域拆分 Tauri 桥接、命令与后台服务 |
 | Phase 5：工作区能力 | 未开始 | 在稳定边界上实现工作区、监听和冲突处理 |
@@ -187,9 +187,9 @@ src-tauri/src/
 
 ### 源码编辑与预览
 
-- [ ] 将 textarea 源码编辑器迁移为独立 `SourceEditor` 组件。
-- [ ] 固定源码编辑器与 Document Store 的输入输出边界。
-- [ ] 将 markdown-it 创建和扩展配置移出 Preview Vue 组件。
+- [x] 将 textarea 源码编辑器迁移为独立 `SourceEditor` 组件。
+- [x] 固定源码编辑器与 Document Store 的输入输出边界。
+- [x] 将 markdown-it 创建和扩展配置移出 Preview Vue 组件。
 - [ ] 在上述边界稳定后单独评估 CodeMirror 6 迁移。
 
 ### 完成标准

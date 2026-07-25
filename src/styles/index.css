@@ -6,3 +6,4 @@
 @import './reset.css';
 @import './tokens.css';
 @import './liquid-glass.css';
+@import '../features/editor/styles/markdown-content.css';

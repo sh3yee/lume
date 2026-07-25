@@ -10,7 +10,7 @@
         <main class="lume-app__main">
           <WysiwygPane v-if="viewMode === 'wysiwyg'" :key="activeDocumentId" />
           <template v-else>
-            <EditorPane />
+           <SourceEditor />
             <PreviewPane />
           </template>
         </main>
@@ -36,7 +36,7 @@
 import TitleBar from '@components/TitleBar.vue'
 import DocumentTabs from '@components/DocumentTabs.vue'
 import SideBar from '@components/SideBar.vue'
-import EditorPane from '@components/EditorPane.vue'
+import SourceEditor from '@/features/editor/components/SourceEditor.vue'
 import PreviewPane from '@components/PreviewPane.vue'
 import WysiwygPane from '@components/WysiwygPane.vue'
 import StatusBar from '@components/StatusBar.vue'
