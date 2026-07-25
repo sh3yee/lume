@@ -60,6 +60,8 @@ const contextMenu = ref<HTMLDivElement | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const selectionHasText = ref(false)
+const selectionInCodeBlock = ref(false)
+const contextBlockCanConvertToParagraph = ref(false)
 const bubbleToolbarOpen = ref(false)
 const bubbleToolbarPosition = ref({ x: 0, y: 0 })
 const imageToolbarOpen = ref(false)
@@ -760,7 +762,7 @@ function updateBubbleToolbar(view: EditorView | null | undefined) {
 
   const start = view.coordsAtPos(from)
   const end = view.coordsAtPos(to)
-  const toolbarWidth = 184
+  const toolbarWidth = selectionTouchesCodeBlock(view.state) ? 34 : 184
   const toolbarHeight = 34
   const margin = 8
   const selectionLeft = Math.min(start.left, end.left)
@@ -773,6 +775,7 @@ function updateBubbleToolbar(view: EditorView | null | undefined) {
     x: Math.max(margin, Math.min(x, window.innerWidth - toolbarWidth - margin)),
     y: preferredY >= margin ? preferredY : Math.min(fallbackY, window.innerHeight - toolbarHeight - margin),
   }
+  selectionInCodeBlock.value = selectionTouchesCodeBlock(view.state)
   bubbleToolbarOpen.value = true
 }
 
@@ -781,6 +784,36 @@ function getSelectionHasText(view: EditorView) {
   if (!selection) return false
   const { from, to, empty } = selection
   return !empty && view.state.doc.textBetween(from, to, '\n', '\n').trim().length > 0
+}
+
+function selectionTouchesCodeBlock(state: EditorState) {
+  const { from, to } = state.selection
+  let touchesCodeBlock = false
+
+  state.doc.nodesBetween(from, to, (node) => {
+    if (node.type.name === 'code_block') touchesCodeBlock = true
+    return !touchesCodeBlock
+  })
+
+  return touchesCodeBlock
+}
+
+function getConvertibleBlockPosition(state: EditorState) {
+  const { from, to } = state.selection
+  const start = state.doc.resolve(from)
+  const end = state.doc.resolve(Math.max(from, to - 1))
+
+  for (let depth = start.depth; depth > 0; depth -= 1) {
+    const node = start.node(depth)
+    if (!['heading', 'code_block'].includes(node.type.name)) continue
+
+    const position = start.before(depth)
+    for (let endDepth = end.depth; endDepth > 0; endDepth -= 1) {
+      if (end.before(endDepth) === position && end.node(endDepth) === node) return position
+    }
+  }
+
+  return null
 }
 
 async function openContextMenu(event: MouseEvent) {
@@ -799,6 +832,8 @@ async function openContextMenu(event: MouseEvent) {
 
     view.focus()
     selectionHasText.value = getSelectionHasText(view)
+    selectionInCodeBlock.value = selectionTouchesCodeBlock(view.state)
+    contextBlockCanConvertToParagraph.value = getConvertibleBlockPosition(view.state) !== null
   })
 
   contextMenuPosition.value = {
@@ -836,9 +871,12 @@ function runNativeEditCommand(command: 'copy' | 'cut') {
     editorClipboardText = view.state.doc.textBetween(from, to, '\n', '\n')
     document.execCommand(command)
 
-    if (command === 'cut') {
-      view.dispatch(view.state.tr.delete(from, to).scrollIntoView())
+    if (command === 'copy') {
+      closeBubbleToolbar()
+      return
     }
+
+    view.dispatch(view.state.tr.delete(from, to).scrollIntoView())
   })
 }
 
@@ -901,7 +939,7 @@ function insertList(ordered: boolean) {
   })
 }
 
-function clearFormatting() {
+function clearInlineFormatting() {
   runWithView((view) => {
     const { state } = view
     const { from, to } = state.selection
@@ -910,6 +948,16 @@ function clearFormatting() {
       state.tr,
     )
     view.dispatch(tr.scrollIntoView())
+  })
+}
+
+function convertCurrentBlockToParagraph() {
+  runWithView((view) => {
+    const position = getConvertibleBlockPosition(view.state)
+    const paragraph = view.state.schema.nodes.paragraph
+    if (position === null || !paragraph) return
+
+    view.dispatch(view.state.tr.setNodeMarkup(position, paragraph).scrollIntoView())
   })
 }
 
@@ -1294,20 +1342,22 @@ onBeforeUnmount(() => {
       :style="{ left: bubbleToolbarPosition.x + 'px', top: bubbleToolbarPosition.y + 'px' }"
       @pointerdown.stop.prevent
     >
-      <button type="button" title="加粗" aria-label="加粗" @click="runCommand(toggleStrongCommand.key)">
-        <Bold :size="15" :stroke-width="2.25" />
-      </button>
-      <button type="button" title="斜体" aria-label="斜体" @click="runCommand(toggleEmphasisCommand.key)">
-        <Italic :size="15" :stroke-width="2.25" />
-      </button>
-      <button type="button" title="行内代码" aria-label="行内代码" @click="runCommand(toggleInlineCodeCommand.key)">
-        <Code :size="15" :stroke-width="2.1" />
-      </button>
-      <div class="lume-wysiwyg-pane__bubble-separator" role="separator"></div>
-      <button type="button" title="清除格式" aria-label="清除格式" @click="clearFormatting">
-        <RemoveFormatting :size="15" :stroke-width="2.1" />
-      </button>
-      <button type="button" title="复制" aria-label="复制" @click="runNativeEditCommand('copy')">
+     <template v-if="!selectionInCodeBlock">
+        <button type="button" aria-label="加粗" data-tooltip="加粗" @click="runCommand(toggleStrongCommand.key)">
+          <Bold :size="15" :stroke-width="2.25" />
+        </button>
+       <button type="button" aria-label="斜体" data-tooltip="斜体" @click="runCommand(toggleEmphasisCommand.key)">
+          <Italic :size="15" :stroke-width="2.25" />
+        </button>
+       <button type="button" aria-label="行内代码" data-tooltip="行内代码" @click="runCommand(toggleInlineCodeCommand.key)">
+          <Code :size="15" :stroke-width="2.1" />
+        </button>
+        <div class="lume-wysiwyg-pane__bubble-separator" role="separator"></div>
+       <button type="button" aria-label="清除行内格式" data-tooltip="清除行内格式" @click="clearInlineFormatting">
+          <RemoveFormatting :size="15" :stroke-width="2.1" />
+        </button>
+     </template>
+      <button type="button" aria-label="复制" data-tooltip="复制" @click="runNativeEditCommand('copy')">
         <Copy :size="15" :stroke-width="2.1" />
       </button>
     </div>
@@ -1321,27 +1371,27 @@ onBeforeUnmount(() => {
       @pointerdown.stop.prevent
     >
       <button
-        type="button"
-        title="左对齐"
+type="button"
         aria-label="左对齐"
+data-tooltip="左对齐"
         :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'left' }"
         @click="setSelectedImageAlign('left')"
       >
         <AlignLeft :size="15" :stroke-width="2.1" />
       </button>
       <button
-        type="button"
-        title="居中"
+type="button"
         aria-label="居中"
+data-tooltip="居中"
         :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'center' }"
         @click="setSelectedImageAlign('center')"
       >
         <AlignCenter :size="15" :stroke-width="2.1" />
       </button>
       <button
-        type="button"
-        title="右对齐"
+type="button"
         aria-label="右对齐"
+data-tooltip="右对齐"
         :class="{ 'lume-wysiwyg-pane__toolbar-button--active': selectedImageAlign === 'right' }"
         @click="setSelectedImageAlign('right')"
       >
@@ -1368,17 +1418,26 @@ onBeforeUnmount(() => {
           <span>剪切</span>
         </button>
         <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
-        <button type="button" role="menuitem" @click="runCommand(toggleStrongCommand.key)">
-          <span>加粗</span>
-        </button>
-        <button type="button" role="menuitem" @click="runCommand(toggleEmphasisCommand.key)">
-          <span>斜体</span>
-        </button>
-        <button type="button" role="menuitem" @click="runCommand(toggleInlineCodeCommand.key)">
-          <span>行内代码</span>
-        </button>
-        <button type="button" role="menuitem" @click="clearFormatting">
-          <span>清除格式</span>
+       <template v-if="!selectionInCodeBlock">
+         <button type="button" role="menuitem" @click="runCommand(toggleStrongCommand.key)">
+            <span>加粗</span>
+          </button>
+          <button type="button" role="menuitem" @click="runCommand(toggleEmphasisCommand.key)">
+            <span>斜体</span>
+          </button>
+          <button type="button" role="menuitem" @click="runCommand(toggleInlineCodeCommand.key)">
+            <span>行内代码</span>
+          </button>
+         <button type="button" role="menuitem" @click="clearInlineFormatting">
+            <span>清除行内格式</span>
+          </button>
+        </template>
+        <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
+      </template>
+
+      <template v-if="contextBlockCanConvertToParagraph">
+        <button type="button" role="menuitem" @click="convertCurrentBlockToParagraph">
+          <span>转为正文</span>
         </button>
         <div class="lume-wysiwyg-pane__context-separator" role="separator"></div>
       </template>
@@ -1807,6 +1866,7 @@ onBeforeUnmount(() => {
 }
 
 .lume-wysiwyg-pane__bubble-toolbar button {
+  position: relative;
   width: 28px;
   height: 28px;
   display: inline-flex;
@@ -1820,6 +1880,34 @@ onBeforeUnmount(() => {
   cursor: default;
 }
 
+.lume-wysiwyg-pane__bubble-toolbar button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 140px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 78%, transparent);
+  border-radius: 6px;
+  background-color: var(--lume-bg-overlay);
+  color: var(--lume-text-primary);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
+  font-size: 12px;
+  font-weight: var(--lume-font-weight-normal);
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -2px);
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.lume-wysiwyg-pane__bubble-toolbar button:hover::after,
+.lume-wysiwyg-pane__bubble-toolbar button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
 .lume-wysiwyg-pane__bubble-toolbar button:hover,
 .lume-wysiwyg-pane__bubble-toolbar button:focus-visible,
 .lume-wysiwyg-pane__bubble-toolbar .lume-wysiwyg-pane__toolbar-button--active {
