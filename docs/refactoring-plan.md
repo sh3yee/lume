@@ -175,7 +175,7 @@ src-tauri/src/
 
 ### Milkdown 内核
 
-- [ ] 提取 Milkdown 创建与销毁逻辑。
+- [x] 提取 Milkdown 创建与销毁逻辑。
 - [x] 提取基础 Markdown 和 GFM 配置。
 - [x] 提取搜索高亮插件。
 - [x] 提取代码块退出与空代码块转换插件。

@@ -7,13 +7,10 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
-import { history } from '@milkdown/kit/plugin/history'
+import { editorViewCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
-import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { replaceAll } from '@milkdown/kit/utils'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
 import {
@@ -33,24 +30,18 @@ import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
 import EditorContextMenu from '@/features/editor/overlays/EditorContextMenu.vue'
 import ImageToolbar from '@/features/editor/overlays/ImageToolbar.vue'
 import TextSelectionToolbar from '@/features/editor/overlays/TextSelectionToolbar.vue'
-import { useBaseMarkdown } from '@/features/editor/wysiwyg/baseMarkdown'
-import { codeBlockInteractionPlugin } from '@/features/editor/wysiwyg/codeBlock'
 import {
   createEditorCommands,
   getConvertibleBlockPosition,
 } from '@/features/editor/wysiwyg/editorCommands'
 import {
-  sizedImageRemarkPlugin,
-  sizedImageSchema,
-} from '@/features/editor/wysiwyg/imageSchema'
-import {
-  createImageInputPlugin,
-  insertNativeImagePaths,
-} from '@/features/editor/wysiwyg/imageInput'
-import { createImageNodeView } from '@/features/editor/wysiwyg/imageNodeView'
+  createWysiwygEditor,
+  destroyWysiwygEditor,
+  replaceEditorMarkdown,
+} from '@/features/editor/wysiwyg/editorLifecycle'
+import { insertNativeImagePaths } from '@/features/editor/wysiwyg/imageInput'
 import {
   findTextMatches,
-  searchHighlightPlugin,
   updateSearchHighlight,
   type SearchMatch,
 } from '@/features/editor/wysiwyg/searchHighlight'
@@ -121,34 +112,6 @@ function fileToDataUrl(file: File): Promise<string> {
 function updateSearchPlugin(view: EditorView, matches = findMatches.value, activeIndex = activeFindMatchIndex.value) {
   updateSearchHighlight(view, matches, activeIndex)
 }
-
-const localImageView = createImageNodeView({
-  onSelect: updateSelectedImageToolbar,
-  resolveImageSource(src) {
-    if (!src || REMOTE_IMAGE_PATTERN.test(src) || !isTauri()) return src
-    return resolveImagePath(
-      src,
-      activeDocument.value?.path ?? null,
-      activeDocument.value?.id ?? '',
-    ).then(convertFileSrc)
-  },
-})
-
-const imageInputPlugin = createImageInputPlugin({
-  async importFile(file) {
-    const documentId = activeDocument.value?.id
-    const extension = IMAGE_MIME_EXTENSIONS[file.type]
-    if (!documentId || !extension) return null
-    if (!isTauri()) return fileToDataUrl(file)
-    return (await storeClipboardImage(
-      Array.from(new Uint8Array(await file.arrayBuffer())),
-      extension,
-      activeDocument.value?.path ?? null,
-      documentId,
-    )).markdownPath
-  },
-  isActive: () => activeDocument.value?.id === boundDocumentId,
-})
 
 function closeContextMenu() {
   contextMenuOpen.value = false
@@ -490,47 +453,43 @@ function handleNativeImageDrop(event: Event) {
 onMounted(async () => {
   if (!editorRef.value) return
 
-  editor = await useBaseMarkdown(Editor.make()
-    .config((ctx) => {
-      ctx.set(rootCtx, editorRef.value!)
-      ctx.set(defaultValueCtx, content.value)
-
-      ctx.get(listenerCtx)
-        .markdownUpdated((ctx, markdown) => {
-          editorMarkdown = markdown
-          if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
-            persistDocumentSession()
-          }
-          if (findReplaceOpen.value) {
-            try {
-              syncFindMatches(ctx.get(editorViewCtx))
-            } catch {
-              // editorViewCtx may not be available during initial listener hydration.
-            }
-          }
-        })
-        .selectionUpdated((ctx, selection) => {
-          const before = selection.$from.doc.textBetween(0, selection.from, '\n', '\n')
-          const lines = before.split('\n')
-          if (boundDocumentId) updateDocumentCursor(boundDocumentId, lines.length, (lines.at(-1)?.length || 0) + 1)
-          let view: EditorView | null = null
-          try {
-            view = ctx.get(editorViewCtx)
-          } catch {
-            view = null
-          }
-          updateBubbleToolbar(view)
-        })
-    }))
-    .use(sizedImageSchema)
-    .use(sizedImageRemarkPlugin)
-    .use(history)
-    .use(localImageView)
-    .use(searchHighlightPlugin)
-    .use(imageInputPlugin)
-    .use(codeBlockInteractionPlugin)
-    .use(listener)
-    .create()
+  editor = await createWysiwygEditor({
+    root: editorRef.value,
+    initialMarkdown: content.value,
+    async importImageFile(file) {
+      const documentId = activeDocument.value?.id
+      const extension = IMAGE_MIME_EXTENSIONS[file.type]
+      if (!documentId || !extension) return null
+      if (!isTauri()) return fileToDataUrl(file)
+      return (await storeClipboardImage(
+        Array.from(new Uint8Array(await file.arrayBuffer())),
+        extension,
+        activeDocument.value?.path ?? null,
+        documentId,
+      )).markdownPath
+    },
+    isDocumentActive: () => activeDocument.value?.id === boundDocumentId,
+    onImageSelect: updateSelectedImageToolbar,
+    onMarkdownChange(markdown, view) {
+      editorMarkdown = markdown
+      if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
+        persistDocumentSession()
+      }
+      if (findReplaceOpen.value && view) syncFindMatches(view)
+    },
+    onSelectionChange(view, line, column) {
+      if (boundDocumentId) updateDocumentCursor(boundDocumentId, line, column)
+      updateBubbleToolbar(view)
+    },
+    resolveImageSource(src) {
+      if (!src || REMOTE_IMAGE_PATTERN.test(src) || !isTauri()) return src
+      return resolveImagePath(
+        src,
+        activeDocument.value?.path ?? null,
+        activeDocument.value?.id ?? '',
+      ).then(convertFileSrc)
+    },
+  })
 
   window.addEventListener('pointerdown', handleWindowPointerDown)
   window.addEventListener('pointerup', handleWindowPointerUp)
@@ -544,7 +503,7 @@ onMounted(async () => {
 watch(content, (markdown) => {
   if (!editor || activeDocument.value?.id !== boundDocumentId || markdown === editorMarkdown) return
   editorMarkdown = markdown
-  editor.action(replaceAll(markdown))
+  replaceEditorMarkdown(editor, markdown)
 })
 
 onBeforeUnmount(() => {
@@ -555,7 +514,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('keydown', handleWindowKeydown)
   window.removeEventListener('lume:image-drop', handleNativeImageDrop)
-  void editor?.destroy()
+  void destroyWysiwygEditor(editor)
   editor = null
 })
 </script>
