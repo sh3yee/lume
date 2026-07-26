@@ -1,4 +1,4 @@
-import { editorViewCtx, type Editor } from '@milkdown/kit/core'
+import { editorViewCtx, type CmdKey, type Editor } from '@milkdown/kit/core'
 import {
   createCodeBlockCommand,
   insertHrCommand,
@@ -49,7 +49,7 @@ export function createEditorCommands(options: {
     })
   }
 
-  const runMilkdownCommand = <T>(command: Parameters<typeof callCommand<T>>[0], payload?: T) => {
+  const runMilkdownCommand = <T>(command: CmdKey<T>, payload?: T) => {
     options.onBeforeCommand()
     options.getEditor()?.action((ctx) => {
       ctx.get(editorViewCtx).focus()

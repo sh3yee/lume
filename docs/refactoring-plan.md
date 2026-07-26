@@ -16,7 +16,7 @@
 | 架构审查 | 已完成 | 识别当前热点文件、职责混合和后续扩展风险 |
 | Phase 0：应用壳 | 已完成 | 将全局生命周期和用户偏好移出根组件 |
 | Phase 1：文档与文件 | 已完成 | 分离状态、会话、业务命令与文件 IO |
-| Phase 2：编辑器内核 | 进行中 | 拆分 Milkdown 初始化、插件和 Overlay UI |
+| Phase 2：编辑器内核 | 已完成 | 拆分 Milkdown 初始化、插件和 Overlay UI |
 | Phase 3：Markdown 扩展 | 未开始 | 建立 WYSIWYG 与 Preview 的成对扩展约定 |
 | Phase 4：平台与 Rust | 未开始 | 按领域拆分 Tauri 桥接、命令与后台服务 |
 | Phase 5：工作区能力 | 未开始 | 在稳定边界上实现工作区、监听和冲突处理 |
@@ -183,7 +183,7 @@ src-tauri/src/
 - [x] 提取图片 NodeView、缩放和对齐逻辑。
 - [x] 提取图片粘贴、拖放和 URL 转换逻辑。
 - [x] 将编辑器命令整理为稳定的命令入口。
-- [ ] 让 WYSIWYG Vue 组件只负责挂载、生命周期、文档同步和 Overlay 组合。
+- [x] 让 WYSIWYG Vue 组件只负责挂载、生命周期、文档同步和 Overlay 组合。
 
 ### 源码编辑与预览
 
@@ -194,10 +194,10 @@ src-tauri/src/
 
 ### 完成标准
 
-- [ ] `WysiwygPane.vue` 不再定义具体 Milkdown 插件与图片 NodeView。
-- [ ] Preview 组件不再直接配置全部 markdown-it 规则。
-- [ ] 中文输入法、选区、撤销重做、搜索替换和图片操作通过人工回归。
-- [ ] 常用 Markdown 往返用例通过。
+- [x] `WysiwygPane.vue` 不再定义具体 Milkdown 插件与图片 NodeView。
+- [x] Preview 组件不再直接配置全部 markdown-it 规则。
+- [x] 中文输入法、选区、撤销重做、搜索替换和图片操作通过人工回归。
+- [x] 常用 Markdown 往返用例通过。
 
 ## Phase 3：Markdown 扩展体系
 
@@ -280,13 +280,13 @@ src-tauri/src/
 - [ ] 没有删除仍有价值的现有注释；迁移时同步修正失效注释。
 - [ ] 没有为目录整齐而创建无实现内容的空模块。
 - [ ] 没有新增不必要的跨 Feature 内部导入。
-- [ ] `npm run type-check` 通过。
-- [ ] `npm run build` 通过。
+- [x] `npm run type-check` 通过。
+- [x] `npm run build` 通过。
 - [ ] Tauri 相关阶段执行 Rust 检查和桌面手动验收。
-- [ ] 中文输入法连续输入正常。
-- [ ] 光标、选区、撤销和重做正常。
-- [ ] Markdown 保存后重新打开内容一致。
-- [ ] 更新本文档中对应任务的勾选状态。
+- [x] 中文输入法连续输入正常。
+- [x] 光标、选区、撤销和重做正常。
+- [x] Markdown 保存后重新打开内容一致。
+- [x] 更新本文档中对应任务的勾选状态。
 
 ## 建议提交顺序
 

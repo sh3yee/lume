@@ -11,14 +11,7 @@ import { editorViewCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
-import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
-import {
-  importImageFile,
-  isTauri,
-  resolveImagePath,
-  storeClipboardImage,
-} from '../types/tauri'
 import {
   type ImageAlign,
 } from '../utils/imageHtml'
@@ -41,10 +34,13 @@ import {
 } from '@/features/editor/wysiwyg/editorLifecycle'
 import { insertNativeImagePaths } from '@/features/editor/wysiwyg/imageInput'
 import {
-  findTextMatches,
-  updateSearchHighlight,
-  type SearchMatch,
-} from '@/features/editor/wysiwyg/searchHighlight'
+  useFindReplace,
+} from '@/features/editor/wysiwyg/useFindReplace'
+import {
+  importEditorImageFile,
+  importEditorImagePath,
+  resolveEditorImageSource,
+} from '@/features/images/editor/imageEditorAssets'
 
 const {
   activeDocument,
@@ -71,10 +67,6 @@ const bubbleToolbarPosition = ref({ x: 0, y: 0 })
 const imageToolbarOpen = ref(false)
 const imageToolbarPosition = ref({ x: 0, y: 0 })
 const selectedImageAlign = ref<ImageAlign>('left')
-const findReplaceOpen = ref(false)
-let activeFindQuery = ''
-const findMatches = ref<SearchMatch[]>([])
-const activeFindMatchIndex = ref(-1)
 let editor: Editor | null = null
 let editorMarkdown = content.value
 // 记录指针按下位置，用于区分普通单击和拖动选择。
@@ -87,30 +79,6 @@ interface NativeImageDropDetail {
   paths: string[]
   x: number
   y: number
-}
-
-const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
-const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'image/bmp': 'bmp',
-  'image/avif': 'avif',
-  'image/svg+xml': 'svg',
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('读取图片失败'))
-    reader.readAsDataURL(file)
-  })
-}
-
-function updateSearchPlugin(view: EditorView, matches = findMatches.value, activeIndex = activeFindMatchIndex.value) {
-  updateSearchHighlight(view, matches, activeIndex)
 }
 
 function closeContextMenu() {
@@ -256,98 +224,26 @@ const editorCommands = createEditorCommands({
   },
 })
 
-function syncFindMatches(view: EditorView, query = activeFindQuery, preferredIndex = activeFindMatchIndex.value) {
-  activeFindQuery = query
-  const matches = findTextMatches(view.state.doc, query)
-  const activeIndex = matches.length === 0 ? -1 : Math.max(0, Math.min(preferredIndex, matches.length - 1))
-  findMatches.value = matches
-  activeFindMatchIndex.value = activeIndex
-  updateSearchPlugin(view, matches, activeIndex)
-  return { activeIndex, matches }
-}
-
-function openFindReplace(select = true) {
-  findReplaceOpen.value = true
-  closeContextMenu()
-  closeBubbleToolbar()
-  closeImageToolbar()
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    syncFindMatches(view)
-  })
-  void nextTick(() => findReplaceWidget.value?.focus(select))
-}
-
-function closeFindReplace() {
-  findReplaceOpen.value = false
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    findMatches.value = []
-    activeFindMatchIndex.value = -1
-    updateSearchPlugin(view, [], -1)
-    view.focus()
-  })
-}
-
-function selectFindMatch(view: EditorView, index: number) {
-  const match = findMatches.value[index]
-  if (!match) return
-  activeFindMatchIndex.value = index
-  updateSearchPlugin(view, findMatches.value, index)
-  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, match.from, match.to)).scrollIntoView())
-}
-
-function moveFindMatch(direction: 1 | -1, query = activeFindQuery) {
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    const { matches } = syncFindMatches(view, query)
-    if (matches.length === 0) return
-    const nextIndex = (activeFindMatchIndex.value + direction + matches.length) % matches.length
-    selectFindMatch(view, nextIndex)
-    view.focus()
-  })
-}
-
-function handleFindQueryInput(query: string) {
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    const { activeIndex } = syncFindMatches(view, query, 0)
-    if (activeIndex >= 0) selectFindMatch(view, activeIndex)
-  })
-}
-
-function replaceCurrentMatch(query: string, replacement: string) {
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    const { matches, activeIndex } = syncFindMatches(view, query)
-    const match = matches[activeIndex]
-    if (!match) return
-    const tr = view.state.tr.insertText(replacement, match.from, match.to)
-    view.dispatch(tr.scrollIntoView())
-    const nextMatches = findTextMatches(view.state.doc, query)
-    const nextIndex = nextMatches.length === 0 ? -1 : Math.min(activeIndex, nextMatches.length - 1)
-    findMatches.value = nextMatches
-    activeFindMatchIndex.value = nextIndex
-    updateSearchPlugin(view, nextMatches, nextIndex)
-    if (nextIndex >= 0) selectFindMatch(view, nextIndex)
-  })
-}
-
-function replaceAllMatches(query: string, replacement: string) {
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    const { matches } = syncFindMatches(view, query)
-    if (matches.length === 0) return
-    const tr = matches.reduceRight(
-      (transaction, match) => transaction.insertText(replacement, match.from, match.to),
-      view.state.tr,
-    )
-    view.dispatch(tr.scrollIntoView())
-    findMatches.value = []
-    activeFindMatchIndex.value = -1
-    updateSearchPlugin(view, [], -1)
-  })
-}
+const {
+  activeFindMatchIndex,
+  closeFindReplace,
+  findMatches,
+  findReplaceOpen,
+  handleFindQueryInput,
+  moveFindMatch,
+  openFindReplace,
+  replaceAllMatches,
+  replaceCurrentMatch,
+  syncFindMatches,
+} = useFindReplace({
+  closeOverlays() {
+    closeContextMenu()
+    closeBubbleToolbar()
+    closeImageToolbar()
+  },
+  focusWidget: (select) => findReplaceWidget.value?.focus(select),
+  getEditor: () => editor,
+})
 
 function handleWindowPointerDown(event: PointerEvent) {
   // 新操作开始时立即关闭工具栏，并取消上一次尚未执行的选区折叠任务。
@@ -444,7 +340,7 @@ function handleNativeImageDrop(event: Event) {
     const documentPath = activeDocument.value?.path ?? null
     if (!documentId) return
     void insertNativeImagePaths(ctx.get(editorViewCtx), detail, {
-      importPath: async (path) => (await importImageFile(path, documentPath, documentId)).markdownPath,
+      importPath: (path) => importEditorImagePath(path, documentPath, documentId),
       isActive: () => activeDocument.value?.id === documentId,
     })
   })
@@ -458,15 +354,8 @@ onMounted(async () => {
     initialMarkdown: content.value,
     async importImageFile(file) {
       const documentId = activeDocument.value?.id
-      const extension = IMAGE_MIME_EXTENSIONS[file.type]
-      if (!documentId || !extension) return null
-      if (!isTauri()) return fileToDataUrl(file)
-      return (await storeClipboardImage(
-        Array.from(new Uint8Array(await file.arrayBuffer())),
-        extension,
-        activeDocument.value?.path ?? null,
-        documentId,
-      )).markdownPath
+      if (!documentId) return null
+      return importEditorImageFile(file, activeDocument.value?.path ?? null, documentId)
     },
     isDocumentActive: () => activeDocument.value?.id === boundDocumentId,
     onImageSelect: updateSelectedImageToolbar,
@@ -482,12 +371,11 @@ onMounted(async () => {
       updateBubbleToolbar(view)
     },
     resolveImageSource(src) {
-      if (!src || REMOTE_IMAGE_PATTERN.test(src) || !isTauri()) return src
-      return resolveImagePath(
+      return resolveEditorImageSource(
         src,
         activeDocument.value?.path ?? null,
         activeDocument.value?.id ?? '',
-      ).then(convertFileSrc)
+      )
     },
   })
 

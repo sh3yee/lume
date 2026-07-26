@@ -8,7 +8,7 @@ import {
   onFileDragDrop,
   startupFilePaths,
   type FileDragDropEvent,
-} from '@types/tauri'
+} from '@/types/tauri'
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg'])
 

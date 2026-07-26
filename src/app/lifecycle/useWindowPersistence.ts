@@ -12,7 +12,7 @@ import {
   restoreWindowState,
   showWindow,
   type WindowState,
-} from '@types/tauri'
+} from '@/types/tauri'
 
 const WINDOW_STATE_STORAGE_KEY = 'lume-window-state'
 
