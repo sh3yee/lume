@@ -8,21 +8,12 @@
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
-import type { CmdKey } from '@milkdown/kit/core'
-import {
-  createCodeBlockCommand,
-  insertHrCommand,
-  toggleEmphasisCommand,
-  toggleInlineCodeCommand,
-  toggleStrongCommand,
-} from '@milkdown/kit/preset/commonmark'
-import { insertTableCommand } from '@milkdown/preset-gfm'
-import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
-import { AllSelection, NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
+import { history } from '@milkdown/kit/plugin/history'
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { callCommand, replaceAll } from '@milkdown/kit/utils'
+import { replaceAll } from '@milkdown/kit/utils'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDocument } from '@composables/useDocument'
 import {
@@ -44,6 +35,10 @@ import ImageToolbar from '@/features/editor/overlays/ImageToolbar.vue'
 import TextSelectionToolbar from '@/features/editor/overlays/TextSelectionToolbar.vue'
 import { useBaseMarkdown } from '@/features/editor/wysiwyg/baseMarkdown'
 import { codeBlockInteractionPlugin } from '@/features/editor/wysiwyg/codeBlock'
+import {
+  createEditorCommands,
+  getConvertibleBlockPosition,
+} from '@/features/editor/wysiwyg/editorCommands'
 import {
   sizedImageRemarkPlugin,
   sizedImageSchema,
@@ -91,7 +86,6 @@ const findMatches = ref<SearchMatch[]>([])
 const activeFindMatchIndex = ref(-1)
 let editor: Editor | null = null
 let editorMarkdown = content.value
-let editorClipboardText = ''
 // 记录指针按下位置，用于区分普通单击和拖动选择。
 let pointerDownPosition: { x: number; y: number } | null = null
 let collapseSelectionFrame = 0
@@ -248,24 +242,6 @@ function selectionTouchesCodeBlock(state: EditorState) {
   return touchesCodeBlock
 }
 
-function getConvertibleBlockPosition(state: EditorState) {
-  const { from, to } = state.selection
-  const start = state.doc.resolve(from)
-  const end = state.doc.resolve(Math.max(from, to - 1))
-
-  for (let depth = start.depth; depth > 0; depth -= 1) {
-    const node = start.node(depth)
-    if (!['heading', 'code_block'].includes(node.type.name)) continue
-
-    const position = start.before(depth)
-    for (let endDepth = end.depth; endDepth > 0; endDepth -= 1) {
-      if (end.before(endDepth) === position && end.node(endDepth) === node) return position
-    }
-  }
-
-  return null
-}
-
 async function openContextMenu(event: MouseEvent) {
   if (!editor) return
   const menuWidth = 192
@@ -304,141 +280,18 @@ async function openContextMenu(event: MouseEvent) {
   contextMenu.value?.focusFirstItem()
 }
 
-function runCommand<T>(command: CmdKey<T>, payload?: T) {
-  closeContextMenu()
-  editor?.action((ctx) => {
-    ctx.get(editorViewCtx).focus()
-    return callCommand(command, payload)(ctx)
-  })
-}
-
-function runWithView(action: (view: EditorView) => void) {
-  closeContextMenu()
-  editor?.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    view.focus()
-    action(view)
-  })
-}
-
-function runNativeEditCommand(command: 'copy' | 'cut') {
-  runWithView((view) => {
-    const { from, to, empty } = view.state.selection
-    if (empty) return
-
-    editorClipboardText = view.state.doc.textBetween(from, to, '\n', '\n')
-    // 原生剪切事件会由 ProseMirror 写入剪贴板并删除选区，无需再次手动删除。
-    document.execCommand(command)
-
-    if (command === 'copy') {
-      closeBubbleToolbar()
-    }
-  })
-}
-
-function pasteText() {
-  runWithView((view) => {
-    if (editorClipboardText) {
-      view.dispatch(view.state.tr.insertText(editorClipboardText).scrollIntoView())
-      return
-    }
-
-    document.execCommand('paste')
-  })
-}
-
-function insertMarkdownTemplate(template: string, cursorOffset = template.length) {
-  runWithView((view) => {
-    const { from, to } = view.state.selection
-    const tr = view.state.tr.insertText(template, from, to)
-    const cursorPos = from + cursorOffset
-    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView())
-  })
-}
-
-function insertHeading(level: number) {
-  runWithView((view) => {
-    const heading = view.state.schema.nodes.heading
-    if (!heading) return
-    const { from, to } = view.state.selection
-    const text = view.state.doc.textBetween(from, to, '\n', '\n') || '标题'
-    const node = heading.create({ level }, view.state.schema.text(text))
-    const tr = view.state.tr.replaceRangeWith(from, to, node)
-    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 1, from + 1 + text.length)).scrollIntoView())
-  })
-}
-
-function insertBlockquote() {
-  runWithView((view) => {
-    const blockquote = view.state.schema.nodes.blockquote
-    const paragraph = view.state.schema.nodes.paragraph
-    if (!blockquote || !paragraph) return
-    const { from, to } = view.state.selection
-    const text = view.state.doc.textBetween(from, to, '\n', '\n') || '引用'
-    const node = blockquote.create(null, paragraph.create(null, view.state.schema.text(text)))
-    const tr = view.state.tr.replaceRangeWith(from, to, node)
-    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 2, from + 2 + text.length)).scrollIntoView())
-  })
-}
-
-function insertList(ordered: boolean) {
-  runWithView((view) => {
-    const list = ordered ? view.state.schema.nodes.ordered_list : view.state.schema.nodes.bullet_list
-    const listItem = view.state.schema.nodes.list_item
-    const paragraph = view.state.schema.nodes.paragraph
-    if (!list || !listItem || !paragraph) return
-    const { from, to } = view.state.selection
-    const text = view.state.doc.textBetween(from, to, '\n', '\n') || '列表项'
-    const node = list.create(null, listItem.create(null, paragraph.create(null, view.state.schema.text(text))))
-    const tr = view.state.tr.replaceRangeWith(from, to, node)
-    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 3, from + 3 + text.length)).scrollIntoView())
-  })
-}
-
-function clearInlineFormatting() {
-  runWithView((view) => {
-    const { state } = view
-    const { from, to } = state.selection
-    const tr = Object.values(state.schema.marks).reduce(
-      (transaction, markType) => transaction.removeMark(from, to, markType),
-      state.tr,
-    )
-    view.dispatch(tr.scrollIntoView())
-  })
-}
-
-function convertCurrentBlockToParagraph() {
-  runWithView((view) => {
-    const position = getConvertibleBlockPosition(view.state)
-    const paragraph = view.state.schema.nodes.paragraph
-    if (position === null || !paragraph) return
-
-    view.dispatch(view.state.tr.setNodeMarkup(position, paragraph).scrollIntoView())
-  })
-}
-
-function setSelectedImageAlign(align: ImageAlign) {
-  runWithView((view) => {
-    const selection = view.state.selection
-    if (!(selection instanceof NodeSelection) || selection.node.type.name !== 'image') return
-    const tr = view.state.tr.setNodeMarkup(selection.from, undefined, {
-      ...selection.node.attrs,
-      align,
-    })
-    view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, selection.from)).scrollIntoView())
+const editorCommands = createEditorCommands({
+  getEditor: () => editor,
+  onBeforeCommand: closeContextMenu,
+  onCopy: closeBubbleToolbar,
+  onImageAlign(view, align) {
     selectedImageAlign.value = align
     requestAnimationFrame(() => {
       const nextSelection = view.state.selection
       if (nextSelection instanceof NodeSelection) updateSelectedImageToolbar(view, nextSelection)
     })
-  })
-}
-
-function selectAllContent() {
-  runWithView((view) => {
-    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)))
-  })
-}
+  },
+})
 
 function syncFindMatches(view: EditorView, query = activeFindQuery, preferredIndex = activeFindMatchIndex.value) {
   activeFindQuery = query
@@ -721,29 +574,29 @@ onBeforeUnmount(() => {
    <TextSelectionToolbar
       v-if="bubbleToolbarOpen"
 :in-code-block="selectionInCodeBlock"
-      :position="bubbleToolbarPosition" @clear-formatting="clearInlineFormatting" @copy="runNativeEditCommand('copy')"
-      @toggle-bold="runCommand(toggleStrongCommand.key)" @toggle-inline-code="runCommand(toggleInlineCodeCommand.key)"
-      @toggle-italic="runCommand(toggleEmphasisCommand.key)" />
+     :position="bubbleToolbarPosition" @clear-formatting="editorCommands.clearInlineFormatting"
+      @copy="editorCommands.copy" @toggle-bold="editorCommands.toggleBold"
+      @toggle-inline-code="editorCommands.toggleInlineCode" @toggle-italic="editorCommands.toggleItalic" />
 
   <ImageToolbar
       v-if="imageToolbarOpen"
 :align="selectedImageAlign" :position="imageToolbarPosition"
-      @align="setSelectedImageAlign" />
+     @align="editorCommands.setImageAlign" />
 
   <EditorContextMenu
       v-if="contextMenuOpen"
       ref="contextMenu"
      :can-convert-to-paragraph="contextBlockCanConvertToParagraph" :has-selection="selectionHasText"
-      :in-code-block="selectionInCodeBlock" :position="contextMenuPosition" @clear-formatting="clearInlineFormatting"
-      @close="closeContextMenu" @convert-to-paragraph="convertCurrentBlockToParagraph"
-      @copy="runNativeEditCommand('copy')" @cut="runNativeEditCommand('cut')" @insert-blockquote="insertBlockquote"
-      @insert-code-block="runCommand(createCodeBlockCommand.key)" @insert-heading="insertHeading"
-      @insert-horizontal-rule="runCommand(insertHrCommand.key)"
-      @insert-image="insertMarkdownTemplate('![图片描述](图片地址)', 7)" @insert-list="insertList"
-      @insert-table="runCommand(insertTableCommand.key, { row: 3, col: 3 })" @paste="pasteText"
-      @redo="runCommand(redoCommand.key)" @select-all="selectAllContent"
-      @toggle-bold="runCommand(toggleStrongCommand.key)" @toggle-inline-code="runCommand(toggleInlineCodeCommand.key)"
-      @toggle-italic="runCommand(toggleEmphasisCommand.key)" @undo="runCommand(undoCommand.key)" />
+     :in-code-block="selectionInCodeBlock" :position="contextMenuPosition"
+      @clear-formatting="editorCommands.clearInlineFormatting" @close="closeContextMenu"
+      @convert-to-paragraph="editorCommands.convertCurrentBlockToParagraph" @copy="editorCommands.copy"
+      @cut="editorCommands.cut" @insert-blockquote="editorCommands.insertBlockquote"
+      @insert-code-block="editorCommands.insertCodeBlock" @insert-heading="editorCommands.insertHeading"
+      @insert-horizontal-rule="editorCommands.insertHorizontalRule" @insert-image="editorCommands.insertImageTemplate"
+      @insert-list="editorCommands.insertList" @insert-table="editorCommands.insertTable" @paste="editorCommands.paste"
+      @redo="editorCommands.redo" @select-all="editorCommands.selectAll" @toggle-bold="editorCommands.toggleBold"
+      @toggle-inline-code="editorCommands.toggleInlineCode" @toggle-italic="editorCommands.toggleItalic"
+      @undo="editorCommands.undo" />
   </Teleport>
 </template>
 
