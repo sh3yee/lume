@@ -10,7 +10,6 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core'
 import type { CmdKey } from '@milkdown/kit/core'
 import {
-  commonmark,
   createCodeBlockCommand,
   imageSchema,
   insertHrCommand,
@@ -18,11 +17,10 @@ import {
   toggleInlineCodeCommand,
   toggleStrongCommand,
 } from '@milkdown/kit/preset/commonmark'
-import { gfm, insertTableCommand } from '@milkdown/preset-gfm'
+import { insertTableCommand } from '@milkdown/preset-gfm'
 import { history, redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
-import { AllSelection, NodeSelection, Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state'
+import { AllSelection, NodeSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
-import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { $prose, $remark, $view, callCommand, replaceAll } from '@milkdown/kit/utils'
@@ -51,6 +49,14 @@ import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
 import EditorContextMenu from '@/features/editor/overlays/EditorContextMenu.vue'
 import ImageToolbar from '@/features/editor/overlays/ImageToolbar.vue'
 import TextSelectionToolbar from '@/features/editor/overlays/TextSelectionToolbar.vue'
+import { useBaseMarkdown } from '@/features/editor/wysiwyg/baseMarkdown'
+import { codeBlockInteractionPlugin } from '@/features/editor/wysiwyg/codeBlock'
+import {
+  findTextMatches,
+  searchHighlightPlugin,
+  updateSearchHighlight,
+  type SearchMatch,
+} from '@/features/editor/wysiwyg/searchHighlight'
 
 const {
   activeDocument,
@@ -95,18 +101,6 @@ interface NativeImageDropDetail {
   x: number
   y: number
 }
-
-interface SearchMatch {
-  from: number
-  to: number
-}
-
-interface SearchPluginState {
-  activeIndex: number
-  matches: SearchMatch[]
-}
-
-const searchPluginKey = new PluginKey<SearchPluginState>('lume-current-document-search')
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 const ONLINE_IMAGE_URL_PATTERN = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp|avif|svg)(?:[?#]\S*)?$/i
@@ -205,32 +199,6 @@ const sizedImageSchema = imageSchema.extendSchema((previous) => (ctx) => {
   }
 })
 
-function createParagraphAfterCodeBlock(state: EditorState) {
-  const { $from } = state.selection
-  const codeBlock = $from.parent
-  if (codeBlock.type.name !== 'code_block' || !$from.parentOffset) return null
-  if ($from.parentOffset !== codeBlock.content.size || !codeBlock.textContent.endsWith('\n')) return null
-
-  const paragraph = state.schema.nodes.paragraph.create()
-  const insertPos = $from.after()
-  const tr = state.tr.insert(insertPos, paragraph)
-  return tr
-    .setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)))
-    .scrollIntoView()
-}
-
-function convertEmptyCodeBlockToParagraph(state: EditorState) {
-  const { $from, empty } = state.selection
-  const codeBlock = $from.parent
-  if (!empty || codeBlock.type.name !== 'code_block' || codeBlock.content.size !== 0) return null
-
-  const blockPos = $from.before()
-  const tr = state.tr.setNodeMarkup(blockPos, state.schema.nodes.paragraph)
-  return tr
-    .setSelection(TextSelection.near(tr.doc.resolve(blockPos + 1)))
-    .scrollIntoView()
-}
-
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -267,56 +235,9 @@ function getImageAlt(src: string) {
   }
 }
 
-function findTextMatches(doc: ProseNode, query: string): SearchMatch[] {
-  const needle = query.trim().toLocaleLowerCase()
-  if (!needle) return []
-
-  const matches: SearchMatch[] = []
-  doc.descendants((node, pos) => {
-    if (!node.isText || !node.text) return
-    const text = node.text.toLocaleLowerCase()
-    let index = text.indexOf(needle)
-    while (index >= 0) {
-      matches.push({ from: pos + index, to: pos + index + needle.length })
-      index = text.indexOf(needle, index + Math.max(needle.length, 1))
-    }
-  })
-  return matches
-}
-
 function updateSearchPlugin(view: EditorView, matches = findMatches.value, activeIndex = activeFindMatchIndex.value) {
-  view.dispatch(view.state.tr.setMeta(searchPluginKey, { matches, activeIndex }))
+  updateSearchHighlight(view, matches, activeIndex)
 }
-
-const searchHighlightPlugin = $prose(() => new Plugin<SearchPluginState>({
-  key: searchPluginKey,
-  state: {
-    init: () => ({ matches: [], activeIndex: -1 }),
-    apply(tr, value) {
-      const next = tr.getMeta(searchPluginKey) as SearchPluginState | undefined
-      if (next) return next
-      if (!tr.docChanged || value.matches.length === 0) return value
-      const matches = value.matches
-        .map((match) => ({ from: tr.mapping.map(match.from), to: tr.mapping.map(match.to) }))
-        .filter((match) => match.from < match.to)
-      return {
-        matches,
-        activeIndex: matches[value.activeIndex] ? value.activeIndex : matches.length > 0 ? 0 : -1,
-      }
-    },
-  },
-  props: {
-    decorations(state) {
-      const pluginState = searchPluginKey.getState(state)
-      if (!pluginState?.matches.length) return DecorationSet.empty
-      return DecorationSet.create(state.doc, pluginState.matches.map((match, index) => Decoration.inline(
-        match.from,
-        match.to,
-        { class: index === pluginState.activeIndex ? 'lume-search-match lume-search-match--active' : 'lume-search-match' },
-      )))
-    },
-  },
-}))
 
 function convertImageUrlBeforeCursor(view: EditorView, createFollowingParagraph: boolean) {
   const { state } = view
@@ -661,42 +582,6 @@ const imageInputPlugin = $prose(() => new Plugin({
       if (images.length === 0) return false
       event.preventDefault()
       void importClipboardImages(view, images)
-      return true
-    },
-  },
-}))
-
-const codeBlockExitPlugin = $prose(() => new Plugin({
-  appendTransaction(_transactions, _oldState, newState) {
-    if (newState.doc.lastChild?.type.name !== 'code_block') return null
-
-    return newState.tr.insert(newState.doc.content.size, newState.schema.nodes.paragraph.create())
-  },
-  props: {
-    handleKeyDown(view, event) {
-      if (
-        event.key === 'Backspace'
-        && !event.isComposing
-        && !event.shiftKey
-        && !event.ctrlKey
-        && !event.metaKey
-        && !event.altKey
-      ) {
-        const tr = convertEmptyCodeBlockToParagraph(view.state)
-        if (!tr) return false
-
-        event.preventDefault()
-        view.dispatch(tr)
-        return true
-      }
-
-      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
-
-      const tr = createParagraphAfterCodeBlock(view.state)
-      if (!tr) return false
-
-      event.preventDefault()
-      view.dispatch(tr)
       return true
     },
   },
@@ -1177,7 +1062,7 @@ function handleNativeImageDrop(event: Event) {
 onMounted(async () => {
   if (!editorRef.value) return
 
-  editor = await Editor.make()
+  editor = await useBaseMarkdown(Editor.make()
     .config((ctx) => {
       ctx.set(rootCtx, editorRef.value!)
       ctx.set(defaultValueCtx, content.value)
@@ -1208,16 +1093,14 @@ onMounted(async () => {
           }
           updateBubbleToolbar(view)
         })
-    })
-    .use(commonmark)
-    .use(gfm)
+    }))
     .use(sizedImageSchema)
     .use(sizedImageRemarkPlugin)
     .use(history)
     .use(localImageView)
     .use(searchHighlightPlugin)
     .use(imageInputPlugin)
-    .use(codeBlockExitPlugin)
+    .use(codeBlockInteractionPlugin)
     .use(listener)
     .create()
 

@@ -176,9 +176,9 @@ src-tauri/src/
 ### Milkdown 内核
 
 - [ ] 提取 Milkdown 创建与销毁逻辑。
-- [ ] 提取基础 Markdown 和 GFM 配置。
-- [ ] 提取搜索高亮插件。
-- [ ] 提取代码块退出与空代码块转换插件。
+- [x] 提取基础 Markdown 和 GFM 配置。
+- [x] 提取搜索高亮插件。
+- [x] 提取代码块退出与空代码块转换插件。
 - [ ] 提取图片 Schema 与 Markdown 转换。
 - [ ] 提取图片 NodeView、缩放和对齐逻辑。
 - [ ] 提取图片粘贴、拖放和 URL 转换逻辑。
