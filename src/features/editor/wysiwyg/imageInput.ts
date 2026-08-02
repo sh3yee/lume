@@ -3,6 +3,7 @@ import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 
 const ONLINE_IMAGE_URL_PATTERN = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp|avif|svg)(?:[?#]\S*)?$/i
+const MARKDOWN_IMAGE_PATTERN = /^!\[([^\]]*)\]\(\s*(?:<([^>\n]+)>|([^\s)]+))(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)$/
 const IMAGE_MIME_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -40,7 +41,21 @@ function getImageAlt(src: string) {
   }
 }
 
-function convertImageUrlBeforeCursor(view: EditorView, createFollowingParagraph: boolean) {
+function parseImageSource(source: string) {
+  const markdownImage = source.match(MARKDOWN_IMAGE_PATTERN)
+  if (markdownImage) {
+    return {
+      src: markdownImage[2] ?? markdownImage[3],
+      alt: markdownImage[1],
+      title: markdownImage[4] ?? markdownImage[5] ?? markdownImage[6] ?? '',
+    }
+  }
+
+  const src = source.match(ONLINE_IMAGE_URL_PATTERN)?.[0]
+  return src ? { src, alt: getImageAlt(src), title: '' } : null
+}
+
+function convertImageSourceBeforeCursor(view: EditorView, createFollowingParagraph: boolean) {
   const { state } = view
   const { $from, empty } = state.selection
   if (
@@ -50,13 +65,13 @@ function convertImageUrlBeforeCursor(view: EditorView, createFollowingParagraph:
   ) return false
 
   const textBeforeCursor = $from.parent.textBetween(0, $from.parentOffset, undefined, '\ufffc')
-  const src = textBeforeCursor.match(ONLINE_IMAGE_URL_PATTERN)?.[0]
-  if (!src) return false
+  const imageSource = parseImageSource(textBeforeCursor)
+  if (!imageSource) return false
 
-  const contentFrom = $from.pos - src.length
+  const contentFrom = $from.pos - textBeforeCursor.length
   const contentTo = $from.pos
   const blockEnd = $from.after()
-  const image = state.schema.nodes.image.create({ src, alt: getImageAlt(src), title: '' })
+  const image = state.schema.nodes.image.create(imageSource)
   let tr = state.tr.replaceWith(contentFrom, contentTo, image)
 
   if (createFollowingParagraph) {
@@ -179,7 +194,7 @@ export function createImageInputPlugin(options: {
         }
         if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return false
         if (event.key !== 'Enter' && event.key !== ' ') return false
-        const converted = convertImageUrlBeforeCursor(view, event.key === 'Enter')
+        const converted = convertImageSourceBeforeCursor(view, event.key === 'Enter')
         if (converted) event.preventDefault()
         return converted
       },
