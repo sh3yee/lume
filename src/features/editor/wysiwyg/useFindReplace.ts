@@ -6,7 +6,7 @@ import {
   findTextMatches,
   updateSearchHighlight,
   type SearchMatch,
-} from './searchHighlight'
+} from '../extensions/search'
 
 export function useFindReplace(options: {
   closeOverlays: () => void

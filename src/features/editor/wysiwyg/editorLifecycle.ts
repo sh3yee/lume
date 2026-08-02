@@ -9,12 +9,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { replaceAll } from '@milkdown/kit/utils'
-import { useBaseMarkdown } from './baseMarkdown'
-import { codeBlockInteractionPlugin } from './codeBlock'
-import { createImageInputPlugin } from './imageInput'
-import { createImageNodeView } from './imageNodeView'
-import { sizedImageRemarkPlugin, sizedImageSchema } from './imageSchema'
-import { searchHighlightPlugin } from './searchHighlight'
+import { useWysiwygMarkdownExtensions } from '../extensions'
 
 export async function createWysiwygEditor(options: {
   initialMarkdown: string
@@ -26,16 +21,7 @@ export async function createWysiwygEditor(options: {
   onSelectionChange: (view: EditorView | null, line: number, column: number) => void
   resolveImageSource: (src: string) => string | Promise<string>
 }) {
-  const imageNodeView = createImageNodeView({
-    onSelect: options.onImageSelect,
-    resolveImageSource: options.resolveImageSource,
-  })
-  const imageInputPlugin = createImageInputPlugin({
-    importFile: options.importImageFile,
-    isActive: options.isDocumentActive,
-  })
-
-  return useBaseMarkdown(Editor.make()
+  return useWysiwygMarkdownExtensions(Editor.make()
     .config((ctx) => {
       ctx.set(rootCtx, options.root)
       ctx.set(defaultValueCtx, options.initialMarkdown)
@@ -61,14 +47,8 @@ export async function createWysiwygEditor(options: {
           }
           options.onSelectionChange(view, lines.length, (lines.at(-1)?.length || 0) + 1)
         })
-    }))
-    .use(sizedImageSchema)
-    .use(sizedImageRemarkPlugin)
+    }), options)
     .use(history)
-    .use(imageNodeView)
-    .use(searchHighlightPlugin)
-    .use(imageInputPlugin)
-    .use(codeBlockInteractionPlugin)
     .use(listener)
     .create()
 }

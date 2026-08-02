@@ -32,7 +32,7 @@ import {
   destroyWysiwygEditor,
   replaceEditorMarkdown,
 } from '@/features/editor/wysiwyg/editorLifecycle'
-import { insertNativeImagePaths } from '@/features/editor/wysiwyg/imageInput'
+import { insertNativeImagePaths } from '@/features/editor/extensions/images'
 import {
   useFindReplace,
 } from '@/features/editor/wysiwyg/useFindReplace'
