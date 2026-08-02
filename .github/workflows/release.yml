@@ -86,6 +86,6 @@ jobs:
             此版本由 GitHub Actions 自动构建。
 
             > 本项目采用 PolyForm Noncommercial License 1.0.0，仅允许非商业用途。
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
