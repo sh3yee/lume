@@ -6,6 +6,7 @@ import { useCodeBlockPreviewExtension, useCodeBlockWysiwygExtension } from './co
 import { useFootnotesPreviewExtension, useFootnotesWysiwygExtension } from './footnotes'
 import { useGfmPreviewExtension, useGfmWysiwygExtension } from './gfm'
 import { useImagesWysiwygExtension } from './images'
+import { useMarkdownPasteWysiwygExtension } from './markdown-paste'
 import { useMathPreviewExtension, useMathWysiwygExtension } from './math'
 import { useMermaidPreviewExtension, useMermaidWysiwygExtension } from './mermaid'
 import { useSearchWysiwygExtension } from './search'
@@ -27,7 +28,8 @@ export function useWysiwygMarkdownExtensions(editor: Editor, options: {
   const mathEditor = useMathWysiwygExtension(imageEditor)
   const mermaidEditor = useMermaidWysiwygExtension(mathEditor)
   const footnotesEditor = useFootnotesWysiwygExtension(mermaidEditor)
-  return useCodeBlockWysiwygExtension(useSearchWysiwygExtension(footnotesEditor))
+  const codeBlockEditor = useCodeBlockWysiwygExtension(footnotesEditor)
+  return useMarkdownPasteWysiwygExtension(useSearchWysiwygExtension(codeBlockEditor))
 }
 
 /** 按稳定顺序创建并配置 Preview Markdown 扩展。 */
