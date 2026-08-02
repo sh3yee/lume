@@ -6,102 +6,48 @@
  * 文件工具栏提供新建、打开和保存操作。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { ChevronRight, FilePlus2, FileText, Folder, FolderOpen, FolderPlus, X } from 'lucide-vue-next'
+import { ChevronRight, FilePlus2, FileText, Folder, FolderOpen, FolderPlus, Pencil, Trash2, Move, X } from 'lucide-vue-next'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
-import { isTauri } from '@/platform/tauri/client'
-import { createWorkspaceEntry, readWorkspace, selectWorkspaceDirectory, type WorkspaceEntry } from '@/platform/tauri/workspace'
-
-const WORKSPACE_STORAGE_KEY = 'lume-workspace-path'
+import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
+import type { WorkspaceEntry } from '@/platform/tauri/workspace'
 
 const { activeDocument, documents } = useDocument()
 const { openFile, openFilesFromPaths } = useFileOps()
+const {
+  workspacePath,
+  workspaceEntries,
+  expandedPaths,
+  workspaceLoading,
+  workspaceError,
+  workspaceName,
+  visibleWorkspaceEntries,
+  selectWorkspace,
+  createWorkspaceEntry,
+  renameWorkspaceEntry,
+  moveWorkspaceEntry,
+  deleteWorkspaceEntry,
+  toggleDirectory,
+  containsPath,
+} = useWorkspaceCommands()
 const activePanel = ref<'files' | 'outline'>('files')
-const workspacePath = ref(localStorage.getItem(WORKSPACE_STORAGE_KEY))
-const workspaceEntries = ref<WorkspaceEntry[]>([])
-const expandedPaths = ref(new Set<string>())
-const workspaceLoading = ref(false)
-const workspaceError = ref<string | null>(null)
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const contextDirectoryPath = ref<string | null>(null)
+const contextEntry = ref<WorkspaceEntry | null>(null)
 const createKind = ref<'file' | 'directory' | null>(null)
 const createName = ref('')
 const createInput = ref<HTMLInputElement | null>(null)
 
-const workspaceName = computed(() =>
-  workspacePath.value?.split(/[\\/]/).filter(Boolean).at(-1) ?? '工作区',
-)
-
 const standaloneFiles = computed(() => documents.value.filter((item) => {
   if (!item.path) return false
-  if (!workspacePath.value) return true
-  const root = workspacePath.value.replace(/[\\/]+$/, '').toLocaleLowerCase()
-  const path = item.path.toLocaleLowerCase()
-  return path !== root && !path.startsWith(`${root}\\`) && !path.startsWith(`${root}/`)
+  return !containsPath(item.path)
 }))
 
 const hasFileContent = computed(() => Boolean(workspacePath.value) || standaloneFiles.value.length > 0)
 
-const visibleWorkspaceEntries = computed(() => {
-  const visible: Array<WorkspaceEntry & { depth: number }> = []
-
-  function append(entries: WorkspaceEntry[], depth: number) {
-    for (const entry of entries) {
-      visible.push({ ...entry, depth })
-      if (entry.isDirectory && expandedPaths.value.has(entry.path)) {
-        append(entry.children, depth + 1)
-      }
-    }
-  }
-
-  append(workspaceEntries.value, 0)
-  return visible
-})
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message
-  if (error && typeof error === 'object' && 'message' in error) return String(error.message)
-  return '无法读取工作区'
-}
-
-async function loadWorkspace(path: string) {
-  workspaceLoading.value = true
-  workspaceError.value = null
-  try {
-    workspaceEntries.value = await readWorkspace(path)
-    workspacePath.value = path
-    localStorage.setItem(WORKSPACE_STORAGE_KEY, path)
-  } catch (error) {
-    workspaceEntries.value = []
-    workspaceError.value = getErrorMessage(error)
-  } finally {
-    workspaceLoading.value = false
-  }
-}
-
-async function selectWorkspace() {
-  if (!isTauri()) {
-    workspaceError.value = '工作区目录仅在桌面应用中可用'
-    return
-  }
-
-  const selected = await selectWorkspaceDirectory()
-  if (selected) {
-    expandedPaths.value = new Set()
-    await loadWorkspace(selected)
-  }
-}
-
 async function selectFile() {
   await openFile()
-}
-
-function toggleDirectory(path: string) {
-  const next = new Set(expandedPaths.value)
-  if (next.has(path)) next.delete(path)
-  else next.add(path)
-  expandedPaths.value = next
 }
 
 async function openWorkspaceFile(path: string) {
@@ -123,11 +69,35 @@ function openFileContextMenu(event: MouseEvent, entry?: WorkspaceEntry) {
   contextDirectoryPath.value = entry
     ? entry.isDirectory ? entry.path : getParentPath(entry.path)
     : workspacePath.value
+  contextEntry.value = entry ?? null
   contextMenuPosition.value = {
     x: Math.min(event.clientX, window.innerWidth - 184),
-    y: Math.min(event.clientY, window.innerHeight - 92),
+    y: Math.min(event.clientY, window.innerHeight - (entry ? 204 : 92)),
   }
   contextMenuOpen.value = true
+}
+
+async function renameSelectedEntry() {
+  const entry = contextEntry.value
+  closeContextMenu()
+  if (!entry) return
+  const name = window.prompt('输入新名称', entry.name)?.trim()
+  if (name && name !== entry.name) await renameWorkspaceEntry(entry.path, name)
+}
+
+async function moveSelectedEntry() {
+  const entry = contextEntry.value
+  closeContextMenu()
+  if (!entry || !workspacePath.value) return
+  const directory = window.prompt('输入工作区内的目标目录完整路径', workspacePath.value)?.trim()
+  if (directory) await moveWorkspaceEntry(entry.path, directory)
+}
+
+async function deleteSelectedEntry() {
+  const entry = contextEntry.value
+  closeContextMenu()
+  if (!entry || !window.confirm(`确定删除“${entry.name}”吗？此操作无法撤销。`)) return
+  await deleteWorkspaceEntry(entry.path)
 }
 
 async function startCreate(kind: 'file' | 'directory') {
@@ -154,19 +124,14 @@ async function confirmCreate() {
   if (!directory || !name || !createKind.value) return
   if (createKind.value === 'file' && !/\.(md|markdown)$/i.test(name)) name += '.md'
 
-  try {
-    const path = await createWorkspaceEntry(directory, name, createKind.value === 'directory')
-    const kind = createKind.value
-    cancelCreate()
-    if (workspacePath.value) await loadWorkspace(workspacePath.value)
-    if (directory !== workspacePath.value) {
-      expandedPaths.value = new Set(expandedPaths.value).add(directory)
-    }
-    if (kind === 'file') await openWorkspaceFile(path)
-  } catch (error) {
-    workspaceError.value = getErrorMessage(error)
+  const kind = createKind.value
+  const path = await createWorkspaceEntry(directory, name, kind === 'directory')
+  if (!path) {
     createInput.value?.focus()
+    return
   }
+  cancelCreate()
+  if (kind === 'file') await openWorkspaceFile(path)
 }
 
 /** 从当前 Markdown 中提取 ATX 标题，忽略代码块内的井号。 */
@@ -219,7 +184,6 @@ function navigateToHeading(index: number) {
 }
 
 onMounted(() => {
-  if (workspacePath.value && isTauri()) void loadWorkspace(workspacePath.value)
   window.addEventListener('pointerdown', closeContextMenu)
   window.addEventListener('blur', closeContextMenu)
 })
@@ -337,6 +301,17 @@ onBeforeUnmount(() => {
           <FolderPlus :size="15" />
           <span>新建文件夹</span>
         </button>
+       <template v-if="contextEntry">
+          <button type="button" role="menuitem" @click="renameSelectedEntry">
+            <Pencil :size="15" /><span>重命名</span>
+          </button>
+          <button type="button" role="menuitem" @click="moveSelectedEntry">
+            <Move :size="15" /><span>移动到…</span>
+          </button>
+          <button class="lume-sidebar__danger-action" type="button" role="menuitem" @click="deleteSelectedEntry">
+            <Trash2 :size="15" /><span>删除</span>
+          </button>
+        </template>
       </div>
    </Teleport>
   </aside>
@@ -641,6 +616,9 @@ onBeforeUnmount(() => {
     background: var(--lume-bg-surface-raised);
     color: var(--lume-text-primary);
   }
+.lume-sidebar__context-menu .lume-sidebar__danger-action {
+  color: var(--lume-color-danger);
+}
   
   .lume-sidebar__error {
     margin: var(--lume-space-3);

@@ -22,6 +22,8 @@
       @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
     <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
       @cancel="cancelCloseDocument" @confirm="confirmCloseDocument" />
+   <ExternalConflictDialog v-if="externalConflict" :file-name="externalConflict.fileName"
+      :deleted="externalConflict.kind === 'deleted'" @keep="keepLocalChanges" @reload="reloadConflictedDocument" />
     <FileDropMessage :message="fileDropMessage" @dismiss="dismissMessage" />
   </div>
 </template>
@@ -43,6 +45,7 @@ import StatusBar from '@components/StatusBar.vue'
 import SettingsDialog from '@components/SettingsDialog.vue'
 import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import FileDropMessage from '@components/FileDropMessage.vue'
+import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
 import { ref } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
@@ -51,6 +54,7 @@ import { useAppFeedback } from '@/app/feedback/useAppFeedback'
 import { useDocumentSessionPersistence } from '@/app/lifecycle/useDocumentSessionPersistence'
 import { useFileDrop } from '@/app/lifecycle/useFileDrop'
 import { useWindowPersistence } from '@/app/lifecycle/useWindowPersistence'
+import { useWorkspaceLifecycle } from '@/app/lifecycle/useWorkspaceLifecycle'
 import { useThemePreference } from '@/app/preferences/useThemePreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
 
@@ -74,6 +78,7 @@ const {
 } = useDocument()
 const { themePreference, resolvedTheme } = useThemePreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
+const { externalConflict, keepLocalChanges, reloadConflictedDocument } = useWorkspaceLifecycle(showMessage)
 const { flushDocumentSession } = useDocumentSessionPersistence(
   documents,
   activeDocumentId,

@@ -201,6 +201,14 @@ lume/
 4. 在 `src/platform/tauri/{domain}.ts` 中添加类型化封装；禁止 Vue 组件直接调用 Tauri API。
 5. 如需新权限，在 `src-tauri/capabilities/default.json` 中声明。
 
+### 工作区监听约定
+
+- 文件管理命令必须校验源路径和目标路径都位于当前工作区内。
+- 工作区监听由 `services/workspace_watcher.rs` 的后台线程执行，统一发送 `lume://workspace-change` 批量事件。
+- 前端只在 `app/lifecycle/useWorkspaceLifecycle.ts` 订阅事件，侧栏显示状态不影响监听生命周期。
+- clean 文档可安全刷新；dirty 文档必须进入冲突流程，禁止静默覆盖。
+- 调整扫描上限或监听间隔后，需要同步更新 `workspace-performance.md` 并重新执行性能基线。
+
 ## 提交规范
 
 项目遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：

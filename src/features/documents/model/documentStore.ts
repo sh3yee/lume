@@ -249,6 +249,16 @@ function updateActiveDocument(metadata: Partial<Pick<OpenDocument, 'name' | 'pat
   if (activeDocument.value) Object.assign(activeDocument.value, metadata)
 }
 
+function updateDocumentMetadata(
+  id: string,
+  metadata: Partial<Pick<OpenDocument, 'name' | 'path' | 'isDirty'>>,
+) {
+  const document = documents.value.find((item) => item.id === id)
+  if (!document) return false
+  Object.assign(document, metadata)
+  return true
+}
+
 /** 获取可由外部 Repository 持久化的文档会话快照。 */
 function getDocumentSessionSnapshot(): DocumentSession {
   return {
@@ -281,6 +291,7 @@ export function useDocumentStore() {
     confirmCloseDocument,
     cancelCloseDocument,
     updateActiveDocument,
+    updateDocumentMetadata,
     hydrateDocumentSession,
     getDocumentSessionSnapshot,
   }
