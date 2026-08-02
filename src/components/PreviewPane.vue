@@ -5,16 +5,26 @@
  * 使用 markdown-it 实时渲染编辑区的 Markdown 内容。
  * 后续将集成局部更新与滚动同步。
  */
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useMarkdownPreview } from '@/features/editor/preview/useMarkdownPreview.ts'
 
 const { activeDocument, content } = useDocument()
-const { renderedHtml } = useMarkdownPreview(content, activeDocument)
+const { enhancePreview, renderedHtml } = useMarkdownPreview(content, activeDocument)
+const previewContentRef = ref<HTMLElement | null>(null)
+
+async function renderPreviewExtensions() {
+  await nextTick()
+  if (previewContentRef.value) await enhancePreview(previewContentRef.value)
+}
+
+watch(renderedHtml, () => void renderPreviewExtensions())
+onMounted(() => void renderPreviewExtensions())
 </script>
 
 <template>
   <section class="lume-preview-pane">
-   <div class="lume-preview-pane__content lume-markdown-content" v-html="renderedHtml"></div>
+   <div ref="previewContentRef" class="lume-preview-pane__content lume-markdown-content" v-html="renderedHtml"></div>
   </section>
 </template>
 

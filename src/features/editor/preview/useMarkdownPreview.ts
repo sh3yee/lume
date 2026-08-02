@@ -4,7 +4,9 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import { isTauri, resolveImagePath } from '../../../types/tauri.ts'
 import type { OpenDocument } from '../../documents/model/documentTypes.ts'
 import { createMarkdownPreview } from '../extensions'
+import { highlightCodeBlocks } from '../extensions/code-block'
 import { collectLocalImageSources, useImagesPreviewExtension } from '../extensions/images'
+import { renderMermaidDiagrams } from '../extensions/mermaid'
 
 export function useMarkdownPreview(content: Ref<string>, activeDocument: ComputedRef<OpenDocument | undefined>) {
   const localImageUrls = ref<Record<string, string>>({})
@@ -28,5 +30,11 @@ export function useMarkdownPreview(content: Ref<string>, activeDocument: Compute
     if (sequence === imageLoadSequence) localImageUrls.value = Object.fromEntries(entries.filter((entry) => entry !== null))
   }, { immediate: true })
 
-  return { renderedHtml: computed(() => markdown.render(content.value)) }
+  return {
+    enhancePreview: (container: HTMLElement) => Promise.all([
+      highlightCodeBlocks(container),
+      renderMermaidDiagrams(container),
+    ]),
+    renderedHtml: computed(() => markdown.render(content.value)),
+  }
 }

@@ -2,9 +2,12 @@ import { type Editor } from '@milkdown/kit/core'
 import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { createBasePreviewExtension, useBaseWysiwygExtension } from './base'
-import { useCodeBlockWysiwygExtension } from './code-block'
+import { useCodeBlockPreviewExtension, useCodeBlockWysiwygExtension } from './code-block'
+import { useFootnotesPreviewExtension, useFootnotesWysiwygExtension } from './footnotes'
 import { useGfmPreviewExtension, useGfmWysiwygExtension } from './gfm'
 import { useImagesWysiwygExtension } from './images'
+import { useMathPreviewExtension, useMathWysiwygExtension } from './math'
+import { useMermaidPreviewExtension, useMermaidWysiwygExtension } from './mermaid'
 import { useSearchWysiwygExtension } from './search'
 
 /** 按稳定顺序注册 WYSIWYG Markdown 扩展。 */
@@ -21,10 +24,16 @@ export function useWysiwygMarkdownExtensions(editor: Editor, options: {
     onSelect: options.onImageSelect,
     resolveSource: options.resolveImageSource,
   })
-  return useCodeBlockWysiwygExtension(useSearchWysiwygExtension(imageEditor))
+  const mathEditor = useMathWysiwygExtension(imageEditor)
+  const mermaidEditor = useMermaidWysiwygExtension(mathEditor)
+  const footnotesEditor = useFootnotesWysiwygExtension(mermaidEditor)
+  return useCodeBlockWysiwygExtension(useSearchWysiwygExtension(footnotesEditor))
 }
 
 /** 按稳定顺序创建并配置 Preview Markdown 扩展。 */
 export function createMarkdownPreview() {
-  return useGfmPreviewExtension(createBasePreviewExtension())
+  const markdown = useGfmPreviewExtension(createBasePreviewExtension())
+  const footnotesMarkdown = useFootnotesPreviewExtension(markdown)
+  const mathMarkdown = useMathPreviewExtension(footnotesMarkdown)
+  return useCodeBlockPreviewExtension(useMermaidPreviewExtension(mathMarkdown))
 }

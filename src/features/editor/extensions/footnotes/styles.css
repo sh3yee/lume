@@ -1,0 +1,38 @@
+/** WYSIWYG 与 Preview 共用的脚注排版。 */
+.lume-markdown-content [data-type='footnote_reference'],
+.lume-markdown-content .footnote-ref {
+  font-size: 0.75em;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.lume-markdown-content [data-type='footnote_reference'] {
+  padding: 0 var(--lume-space-1);
+  border-radius: var(--lume-radius-sm);
+  color: var(--lume-accent-default);
+}
+
+.lume-markdown-content .footnote-ref a,
+.lume-markdown-content .footnote-backref {
+  color: var(--lume-accent-default);
+  text-decoration: none;
+}
+
+.lume-markdown-content .footnotes-sep {
+  width: 25%;
+  margin: var(--lume-space-8) 0 var(--lume-space-4);
+}
+
+.lume-markdown-content .footnotes {
+  color: var(--lume-text-secondary);
+  font-size: 0.875em;
+}
+
+.lume-markdown-content .footnotes-list {
+  padding-left: var(--lume-space-6);
+}
+
+.lume-markdown-content .footnote-item:target {
+  border-radius: var(--lume-radius-sm);
+  background-color: var(--lume-accent-subtle);
+}

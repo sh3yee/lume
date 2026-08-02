@@ -6,4 +6,9 @@
 @import './reset.css';
 @import './tokens.css';
 @import './liquid-glass.css';
+@import 'katex/dist/katex.min.css';
 @import '../features/editor/styles/markdown-content.css';
+@import '../features/editor/extensions/code-block/styles.css';
+@import '../features/editor/extensions/footnotes/styles.css';
+@import '../features/editor/extensions/math/styles.css';
+@import '../features/editor/extensions/mermaid/styles.css';

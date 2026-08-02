@@ -1,0 +1,27 @@
+/** Mermaid Preview 图表及渲染失败回退样式。 */
+.lume-markdown-content .lume-mermaid {
+  margin: var(--lume-space-5) 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.lume-markdown-content .lume-mermaid svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.lume-markdown-content .lume-mermaid--error {
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+  text-align: left;
+}
+
+.lume-markdown-content .lume-mermaid--error::before {
+  display: block;
+  padding: var(--lume-space-2) var(--lume-space-4) 0;
+  color: var(--lume-text-secondary);
+  content: 'Mermaid 图表渲染失败，已保留源代码';
+  font-size: var(--lume-font-size-sm);
+}

@@ -1,0 +1,25 @@
+/** WYSIWYG 与 Preview 共用的数学公式排版。 */
+.lume-markdown-content .lume-math--inline,
+.lume-markdown-content .katex {
+  color: var(--lume-text-primary);
+}
+
+.lume-markdown-content .lume-math--inline {
+  display: inline-block;
+  padding: 0 var(--lume-space-1);
+  vertical-align: middle;
+}
+
+.lume-markdown-content .lume-math--block,
+.lume-markdown-content .katex-display {
+  margin: var(--lume-space-5) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+.lume-markdown-content .lume-math.ProseMirror-selectednode {
+  border-radius: var(--lume-radius-sm);
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 2px;
+}

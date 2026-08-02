@@ -1,0 +1,27 @@
+/** Preview 代码块的 Shiki 高亮和回退样式。 */
+.lume-markdown-content .lume-code-block {
+  position: relative;
+}
+
+.lume-markdown-content .lume-code-block--highlighted {
+  background-color: var(--shiki-light-bg, var(--lume-code-bg)) !important;
+}
+
+:root[data-theme='dark'] .lume-markdown-content .lume-code-block--highlighted {
+  background-color: var(--shiki-dark-bg, var(--lume-code-bg)) !important;
+}
+
+.lume-markdown-content .lume-code-block--highlighted code {
+  display: block;
+  min-width: max-content;
+  color: inherit;
+}
+
+.lume-markdown-content .lume-code-block--fallback::before {
+  position: absolute;
+  top: var(--lume-space-2);
+  right: var(--lume-space-3);
+  color: var(--lume-text-tertiary);
+  content: attr(data-code-language);
+  font-size: 0.75em;
+}
