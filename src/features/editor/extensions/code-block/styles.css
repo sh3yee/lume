@@ -25,3 +25,217 @@
   content: attr(data-code-language);
   font-size: 0.75em;
 }
+
+/* WYSIWYG 可编辑代码块：Milkdown NodeView + CodeMirror。 */
+.lume-markdown-content .milkdown-code-block {
+  position: relative;
+  margin: var(--lume-space-4) 0;
+  overflow: visible;
+  border: 1px solid var(--lume-code-border);
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-code-bg);
+}
+
+.lume-markdown-content .milkdown-code-block .tools {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--lume-space-2) 0 var(--lume-space-3);
+  border-bottom: 1px solid var(--lume-code-border);
+}
+
+.lume-markdown-content .milkdown-code-block button {
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lume-space-1);
+  padding: 0 var(--lume-space-2);
+  border: 0;
+  border-radius: var(--lume-radius-sm);
+  background: transparent;
+  color: var(--lume-text-tertiary);
+  font: inherit;
+  font-size: var(--lume-font-size-xs);
+  cursor: pointer;
+}
+
+.lume-markdown-content .milkdown-code-block button:hover,
+.lume-markdown-content .milkdown-code-block button[data-expanded='true'] {
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-markdown-content .milkdown-code-block .language-button .expand-icon {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  margin: -3px 1px 0 3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 140ms ease, margin 140ms ease;
+}
+
+.lume-markdown-content .milkdown-code-block .language-button[data-expanded='true'] .expand-icon {
+  margin-top: 3px;
+  transform: rotate(225deg);
+}
+
+.lume-markdown-content .milkdown-code-block .copy-button {
+  min-width: 52px;
+  justify-content: center;
+}
+
+.lume-markdown-content .milkdown-code-block .copy-button .icon {
+  display: none;
+}
+
+.lume-markdown-content .milkdown-code-block .copy-button[data-copied='true'] {
+  color: var(--lume-accent-default);
+}
+
+.lume-markdown-content .milkdown-code-block .tools-button-group {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-1);
+}
+
+.lume-markdown-content .milkdown-code-block .language-picker {
+  position: fixed;
+  z-index: var(--lume-z-overlay);
+}
+
+.lume-markdown-content .milkdown-code-block .list-wrapper {
+  width: 240px;
+  overflow: hidden;
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-bg-overlay);
+  box-shadow: var(--lume-shadow-md);
+  backdrop-filter: blur(14px);
+}
+
+.lume-markdown-content .milkdown-code-block .search-box {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-2);
+  padding: 0 var(--lume-space-3);
+  border-bottom: 1px solid var(--lume-border-subtle);
+  color: var(--lume-text-tertiary);
+}
+
+.lume-markdown-content .milkdown-code-block .search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--lume-text-primary);
+  font: inherit;
+  font-size: var(--lume-font-size-sm);
+}
+
+.lume-markdown-content .milkdown-code-block .clear-icon {
+  cursor: pointer;
+}
+
+.lume-markdown-content .milkdown-code-block .clear-icon.hidden {
+  visibility: hidden;
+}
+
+.lume-markdown-content .milkdown-code-block .language-list {
+  max-height: 256px;
+  margin: 0;
+  padding: var(--lume-space-2);
+  overflow-y: auto;
+  scrollbar-color: color-mix(in srgb, var(--lume-text-tertiary) 30%, transparent) transparent;
+  scrollbar-width: thin;
+  list-style: none;
+}
+
+.lume-markdown-content .milkdown-code-block .language-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lume-markdown-content .milkdown-code-block .language-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lume-markdown-content .milkdown-code-block .language-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lume-text-tertiary) 30%, transparent);
+  background-clip: padding-box;
+}
+
+.lume-markdown-content .milkdown-code-block .language-list-item {
+  height: 32px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin: 0;
+  padding: 0 var(--lume-space-3);
+  border-radius: var(--lume-radius-sm);
+  color: var(--lume-text-secondary);
+  font-size: var(--lume-font-size-sm);
+  line-height: 32px;
+  cursor: pointer;
+}
+
+.lume-markdown-content .milkdown-code-block .language-list-item:hover,
+.lume-markdown-content .milkdown-code-block .language-list-item:focus,
+.lume-markdown-content .milkdown-code-block .language-list-item[aria-selected='true'] {
+  outline: 0;
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
+
+.lume-markdown-content .milkdown-code-block .language-list-item.no-result {
+  color: var(--lume-text-tertiary);
+  cursor: default;
+}
+
+.lume-markdown-content .milkdown-code-block .codemirror-host,
+.lume-markdown-content .milkdown-code-block .cm-editor {
+  border-radius: 0 0 var(--lume-radius-md) var(--lume-radius-md);
+  background: transparent;
+}
+
+.lume-markdown-content .milkdown-code-block .cm-editor {
+  color: var(--lume-text-primary);
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.875em;
+}
+
+.lume-markdown-content .milkdown-code-block .cm-scroller {
+  overflow: auto;
+  padding: var(--lume-space-4) var(--lume-space-5);
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.lume-markdown-content .milkdown-code-block .cm-content {
+  padding: 0;
+  caret-color: var(--lume-text-primary);
+}
+
+.lume-markdown-content .milkdown-code-block .cm-gutters {
+  display: none;
+}
+
+.lume-markdown-content .milkdown-code-block .cm-focused {
+  outline: 0;
+}
+
+.lume-markdown-content .milkdown-code-block .cm-selectionBackground,
+.lume-markdown-content .milkdown-code-block .cm-content ::selection {
+  background: color-mix(in srgb, var(--lume-accent-default) 24%, transparent) !important;
+}
+
+.lume-markdown-content .milkdown-code-block-placeholder {
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+}
