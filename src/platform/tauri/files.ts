@@ -1,5 +1,13 @@
+import { invokeCommand } from './client'
+
+export interface MarkdownFile {
+  path: string
+  name: string
+  content: string
+}
+
 /** 使用原生对话框选择并读取 Markdown 文件。 */
-export async function openTauriDocument() {
+export async function openDocument() {
   const { open } = await import('@tauri-apps/plugin-dialog')
   const { readFile } = await import('@tauri-apps/plugin-fs')
   const selected = await open({
@@ -7,7 +15,6 @@ export async function openTauriDocument() {
     filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'txt'] }],
   })
   if (typeof selected !== 'string') return null
-
   const bytes = await readFile(selected)
   return {
     content: new TextDecoder('utf-8').decode(bytes),
@@ -16,12 +23,7 @@ export async function openTauriDocument() {
   }
 }
 
-/** 选择 Markdown 保存路径；已有路径且非另存为时直接复用。 */
-export async function selectTauriSavePath(
-  currentPath: string | null,
-  currentName: string,
-  saveAs: boolean,
-) {
+export async function selectSavePath(currentPath: string | null, currentName: string, saveAs: boolean) {
   if (currentPath && !saveAs) return currentPath
   const { save } = await import('@tauri-apps/plugin-dialog')
   let path = await save({
@@ -32,7 +34,15 @@ export async function selectTauriSavePath(
   return path
 }
 
-export async function writeTauriDocument(path: string, content: string) {
+export async function writeDocument(path: string, content: string) {
   const { writeFile } = await import('@tauri-apps/plugin-fs')
   await writeFile(path, new TextEncoder().encode(content))
+}
+
+export function readDroppedMarkdownFile(path: string) {
+  return invokeCommand<MarkdownFile>('lume_read_markdown_file', { path })
+}
+
+export function revealFileInFolder(path: string) {
+  return invokeCommand<void>('lume_reveal_file', { path })
 }

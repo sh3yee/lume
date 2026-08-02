@@ -3,16 +3,21 @@
 //! 负责初始化 Tauri 应用、注册命令和插件。
 //! 模块组织：
 //! - `error`: 统一错误处理
-//! - `commands`: Tauri 命令定义
+//! - `commands`: 按领域拆分的轻量命令入口
+//! - `services`: 图片资源与工作区扫描服务
 
 mod commands;
 mod error;
+mod services;
 
 use commands::{
-    lume_clear_staged_images, lume_create_workspace_entry, lume_health_check, lume_import_image_file,
-    lume_materialize_staged_images, lume_read_markdown_file, lume_read_workspace,
-    lume_resolve_image_path, lume_reveal_file, lume_startup_file_paths,
-    lume_store_clipboard_image,
+    files::lume_read_markdown_file,
+    images::{
+        lume_clear_staged_images, lume_import_image_file, lume_materialize_staged_images,
+        lume_resolve_image_path, lume_store_clipboard_image,
+    },
+    system::{lume_health_check, lume_reveal_file, lume_startup_file_paths},
+    workspace::{lume_create_workspace_entry, lume_read_workspace},
 };
 
 /// 创建并配置 Tauri 应用实例

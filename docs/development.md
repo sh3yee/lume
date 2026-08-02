@@ -130,8 +130,9 @@ lume/
 │   │   ├── tokens.css          # 设计 Token（颜色、排版、间距等）
 │   │   ├── reset.css           # 基础重置
 │   │   └── index.css           # 样式入口
-│   ├── types/                  # TypeScript 类型与桥接
-│   │   └── tauri.ts            # Tauri 命令桥接层
+│   ├── platform/               # 平台能力适配层
+│   │   ├── browser/            # 浏览器文件选择与下载降级
+│   │   └── tauri/              # 按领域拆分的 Tauri 客户端
 │   ├── App.vue                 # 应用根组件
 │   ├── main.ts                 # 前端入口
 │   └── env.d.ts                # 环境类型声明
@@ -139,7 +140,8 @@ lume/
 │   ├── src/
 │   │   ├── lib.rs              # 应用入口与插件注册
 │   │   ├── main.rs             # 二进制入口
-│   │   ├── commands.rs         # Tauri 命令定义
+│   │   ├── commands/           # files/images/workspace/system 命令入口
+│   │   ├── services/           # 图片资源与工作区扫描领域服务
 │   │   └── error.rs            # 统一错误处理
 │   ├── capabilities/           # 权限配置
 │   ├── Cargo.toml              # Rust 依赖
@@ -187,15 +189,17 @@ lume/
 
 - Rust 端所有命令返回 `LumeResult<T>`（即 `Result<T, LumeError>`）。
 - `LumeError` 使用 `thiserror` 派生，通过 `serde` 序列化为 `{ kind, message }` 结构。
-- 前端通过 `src/types/tauri.ts` 桥接层统一调用，错误以 `LumeError` 类型返回。
+- 前端通过 `src/platform/tauri/client.ts` 统一调用命令，并将 Rust 序列化错误转换为标准 `Error`。
+- 文件、图片、工作区、窗口和系统能力分别位于 `src/platform/tauri` 的同名领域模块。
 - 前端组件不直接调用 `invoke`，必须通过桥接模块访问原生能力。
 
 ### 添加新命令
 
-1. 在 `src-tauri/src/commands.rs` 中定义命令函数，添加 `#[tauri::command]` 宏。
-2. 在 `src-tauri/src/lib.rs` 的 `invoke_handler` 中注册命令。
-3. 在 `src/types/tauri.ts` 中添加对应的类型化封装函数。
-4. 如需新权限，在 `src-tauri/capabilities/default.json` 中声明。
+1. 在 `src-tauri/src/commands/{domain}.rs` 中添加轻量命令函数和 `#[tauri::command]` 宏。
+2. 具体图片或工作区业务逻辑放入 `src-tauri/src/services`，命令只负责参数边界和调用 Service。
+3. 在 `src-tauri/src/lib.rs` 的 `invoke_handler` 中注册命令。
+4. 在 `src/platform/tauri/{domain}.ts` 中添加类型化封装；禁止 Vue 组件直接调用 Tauri API。
+5. 如需新权限，在 `src-tauri/capabilities/default.json` 中声明。
 
 ## 提交规范
 

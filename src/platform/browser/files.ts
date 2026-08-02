@@ -11,13 +11,9 @@ export function openBrowserDocument(): Promise<BrowserDocumentFile | null> {
     input.type = 'file'
     input.accept = '.md,.markdown,.txt,text/markdown,text/plain'
     input.style.display = 'none'
-
     input.onchange = () => {
       const file = input.files?.[0]
-      if (!file) {
-        resolve(null)
-        return
-      }
+      if (!file) return resolve(null)
       const reader = new FileReader()
       reader.onload = () => resolve({ content: String(reader.result), name: file.name, path: null })
       reader.onerror = () => resolve(null)
@@ -37,7 +33,6 @@ export function saveBrowserDocument(content: string, name: string) {
   const link = document.createElement('a')
   link.href = url
   link.download = name.endsWith('.md') ? name : `${name}.md`
-  link.style.display = 'none'
   document.body.appendChild(link)
   link.click()
   link.remove()

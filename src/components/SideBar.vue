@@ -9,7 +9,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ChevronRight, FilePlus2, FileText, Folder, FolderOpen, FolderPlus, X } from 'lucide-vue-next'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
-import { createWorkspaceEntry, isTauri, readWorkspace, type WorkspaceEntry } from '../types/tauri'
+import { isTauri } from '@/platform/tauri/client'
+import { createWorkspaceEntry, readWorkspace, selectWorkspaceDirectory, type WorkspaceEntry } from '@/platform/tauri/workspace'
 
 const WORKSPACE_STORAGE_KEY = 'lume-workspace-path'
 
@@ -85,9 +86,8 @@ async function selectWorkspace() {
     return
   }
 
-  const { open } = await import('@tauri-apps/plugin-dialog')
-  const selected = await open({ directory: true, multiple: false, title: '打开工作区' })
-  if (typeof selected === 'string') {
+  const selected = await selectWorkspaceDirectory()
+  if (selected) {
     expandedPaths.value = new Set()
     await loadWorkspace(selected)
   }

@@ -6,9 +6,10 @@
 import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import {
   onFileDragDrop,
-  startupFilePaths,
   type FileDragDropEvent,
-} from '@/types/tauri'
+} from '@/platform/tauri/window'
+import { isTauri } from '@/platform/tauri/client'
+import { startupFilePaths } from '@/platform/tauri/system'
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg'])
 
@@ -86,7 +87,7 @@ export function useFileDrop(
 
   onMounted(async () => {
     unlistenFileDragDrop = await onFileDragDrop(handleFileDragDrop).catch(() => null)
-    if ('__TAURI_INTERNALS__' in window) {
+    if (isTauri()) {
       const startupPaths = await startupFilePaths().catch(() => [])
       if (startupPaths.length > 0) await handleDroppedFiles(startupPaths)
     }

@@ -14,7 +14,7 @@ import {
   isWindowMaximized,
   minimizeWindow,
   toggleMaximizeWindow,
-} from '../types/tauri'
+} from '@/platform/tauri/window'
 
 type ResolvedTheme = 'light' | 'dark' | 'glass'
 

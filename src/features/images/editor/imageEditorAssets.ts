@@ -1,10 +1,5 @@
-import { convertFileSrc } from '@tauri-apps/api/core'
-import {
-  importImageFile,
-  isTauri,
-  resolveImagePath,
-  storeClipboardImage,
-} from '../../../types/tauri'
+import { isTauri } from '@/platform/tauri/client'
+import { importImageFile, resolveImageUrl, storeClipboardImage } from '@/platform/tauri/images'
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
@@ -56,5 +51,5 @@ export function resolveEditorImageSource(
   documentId: string,
 ) {
   if (!src || REMOTE_IMAGE_PATTERN.test(src) || !isTauri()) return src
-  return resolveImagePath(src, documentPath, documentId).then(convertFileSrc)
+  return resolveImageUrl(src, documentPath, documentId)
 }

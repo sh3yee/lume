@@ -12,7 +12,7 @@ import {
   type OpenDocument,
 } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
-import { revealFileInFolder } from '../types/tauri'
+import { revealFileInFolder } from '@/platform/tauri/files'
 
 const props = withDefaults(defineProps<{
   fileDropPaths?: string[]

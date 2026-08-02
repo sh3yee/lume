@@ -1,7 +1,7 @@
 /** markdown-it 预览渲染与本地图片 URL 解析。 */
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
-import { convertFileSrc } from '@tauri-apps/api/core'
-import { isTauri, resolveImagePath } from '../../../types/tauri.ts'
+import { isTauri } from '@/platform/tauri/client'
+import { resolveImageUrl } from '@/platform/tauri/images'
 import type { OpenDocument } from '../../documents/model/documentTypes.ts'
 import { createMarkdownPreview } from '../extensions'
 import { highlightCodeBlocks } from '../extensions/code-block'
@@ -22,7 +22,7 @@ export function useMarkdownPreview(content: Ref<string>, activeDocument: Compute
     }
     const entries = await Promise.all(Array.from(collectLocalImageSources(markdown.parse(source ?? '', {})), async (src) => {
       try {
-        return [src, convertFileSrc(await resolveImagePath(src, documentPath ?? null, documentId))] as const
+        return [src, await resolveImageUrl(src, documentPath ?? null, documentId)] as const
       } catch {
         return null
       }

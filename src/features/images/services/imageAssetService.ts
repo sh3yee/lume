@@ -1,7 +1,7 @@
 import {
   clearStagedImages,
   materializeStagedImages,
-} from '../../../types/tauri.ts'
+} from '@/platform/tauri/images'
 
 /** 首次保存未命名文档时迁移暂存图片，并返回可写盘的 Markdown。 */
 export async function prepareDocumentImages(

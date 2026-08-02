@@ -1,7 +1,8 @@
-import { isTauri, readDroppedMarkdownFile } from '../../../types/tauri.ts'
+import { isTauri } from '@/platform/tauri/client'
+import { readDroppedMarkdownFile } from '@/platform/tauri/files'
 import { clearDocumentImageStaging, prepareDocumentImages } from '@/features/images/services/imageAssetService'
-import { openBrowserDocument, saveBrowserDocument } from '../adapters/browserDocumentFileAdapter'
-import { openTauriDocument, selectTauriSavePath, writeTauriDocument } from '../adapters/tauriDocumentFileAdapter'
+import { openBrowserDocument, saveBrowserDocument } from '@/platform/browser/files'
+import { openDocument, selectSavePath, writeDocument } from '@/platform/tauri/files'
 
 export interface OpenFilesResult {
   opened: number
@@ -17,7 +18,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export async function selectDocumentFile() {
-  return isTauri() ? openTauriDocument() : openBrowserDocument()
+  return isTauri() ? openDocument() : openBrowserDocument()
 }
 
 export async function readDroppedDocuments(paths: string[]) {
@@ -50,10 +51,10 @@ export async function saveDocumentFile(document: {
     return { content: document.content, name: document.name, path: document.path }
   }
 
-  const path = await selectTauriSavePath(document.path, document.name, saveAs)
+  const path = await selectSavePath(document.path, document.name, saveAs)
   if (!path) return null
   const content = await prepareDocumentImages(document.content, path, document.id)
-  await writeTauriDocument(path, content)
+  await writeDocument(path, content)
   await clearDocumentImageStaging(document.id)
   return { content, name: path.split(/[\\/]/).pop() || document.name, path }
 }
