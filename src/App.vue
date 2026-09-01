@@ -18,6 +18,8 @@
     </div>
 
     <StatusBar :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
+    <CommandPalette :open="commandPaletteOpen" :items="commandPaletteItems" @close="closeCommandPalette"
+      @select="handleCommandPaletteSelect" />
     <SettingsDialog
       :open="settingsOpen"
       :view-mode="viewMode"
@@ -54,6 +56,7 @@ import PreviewPane from '@components/PreviewPane.vue'
 import WysiwygPane from '@components/WysiwygPane.vue'
 import StatusBar from '@components/StatusBar.vue'
 import SettingsDialog from '@components/SettingsDialog.vue'
+import CommandPalette from '@components/CommandPalette.vue'
 import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import FileDropMessage from '@components/FileDropMessage.vue'
 import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
@@ -61,6 +64,7 @@ import { ref } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { useAppShortcuts } from '@/app/commands/useAppShortcuts'
+import { useCommandPalette } from '@/app/commands/useCommandPalette'
 import { useAppFeedback } from '@/app/feedback/useAppFeedback'
 import { useDocumentSessionPersistence } from '@/app/lifecycle/useDocumentSessionPersistence'
 import { useFileDrop } from '@/app/lifecycle/useFileDrop'
@@ -79,6 +83,19 @@ const focusMode = ref(false)
 const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
 const { newFile, openFile, openFilesFromPaths, saveFile } = useFileOps()
+const commandPalette = useCommandPalette({
+  newFile,
+  openFile,
+  saveFile: saveCurrentFile,
+  saveFileAs: () => saveCurrentFile(true),
+  toggleSidebar,
+  openSettings,
+  closeActiveDocument,
+})
+const commandPaletteOpen = commandPalette.isOpen
+const commandPaletteItems = commandPalette.items
+const closeCommandPalette = commandPalette.close
+const handleCommandPaletteSelect = commandPalette.handleSelect
 const {
   activeDocument,
   activeDocumentId,
@@ -153,6 +170,7 @@ useAppShortcuts({
   openSettings,
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
+  openCommandPalette: commandPalette.open,
 })
 </script>
 

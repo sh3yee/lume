@@ -12,6 +12,7 @@ export function useAppShortcuts(commands: {
   openSettings: () => void
   saveFile: () => unknown
   saveFileAs: () => unknown
+  openCommandPalette?: () => void
 }) {
   /** 桌面编辑器常用文件快捷键。 */
   function handleShortcut(event: KeyboardEvent) {
@@ -21,6 +22,11 @@ export function useAppShortcuts(commands: {
     if (key === ',') {
       event.preventDefault()
       commands.openSettings()
+      return
+    }
+    if (key === 'p') {
+      event.preventDefault()
+      commands.openCommandPalette?.()
       return
     }
     if (!['n', 'o', 's', 't', 'w'].includes(key)) return
