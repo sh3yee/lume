@@ -53,8 +53,12 @@ function handleKeydown(event: KeyboardEvent) {
     return
   }
 
-  if (event.key === 'ArrowDown') {
+  if (event.key === 'ArrowDown' || event.key === 'Tab') {
     event.preventDefault()
+    if (event.shiftKey && event.key === 'Tab') {
+      activeIndex.value = (activeIndex.value - 1 + Math.max(filteredItems.value.length, 1)) % Math.max(filteredItems.value.length, 1)
+      return
+    }
     activeIndex.value = (activeIndex.value + 1) % Math.max(filteredItems.value.length, 1)
     return
   }

@@ -89,6 +89,12 @@ const commandPalette = useCommandPalette({
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
   toggleSidebar,
+  toggleFocusMode: () => {
+    focusMode.value = !focusMode.value
+  },
+  toggleViewMode: () => {
+    viewMode.value = viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'
+  },
   openSettings,
   closeActiveDocument,
 })
