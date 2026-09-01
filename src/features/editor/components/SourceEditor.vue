@@ -4,11 +4,20 @@
  *
  * 当前使用原生 textarea，后续可在保持 Document Store 边界不变的情况下替换为 CodeMirror 6。
  */
-import { nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
+
+const props = defineProps<{
+  syncRatio?: number
+}>()
+
+const emit = defineEmits<{
+  (e: 'scroll-ratio', value: number): void
+}>()
 
 const { content, updateCursor } = useDocument()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+let isApplyingScrollSync = false
 
 function syncCursor(element: HTMLTextAreaElement) {
   const lines = element.value.substring(0, element.selectionStart).split('\n')
@@ -19,6 +28,13 @@ function handleInput(event: Event) {
   const element = event.target as HTMLTextAreaElement
   content.value = element.value
   syncCursor(element)
+}
+
+function handleScroll(event: Event) {
+  const element = event.target as HTMLTextAreaElement
+  const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+  const ratio = maxScrollTop > 0 ? element.scrollTop / maxScrollTop : 0
+  if (!isApplyingScrollSync) emit('scroll-ratio', ratio)
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -37,6 +53,17 @@ function handleCursorChange(event: Event) {
   syncCursor(event.target as HTMLTextAreaElement)
 }
 
+watch(() => props.syncRatio, (ratio) => {
+  const element = textareaRef.value
+  if (!element || !Number.isFinite(ratio)) return
+  const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+  isApplyingScrollSync = true
+  element.scrollTop = ratio * maxScrollTop
+  requestAnimationFrame(() => {
+    isApplyingScrollSync = false
+  })
+})
+
 onMounted(() => {
   if (textareaRef.value) syncCursor(textareaRef.value)
 })
@@ -54,6 +81,7 @@ onMounted(() => {
       @keyup="handleCursorChange"
       @click="handleCursorChange"
       @keydown="handleKeydown"
+      @scroll="handleScroll"
     ></textarea>
   </section>
 </template>

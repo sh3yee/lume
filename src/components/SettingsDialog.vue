@@ -14,12 +14,14 @@ const props = defineProps<{
   open: boolean
   viewMode: ViewMode
   theme: ThemePreference
+  focusMode: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update:view-mode', value: ViewMode): void
   (e: 'update:theme', value: ThemePreference): void
+  (e: 'update:focus-mode', value: boolean): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
@@ -111,6 +113,51 @@ onBeforeUnmount(() => dialogRef.value?.close())
               <span class="lume-settings__option-copy">
                 <strong>分栏预览</strong>
                 <small>同时查看 Markdown 源码与渲染结果</small>
+              </span>
+              <span class="lume-settings__check"></span>
+            </button>
+          </div>
+        </section>
+
+        <section class="lume-settings__section lume-settings__section--divided">
+          <div class="lume-settings__section-heading">
+            <h3 class="lume-settings__label">写作模式</h3>
+            <p class="lume-settings__hint">切换到更聚焦的界面，减少侧栏和多余信息的干扰。</p>
+          </div>
+
+          <div class="lume-settings__options" role="radiogroup" aria-label="写作模式">
+            <button
+              class="lume-settings__option"
+              :class="{ 'lume-settings__option--active': !focusMode }"
+              type="button"
+              role="radio"
+              :aria-checked="!focusMode"
+              @click="emit('update:focus-mode', false)"
+            >
+              <span class="lume-settings__option-icon">
+                <Columns2 :size="19" :stroke-width="1.6" />
+              </span>
+              <span class="lume-settings__option-copy">
+                <strong>常规模式</strong>
+                <small>保留侧栏和标签，适合多文档浏览</small>
+              </span>
+              <span class="lume-settings__check"></span>
+            </button>
+
+            <button
+              class="lume-settings__option"
+              :class="{ 'lume-settings__option--active': focusMode }"
+              type="button"
+              role="radio"
+              :aria-checked="focusMode"
+              @click="emit('update:focus-mode', true)"
+            >
+              <span class="lume-settings__option-icon">
+                <Sparkles :size="19" :stroke-width="1.6" />
+              </span>
+              <span class="lume-settings__option-copy">
+                <strong>专注模式</strong>
+                <small>隐藏侧栏与标签，最大化写作区域</small>
               </span>
               <span class="lume-settings__check"></span>
             </button>

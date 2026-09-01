@@ -2,29 +2,61 @@
 /**
  * PreviewPane - 预览区
  *
- * 使用 markdown-it 实时渲染编辑区的 Markdown 内容。
- * 后续将集成局部更新与滚动同步。
+ * 使用 markdown-it 实时渲染编辑区的 Markdown 内容，并支持与源码编辑区同步滚动。
  */
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useMarkdownPreview } from '@/features/editor/preview/useMarkdownPreview.ts'
 
+const props = defineProps<{
+  syncRatio?: number
+}>()
+
+const emit = defineEmits<{
+  (e: 'scroll-ratio', value: number): void
+}>()
+
 const { activeDocument, content } = useDocument()
 const { enhancePreview, renderedHtml } = useMarkdownPreview(content, activeDocument)
 const previewContentRef = ref<HTMLElement | null>(null)
+let isApplyingScrollSync = false
 
 async function renderPreviewExtensions() {
   await nextTick()
   if (previewContentRef.value) await enhancePreview(previewContentRef.value)
 }
 
+function handleScroll(event: Event) {
+  const element = event.target as HTMLElement
+  const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+  const ratio = maxScrollTop > 0 ? element.scrollTop / maxScrollTop : 0
+  if (!isApplyingScrollSync) emit('scroll-ratio', ratio)
+}
+
 watch(renderedHtml, () => void renderPreviewExtensions())
+
+watch(() => props.syncRatio, (ratio) => {
+  const element = previewContentRef.value
+  if (!element || !Number.isFinite(ratio)) return
+  const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+  isApplyingScrollSync = true
+  element.scrollTop = ratio * maxScrollTop
+  requestAnimationFrame(() => {
+    isApplyingScrollSync = false
+  })
+})
+
 onMounted(() => void renderPreviewExtensions())
 </script>
 
 <template>
   <section class="lume-preview-pane">
-   <div ref="previewContentRef" class="lume-preview-pane__content lume-markdown-content" v-html="renderedHtml"></div>
+   <div
+      ref="previewContentRef"
+      class="lume-preview-pane__content lume-markdown-content"
+      v-html="renderedHtml"
+      @scroll="handleScroll"
+   ></div>
   </section>
 </template>
 

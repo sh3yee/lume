@@ -1,25 +1,33 @@
 <template>
-  <div class="lume-app">
+  <div class="lume-app" :class="{ 'lume-app--focus': focusMode }">
     <TitleBar :theme="resolvedTheme" @open-settings="openSettings" @close-window="handleCloseWindow" />
 
     <div class="lume-app__body">
-      <SideBar v-if="sidebarVisible" />
+      <SideBar v-if="sidebarVisible && !focusMode" />
 
       <div class="lume-app__workspace">
-        <DocumentTabs :file-drop-paths="fileDragPaths" />
+        <DocumentTabs v-if="!focusMode" :file-drop-paths="fileDragPaths" />
         <main class="lume-app__main">
           <WysiwygPane v-if="viewMode === 'wysiwyg'" :key="activeDocumentId" />
-          <template v-else>
-           <SourceEditor />
-            <PreviewPane />
-          </template>
+          <div v-else class="lume-app__split-view">
+            <SourceEditor :sync-ratio="splitScrollRatio" @scroll-ratio="handleSplitScrollRatio" />
+            <PreviewPane :sync-ratio="splitScrollRatio" @scroll-ratio="handleSplitScrollRatio" />
+          </div>
         </main>
       </div>
     </div>
 
     <StatusBar :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
-    <SettingsDialog :open="settingsOpen" :view-mode="viewMode" :theme="themePreference" @close="settingsOpen = false"
-      @update:view-mode="viewMode = $event" @update:theme="themePreference = $event" />
+    <SettingsDialog
+      :open="settingsOpen"
+      :view-mode="viewMode"
+      :theme="themePreference"
+      :focus-mode="focusMode"
+      @close="settingsOpen = false"
+      @update:view-mode="viewMode = $event"
+      @update:theme="themePreference = $event"
+      @update:focus-mode="focusMode = $event"
+    />
     <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
       @cancel="cancelCloseDocument" @confirm="confirmCloseDocument" />
    <ExternalConflictDialog v-if="externalConflict" :file-name="externalConflict.fileName"
@@ -63,6 +71,8 @@ type ViewMode = 'wysiwyg' | 'split'
 
 const viewMode = ref<ViewMode>('wysiwyg')
 const sidebarVisible = ref(false)
+const focusMode = ref(false)
+const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
 const { newFile, openFile, openFilesFromPaths, saveFile } = useFileOps()
 const {
@@ -97,6 +107,10 @@ function openSettings() {
 
 function toggleSidebar() {
   sidebarVisible.value = !sidebarVisible.value
+}
+
+function handleSplitScrollRatio(value: number) {
+  if (Number.isFinite(value)) splitScrollRatio.value = value
 }
 
 /** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
@@ -170,5 +184,26 @@ useAppShortcuts({
   display: flex;
   overflow: hidden;
   min-width: 0;
+}
+
+.lume-app__split-view {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lume-app--focus .lume-app__body {
+  padding: 0;
+}
+
+.lume-app--focus .lume-app__workspace {
+  max-width: 1100px;
+  width: min(1100px, 100%);
+  margin: 0 auto;
+}
+
+.lume-app--focus .lume-app__main {
+  padding: 0 12px 12px;
 }
 </style>
