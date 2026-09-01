@@ -6,6 +6,8 @@
  */
 
 :root {
+  --lume-writing-width: 820px;
+    --lume-font-size-md: 15px;
   /* ===== 颜色 - 亮色主题（默认） ===== */
 
   /* 基础灰阶 */
@@ -121,7 +123,7 @@
   --lume-sidebar-collapsed-width: 48px;
   --lume-statusbar-height: 28px;
   --lume-editor-max-width: 760px;
-  --lume-preview-max-width: 820px;
+  --lume-preview-max-width: var(--lume-writing-width, 820px);
 
   /* ===== Z-index 层级 ===== */
   --lume-z-base: 0;
@@ -132,6 +134,30 @@
   --lume-z-tooltip: 3000;
 }
 
+/* ===== 阅读偏好 ===== */
+:root[data-writing-width='compact'] {
+  --lume-writing-width: 700px;
+}
+
+:root[data-writing-width='comfortable'] {
+  --lume-writing-width: 820px;
+}
+
+:root[data-writing-width='wide'] {
+  --lume-writing-width: 980px;
+}
+
+:root[data-font-scale='small'] {
+  --lume-font-size-md: 14px;
+}
+
+:root[data-font-scale='medium'] {
+  --lume-font-size-md: 15px;
+}
+
+:root[data-font-scale='large'] {
+  --lume-font-size-md: 16px;
+}
 /* ===== 暗色主题 ===== */
 :root[data-theme='dark'] {
   --lume-bg-base: #1a1a1a;

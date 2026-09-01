@@ -23,10 +23,13 @@
       :view-mode="viewMode"
       :theme="themePreference"
       :focus-mode="focusMode"
+      :writing-width="writingWidth" :font-scale="fontScale"
       @close="settingsOpen = false"
       @update:view-mode="viewMode = $event"
       @update:theme="themePreference = $event"
       @update:focus-mode="focusMode = $event"
+@update:writing-width="writingWidth = $event"
+      @update:font-scale="fontScale = $event"
     />
     <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
       @cancel="cancelCloseDocument" @confirm="confirmCloseDocument" />
@@ -64,6 +67,7 @@ import { useFileDrop } from '@/app/lifecycle/useFileDrop'
 import { useWindowPersistence } from '@/app/lifecycle/useWindowPersistence'
 import { useWorkspaceLifecycle } from '@/app/lifecycle/useWorkspaceLifecycle'
 import { useThemePreference } from '@/app/preferences/useThemePreference'
+import { useWritingPreference } from '@/app/preferences/useWritingPreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
@@ -87,6 +91,7 @@ const {
   requestCloseDocuments,
 } = useDocument()
 const { themePreference, resolvedTheme } = useThemePreference()
+const { writingWidth, fontScale } = useWritingPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
 const { externalConflict, keepLocalChanges, reloadConflictedDocument } = useWorkspaceLifecycle(showMessage)
 const { flushDocumentSession } = useDocumentSessionPersistence(
