@@ -18,6 +18,8 @@ export interface OpenDocument {
   name: string
   path: string | null
   content: string
+  /** 最近确认的磁盘内容；旧版未保存会话可能没有基准。 */
+  savedContent?: string
   isDirty: boolean
   cursor: CursorPosition
 }

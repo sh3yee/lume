@@ -53,8 +53,9 @@ export function readWorkspaceDocument(path: string) {
 
 export { listenWorkspaceChanges, startWorkspaceWatcher, stopWorkspaceWatcher }
 
-export function getWorkspaceErrorMessage(error: unknown) {
+export function getWorkspaceErrorMessage(error: unknown, fallback = '无法读取工作区') {
   if (error instanceof Error) return error.message
+  if (typeof error === 'string' && error.trim()) return error
   if (error && typeof error === 'object' && 'message' in error) return String(error.message)
-  return '无法读取工作区'
+  return fallback
 }

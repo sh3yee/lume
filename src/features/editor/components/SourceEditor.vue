@@ -55,7 +55,7 @@ function handleCursorChange(event: Event) {
 
 watch(() => props.syncRatio, (ratio) => {
   const element = textareaRef.value
-  if (!element || !Number.isFinite(ratio)) return
+  if (!element || typeof ratio !== 'number' || !Number.isFinite(ratio)) return
   const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
   isApplyingScrollSync = true
   element.scrollTop = ratio * maxScrollTop

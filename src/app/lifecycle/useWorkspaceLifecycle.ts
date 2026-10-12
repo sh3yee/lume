@@ -3,7 +3,7 @@
  *
  * 监听只在应用壳挂载，避免侧栏隐藏时停止同步；外部内容不会覆盖 dirty 文档。
  */
-import { onBeforeUnmount, watch, type Ref } from 'vue'
+import { onBeforeUnmount, watch } from 'vue'
 import { isTauri } from '@/platform/tauri/client'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { saveDocumentFile } from '@/features/files/services/documentFileService'
@@ -17,15 +17,15 @@ import {
 } from '@/features/workspace/services/workspaceService'
 
 export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
-  const {
-    documents,
-    updateDocumentContent,
-    updateDocumentMetadata,
-  } = useDocument()
+  const { documents, updateDocumentContent, updateDocumentMetadata, completeDocumentSave } =
+    useDocument()
   const workspace = useWorkspaceCommands()
-  const persistedContents = new Map<string, string>()
+  const saveErrors = new Map<string, string>()
   const recreateDeletedDocuments = new Set<string>()
   let unlisten: (() => void) | null = null
+  let saving = false
+  let savePending = false
+  let disposed = false
   let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
   async function processExternalChanges(batch: {
@@ -67,7 +67,6 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
         const diskDocument = await readWorkspaceDocument(change.path)
         if (diskDocument.content === document.content) {
           updateDocumentMetadata(document.id, { isDirty: false })
-          persistedContents.set(document.id, diskDocument.content)
         } else if (document.isDirty) {
           workspace.setExternalConflict({
             documentId: document.id,
@@ -78,7 +77,6 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
         } else {
           updateDocumentContent(document.id, diskDocument.content, false)
           updateDocumentMetadata(document.id, { isDirty: false })
-          persistedContents.set(document.id, diskDocument.content)
         }
       } catch (error) {
         showMessage(`读取外部修改失败：${getWorkspaceErrorMessage(error)}`)
@@ -99,7 +97,6 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       const file = await readWorkspaceDocument(conflict.path)
       updateDocumentContent(conflict.documentId, file.content, false)
       updateDocumentMetadata(conflict.documentId, { isDirty: false })
-      persistedContents.set(conflict.documentId, file.content)
       workspace.setExternalConflict(null)
     } catch (error) {
       showMessage(`重新加载失败：${getWorkspaceErrorMessage(error)}`)
@@ -115,7 +112,8 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       } else {
         try {
           const file = await readWorkspaceDocument(conflict.path)
-          persistedContents.set(conflict.documentId, file.content)
+          const document = documents.value.find((item) => item.id === conflict.documentId)
+          if (document) document.savedContent = file.content
         } catch (error) {
           showMessage(`读取外部版本失败：${getWorkspaceErrorMessage(error)}`)
           return
@@ -123,18 +121,48 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       }
     }
     workspace.setExternalConflict(null)
+    scheduleAutoSave()
   }
 
-  async function autoSaveDirtyDocuments() {
-    for (const document of documents.value) {
-      if (!document.path || !document.isDirty
-        || workspace.hasDocumentConflict(document.id)) continue
-      try {
-        if (!recreateDeletedDocuments.has(document.id)) {
-          const diskDocument = await readWorkspaceDocument(document.path)
-          const persistedContent = persistedContents.get(document.id)
-          if (persistedContent === undefined) {
-            if (diskDocument.content !== document.content) {
+  const scheduleAutoSave = () => {
+    if (disposed || !isTauri()) return
+    if (autoSaveTimer) clearTimeout(autoSaveTimer)
+    autoSaveTimer = setTimeout(() => {
+      autoSaveTimer = null
+      void autoSaveDirtyDocuments()
+    }, 1200)
+  }
+
+  const autoSaveDirtyDocuments = async () => {
+    if (disposed) return
+    if (saving) {
+      savePending = true
+      return
+    }
+    saving = true
+    try {
+      for (const document of documents.value) {
+        if (disposed) break
+        if (!document.path || !document.isDirty || workspace.hasDocumentConflict(document.id))
+          continue
+        const snapshot = { ...document }
+        try {
+          if (!recreateDeletedDocuments.has(document.id)) {
+            const diskDocument = await readWorkspaceDocument(document.path)
+            if (
+              disposed ||
+              !documents.value.some((item) => item.id === document.id) ||
+              !document.isDirty ||
+              document.path !== snapshot.path ||
+              document.content !== snapshot.content ||
+              document.savedContent !== snapshot.savedContent
+            )
+              continue
+            const persistedContent = snapshot.savedContent
+            if (
+              (persistedContent === undefined || diskDocument.content !== persistedContent) &&
+              diskDocument.content !== snapshot.content
+            ) {
               workspace.setExternalConflict({
                 documentId: document.id,
                 fileName: document.name,
@@ -143,58 +171,66 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
               })
               continue
             }
-          } else if (diskDocument.content !== persistedContent
-            && diskDocument.content !== document.content) {
-            workspace.setExternalConflict({
-              documentId: document.id,
-              fileName: document.name,
-              path: document.path,
-              kind: 'modified',
-            })
-            continue
           }
+          // 读取磁盘期间发生切换、关闭或编辑时，交给下一次调度保存最新快照。
+          if (
+            disposed ||
+            !documents.value.some((item) => item.id === document.id) ||
+            document.path !== snapshot.path ||
+            document.content !== snapshot.content ||
+            workspace.hasDocumentConflict(document.id)
+          )
+            continue
+          const saved = await saveDocumentFile(snapshot)
+          if (!saved || document.path !== snapshot.path) continue
+          completeDocumentSave(document.id, snapshot.content, saved)
+          saveErrors.delete(document.id)
+          workspace.setAutoSaveError(saveErrors.values().next().value ?? null)
+          recreateDeletedDocuments.delete(document.id)
+        } catch (error) {
+          const message = getWorkspaceErrorMessage(error, '无法保存文件')
+          const previousError = saveErrors.get(document.id)
+          saveErrors.set(document.id, message)
+          workspace.setAutoSaveError(message)
+          if (previousError !== message) showMessage(`自动保存失败：${message}`)
         }
-        const saved = await saveDocumentFile(document)
-        if (!saved) continue
-        updateDocumentContent(document.id, saved.content, false)
-        updateDocumentMetadata(document.id, {
-          name: saved.name,
-          path: saved.path,
-          isDirty: false,
-        })
-        workspace.setAutoSaveError(null)
-        persistedContents.set(document.id, saved.content)
-        recreateDeletedDocuments.delete(document.id)
-      } catch (error) {
-        const message = getWorkspaceErrorMessage(error)
-        workspace.setAutoSaveError(message)
-        showMessage(`自动保存失败：${message}`)
+      }
+    } finally {
+      saving = false
+      if (savePending) {
+        savePending = false
+        scheduleAutoSave()
       }
     }
   }
 
   const stopWorkspaceWatch = watch(workspace.workspacePath, restartWatcher, { immediate: true })
-  const stopPersistedContentWatch = watch(documents, (items) => {
-    for (const document of items) {
-      if (!document.isDirty && document.path) persistedContents.set(document.id, document.content)
-    }
-  }, { deep: true, immediate: true })
-  const stopAutoSaveWatch = watch(documents as Ref<unknown>, () => {
-    if (autoSaveTimer) clearTimeout(autoSaveTimer)
-    autoSaveTimer = setTimeout(() => void autoSaveDirtyDocuments(), 1200)
-  }, { deep: true })
+  const stopAutoSaveWatch = watch(
+    () => documents.value.map(({ id, path, content, isDirty }) => [id, path, content, isDirty]),
+    () => {
+      for (const id of saveErrors.keys()) {
+        if (!documents.value.some((document) => document.id === id && document.isDirty)) {
+          saveErrors.delete(id)
+        }
+      }
+      workspace.setAutoSaveError(saveErrors.values().next().value ?? null)
+      scheduleAutoSave()
+    },
+    { immediate: true },
+  )
 
   if (isTauri()) {
     void workspace.restoreWorkspace()
     void listenWorkspaceChanges(processExternalChanges).then((dispose) => {
-      unlisten = dispose
+      if (disposed) dispose()
+      else unlisten = dispose
     })
   }
 
   onBeforeUnmount(() => {
+    disposed = true
     stopWorkspaceWatch()
     stopAutoSaveWatch()
-    stopPersistedContentWatch()
     if (autoSaveTimer) clearTimeout(autoSaveTimer)
     unlisten?.()
     if (isTauri()) void stopWorkspaceWatcher()

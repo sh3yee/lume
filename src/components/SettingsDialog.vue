@@ -5,7 +5,7 @@
  * 使用原生 dialog 提供分类式的应用设置入口。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { AlignJustify, Columns2, Droplets, Monitor, Moon, Sparkles, Sun, Type, X } from 'lucide-vue-next'
+import { Columns2, Droplets, Monitor, Moon, Sparkles, Sun, Type, X } from 'lucide-vue-next'
 
 type ViewMode = 'wysiwyg' | 'split'
 type ThemePreference = 'system' | 'light' | 'dark' | 'glass'

@@ -68,6 +68,7 @@ const imageToolbarOpen = ref(false)
 const imageToolbarPosition = ref({ x: 0, y: 0 })
 const selectedImageAlign = ref<ImageAlign>('left')
 let editor: Editor | null = null
+let disposed = false
 let editorMarkdown = content.value
 // 记录指针按下位置，用于区分普通单击和拖动选择。
 let pointerDownPosition: { x: number; y: number } | null = null
@@ -360,6 +361,7 @@ onMounted(async () => {
     isDocumentActive: () => activeDocument.value?.id === boundDocumentId,
     onImageSelect: updateSelectedImageToolbar,
     onMarkdownChange(markdown, view) {
+      if (disposed) return
       editorMarkdown = markdown
       if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
         persistDocumentSession()
@@ -379,6 +381,16 @@ onMounted(async () => {
     },
   })
 
+  if (disposed) {
+    await destroyWysiwygEditor(editor)
+    editor = null
+    return
+  }
+  if (activeDocument.value?.id === boundDocumentId && content.value !== editorMarkdown) {
+    editorMarkdown = content.value
+    replaceEditorMarkdown(editor, content.value)
+  }
+
   window.addEventListener('pointerdown', handleWindowPointerDown)
   window.addEventListener('pointerup', handleWindowPointerUp)
   window.addEventListener('blur', handleWindowResize)
@@ -395,6 +407,7 @@ watch(content, (markdown) => {
 })
 
 onBeforeUnmount(() => {
+  disposed = true
   cancelAnimationFrame(collapseSelectionFrame)
   window.removeEventListener('pointerdown', handleWindowPointerDown)
   window.removeEventListener('pointerup', handleWindowPointerUp)

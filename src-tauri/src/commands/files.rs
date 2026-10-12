@@ -5,6 +5,7 @@ use std::{
     io::{Read, Take},
     path::Path,
 };
+use tauri_plugin_fs::FsExt;
 
 const MAX_MARKDOWN_FILE_SIZE: u64 = 10 * 1024 * 1024;
 
@@ -18,7 +19,7 @@ pub struct MarkdownFile {
 
 /// 读取用户拖入窗口的 Markdown 文件，并限制类型、大小和符号链接。
 #[tauri::command]
-pub fn lume_read_markdown_file(path: String) -> LumeResult<MarkdownFile> {
+pub fn lume_read_markdown_file(app: tauri::AppHandle, path: String) -> LumeResult<MarkdownFile> {
     let file_path = Path::new(&path);
     let extension = file_path
         .extension()
@@ -53,6 +54,8 @@ pub fn lume_read_markdown_file(path: String) -> LumeResult<MarkdownFile> {
         .and_then(|value| value.to_str())
         .ok_or_else(|| LumeError::InvalidPath("无法读取文件名".to_string()))?
         .to_string();
+    // 外部打开和会话恢复不经过文件对话框，成功读取后仅授权当前文件。
+    app.fs_scope().allow_file(file_path)?;
     Ok(MarkdownFile {
         path,
         name,

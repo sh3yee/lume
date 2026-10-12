@@ -5,29 +5,37 @@ const SESSION_STORAGE_KEY = 'lume-document-session'
 function isOpenDocument(document: unknown): document is OpenDocument {
   if (!document || typeof document !== 'object') return false
   const value = document as Partial<OpenDocument>
-  return typeof value.id === 'string'
-    && typeof value.name === 'string'
-    && (typeof value.path === 'string' || value.path === null)
-    && typeof value.content === 'string'
-    && typeof value.isDirty === 'boolean'
-    && typeof value.cursor?.line === 'number'
-    && typeof value.cursor?.column === 'number'
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    (typeof value.path === 'string' || value.path === null) &&
+    typeof value.content === 'string' &&
+    (value.savedContent === undefined || typeof value.savedContent === 'string') &&
+    typeof value.isDirty === 'boolean' &&
+    typeof value.cursor?.line === 'number' &&
+    typeof value.cursor?.column === 'number'
+  )
 }
 
 /** 校验从持久化存储读取的文档会话。 */
 export function parseDocumentSession(value: unknown): DocumentSession | null {
   if (!value || typeof value !== 'object') return null
   const session = value as Partial<DocumentSession>
-  if (session.version !== 1 || !Array.isArray(session.documents) || session.documents.length === 0) {
+  if (
+    session.version !== 1 ||
+    !Array.isArray(session.documents) ||
+    session.documents.length === 0
+  ) {
     return null
   }
 
   const documents = session.documents.filter(isOpenDocument)
   if (documents.length === 0) return null
-  const activeDocumentId = typeof session.activeDocumentId === 'string'
-    && documents.some((document) => document.id === session.activeDocumentId)
-    ? session.activeDocumentId
-    : documents[0].id
+  const activeDocumentId =
+    typeof session.activeDocumentId === 'string' &&
+    documents.some((document) => document.id === session.activeDocumentId)
+      ? session.activeDocumentId
+      : documents[0].id
 
   return { version: 1, activeDocumentId, documents }
 }

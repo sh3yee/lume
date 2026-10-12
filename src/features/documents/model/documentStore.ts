@@ -68,14 +68,13 @@ function createDocumentRecord(
     name,
     path,
     content,
+    savedContent: content,
     isDirty: false,
     cursor: { line: 1, column: 1 },
   }
 }
 
-const documents = ref<OpenDocument[]>([
-  createDocumentRecord(DEFAULT_CONTENT, '欢迎使用 Lume.md'),
-])
+const documents = ref<OpenDocument[]>([createDocumentRecord(DEFAULT_CONTENT, '欢迎使用 Lume.md')])
 const activeDocumentId = ref(documents.value[0].id)
 const pendingCloseDocument = ref<OpenDocument | null>(null)
 const pendingCloseDocumentIds: string[] = []
@@ -95,25 +94,29 @@ function hydrateDocumentSession(session: DocumentSession | null) {
   sessionHydrated = true
   if (!session) return
   documents.value = session.documents
+  for (const document of documents.value) {
+    if (!document.isDirty) document.savedContent = document.content
+  }
   activeDocumentId.value = session.activeDocumentId
   syncDocumentSequence()
 }
 
-const activeDocument = computed(() =>
-  documents.value.find((document) => document.id === activeDocumentId.value) ?? documents.value[0],
+const activeDocument = computed(
+  () =>
+    documents.value.find((document) => document.id === activeDocumentId.value) ??
+    documents.value[0],
 )
 
 const content = computed<string>({
   get: () => activeDocument.value?.content ?? '',
   set: (text) => {
     if (!activeDocument.value || activeDocument.value.content === text) return
-    activeDocument.value.content = text
-    activeDocument.value.isDirty = true
+    updateDocumentContent(activeDocument.value.id, text)
   },
 })
 
-const cursor = computed<CursorPosition>(() =>
-  activeDocument.value?.cursor ?? { line: 1, column: 1 },
+const cursor = computed<CursorPosition>(
+  () => activeDocument.value?.cursor ?? { line: 1, column: 1 },
 )
 const stats = computed<DocumentStats>(() => calculateDocumentStats(content.value))
 
@@ -130,14 +133,13 @@ function updateDocumentContent(id: string, text: string, markDirty = true) {
   const document = documents.value.find((item) => item.id === id)
   if (!document || document.content === text) return false
   document.content = text
-  if (markDirty) document.isDirty = true
+  if (markDirty) document.isDirty = text !== document.savedContent
   return true
 }
 
 function setContent(text: string, markDirty = true) {
   if (!activeDocument.value) return
-  activeDocument.value.content = text
-  if (markDirty) activeDocument.value.isDirty = true
+  updateDocumentContent(activeDocument.value.id, text, markDirty)
 }
 
 function newDocument() {
@@ -150,6 +152,11 @@ function newDocument() {
 function openDocument(text: string, name: string, path: string | null) {
   const existing = path ? documents.value.find((document) => document.path === path) : undefined
   if (existing) {
+    if (!existing.isDirty || existing.content === text) {
+      existing.content = text
+      existing.savedContent = text
+      existing.isDirty = false
+    }
     activeDocumentId.value = existing.id
     return existing
   }
@@ -246,7 +253,7 @@ function cancelCloseDocument() {
 }
 
 function updateActiveDocument(metadata: Partial<Pick<OpenDocument, 'name' | 'path' | 'isDirty'>>) {
-  if (activeDocument.value) Object.assign(activeDocument.value, metadata)
+  if (activeDocument.value) updateDocumentMetadata(activeDocument.value.id, metadata)
 }
 
 function updateDocumentMetadata(
@@ -256,7 +263,23 @@ function updateDocumentMetadata(
   const document = documents.value.find((item) => item.id === id)
   if (!document) return false
   Object.assign(document, metadata)
+  if (metadata.isDirty === false) document.savedContent = document.content
   return true
+}
+
+/** 保存只确认提交的快照，不能清除等待 IO 时产生的新编辑。 */
+const completeDocumentSave = (
+  id: string,
+  sourceContent: string,
+  saved: { content: string; name: string; path: string | null },
+) => {
+  const document = documents.value.find((item) => item.id === id)
+  if (!document) return
+  if (document.content === sourceContent) document.content = saved.content
+  document.name = saved.name
+  document.path = saved.path
+  document.savedContent = saved.content
+  document.isDirty = document.content !== saved.content
 }
 
 /** 获取可由外部 Repository 持久化的文档会话快照。 */
@@ -292,6 +315,7 @@ export function useDocumentStore() {
     cancelCloseDocument,
     updateActiveDocument,
     updateDocumentMetadata,
+    completeDocumentSave,
     hydrateDocumentSession,
     getDocumentSessionSnapshot,
   }

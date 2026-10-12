@@ -5,16 +5,14 @@
  */
 import { computed } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
-import { readDroppedDocuments, saveDocumentFile, selectDocumentFile } from '../services/documentFileService'
+import {
+  readDroppedDocuments,
+  saveDocumentFile,
+  selectDocumentFile,
+} from '../services/documentFileService'
 
 export function useDocumentFileCommands() {
-  const {
-    activeDocument,
-    content,
-    newDocument,
-    openDocument,
-    updateActiveDocument,
-  } = useDocument()
+  const { activeDocument, newDocument, openDocument, completeDocumentSave } = useDocument()
   const currentFileName = computed(() => activeDocument.value?.name ?? '未命名文档')
   const currentFilePath = computed(() => activeDocument.value?.path ?? null)
   const isDirty = computed(() => activeDocument.value?.isDirty ?? false)
@@ -33,10 +31,10 @@ export function useDocumentFileCommands() {
   async function saveFile(saveAs = false) {
     const document = activeDocument.value
     if (!document) return false
-    const saved = await saveDocumentFile(document, saveAs)
+    const snapshot = { ...document }
+    const saved = await saveDocumentFile(snapshot, saveAs)
     if (!saved) return false
-    if (saved.content !== content.value) content.value = saved.content
-    updateActiveDocument({ name: saved.name, path: saved.path, isDirty: false })
+    completeDocumentSave(document.id, snapshot.content, saved)
     return true
   }
 
