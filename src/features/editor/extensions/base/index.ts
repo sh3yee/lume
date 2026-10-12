@@ -1,10 +1,14 @@
 import { type Editor } from '@milkdown/kit/core'
-import { commonmark } from '@milkdown/kit/preset/commonmark'
+import { commonmark, remarkInlineLinkPlugin } from '@milkdown/kit/preset/commonmark'
 import MarkdownIt from 'markdown-it'
+import { linkDefinitionSchema, preservedReferences } from './linkDefinitions'
 
 /** 注册 CommonMark 基础语法。 */
 export function useBaseWysiwygExtension(editor: Editor) {
-  return editor.use(commonmark)
+  return editor
+    .use(commonmark.filter((plugin) => !remarkInlineLinkPlugin.includes(plugin)))
+    .use(preservedReferences)
+    .use(linkDefinitionSchema)
 }
 
 /** 创建 Preview 共用的基础 Markdown 渲染器。 */

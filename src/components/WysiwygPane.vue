@@ -6,41 +6,43 @@
  * 编辑器负责 Markdown 快捷输入、选区、撤销历史和输入法兼容，
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { editorViewCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { useDocument } from '@composables/useDocument'
-import {
-  type ImageAlign,
-} from '../utils/imageHtml'
+import { type ImageAlign } from '../utils/imageHtml'
 import {
   constrainOverlayPosition,
   positionOverlayAroundBounds,
 } from '@/features/editor/overlays/overlayPosition.ts'
 import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
 import EditorContextMenu from '@/features/editor/overlays/EditorContextMenu.vue'
+import NodePropertiesDialog from '@/features/editor/overlays/NodePropertiesDialog.vue'
 import ImageToolbar from '@/features/editor/overlays/ImageToolbar.vue'
 import TextSelectionToolbar from '@/features/editor/overlays/TextSelectionToolbar.vue'
-import {
-  createEditorCommands,
-  getConvertibleBlockPosition,
-} from '@/features/editor/wysiwyg/editorCommands'
+import { createEditorCommands } from '@/features/editor/wysiwyg/editorCommands'
+import { useEditorContextMenu } from '@/features/editor/wysiwyg/useEditorContextMenu'
+import { openEditorLink } from '@/features/editor/wysiwyg/editorLinks'
 import {
   createWysiwygEditor,
   destroyWysiwygEditor,
   replaceEditorMarkdown,
 } from '@/features/editor/wysiwyg/editorLifecycle'
 import { insertNativeImagePaths } from '@/features/editor/extensions/images'
-import {
-  useFindReplace,
-} from '@/features/editor/wysiwyg/useFindReplace'
+import { useFindReplace } from '@/features/editor/wysiwyg/useFindReplace'
 import {
   importEditorImageFile,
   importEditorImagePath,
   resolveEditorImageSource,
 } from '@/features/images/editor/imageEditorAssets'
+
+interface NativeImageDropDetail {
+  paths: string[]
+  x: number
+  y: number
+}
 
 const {
   activeDocument,
@@ -48,6 +50,7 @@ const {
   persistDocumentSession,
   updateDocumentContent,
   updateDocumentCursor,
+  openDocument,
 } = useDocument()
 const boundDocumentId = activeDocument.value?.id ?? null
 
@@ -57,11 +60,9 @@ const contextMenu = ref<{
   focusFirstItem: () => void
   getBounds: () => DOMRect | null
 } | null>(null)
-const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
-const selectionHasText = ref(false)
 const selectionInCodeBlock = ref(false)
-const contextBlockCanConvertToParagraph = ref(false)
+const commandError = ref('')
 const bubbleToolbarOpen = ref(false)
 const bubbleToolbarPosition = ref({ x: 0, y: 0 })
 const imageToolbarOpen = ref(false)
@@ -76,14 +77,74 @@ let collapseSelectionFrame = 0
 // 指针事件处理期间禁止选区更新重新打开浮动工具栏，避免关闭时闪烁。
 let bubbleToolbarSuppressed = false
 
-interface NativeImageDropDetail {
-  paths: string[]
-  x: number
-  y: number
-}
+const {
+  context: menuContext,
+  groups: contextMenuGroups,
+  propertyForm,
+  close: closeMenuTarget,
+  closeProperties,
+  prepareCommand,
+  open: openMenuTarget,
+  invalidate: invalidateMenuTarget,
+  handleAction: handleContextAction,
+  submitProperties,
+} = useEditorContextMenu({
+  getEditor: () => editor,
+  getCommands: () => editorCommands,
+  isActive: () => !disposed && activeDocument.value?.id === boundDocumentId,
+  onError: (message) => {
+    commandError.value = message
+  },
+  onOpenLink: (href) =>
+    openEditorLink(href, {
+      documentPath: activeDocument.value?.path ?? null,
+      root: editorRef.value,
+      isActive: () => !disposed && activeDocument.value?.id === boundDocumentId,
+      onOpenDocument: openDocument,
+    }),
+})
+const contextMenuOpen = computed(() => menuContext.value !== null)
+
+const editorCommands = createEditorCommands({
+  getEditor: () => editor,
+  onBeforeCommand: prepareCommand,
+  onCopy: closeBubbleToolbar,
+  onError: (message) => {
+    commandError.value = message
+  },
+  isActive: () => !disposed && activeDocument.value?.id === boundDocumentId,
+  onImageAlign(view, align) {
+    selectedImageAlign.value = align
+    requestAnimationFrame(() => {
+      const nextSelection = view.state.selection
+      if (nextSelection instanceof NodeSelection) updateSelectedImageToolbar(view, nextSelection)
+    })
+  },
+})
+
+const {
+  activeFindMatchIndex,
+  closeFindReplace,
+  findMatches,
+  findReplaceOpen,
+  handleFindQueryInput,
+  moveFindMatch,
+  openFindReplace,
+  replaceAllMatches,
+  replaceCurrentMatch,
+  syncFindMatches,
+} = useFindReplace({
+  closeOverlays() {
+    closeContextMenu()
+    closeBubbleToolbar()
+    closeImageToolbar()
+  },
+  focusWidget: (select) => findReplaceWidget.value?.focus(select),
+  getEditor: () => editor,
+})
 
 function closeContextMenu() {
-  contextMenuOpen.value = false
+  closeMenuTarget()
 }
 
 function closeBubbleToolbar() {
@@ -108,9 +169,10 @@ function updateSelectedImageToolbar(view: EditorView, selection: NodeSelection) 
 
   const bounds = imageElement.getBoundingClientRect()
   imageToolbarPosition.value = positionOverlayAroundBounds(bounds, { width: 90, height: 34 })
-  selectedImageAlign.value = selection.node.attrs.align === 'center' || selection.node.attrs.align === 'right'
-    ? selection.node.attrs.align
-    : 'left'
+  selectedImageAlign.value =
+    selection.node.attrs.align === 'center' || selection.node.attrs.align === 'right'
+      ? selection.node.attrs.align
+      : 'left'
   imageToolbarOpen.value = true
   closeBubbleToolbar()
 }
@@ -145,12 +207,15 @@ function updateBubbleToolbar(view: EditorView | null | undefined) {
   const end = view.coordsAtPos(to)
   const selectionLeft = Math.min(start.left, end.left)
   const selectionRight = Math.max(start.right, end.right)
-  bubbleToolbarPosition.value = positionOverlayAroundBounds({
-    top: Math.min(start.top, end.top),
-    right: selectionRight,
-    bottom: Math.max(start.bottom, end.bottom),
-    left: selectionLeft,
-  }, { width: selectionTouchesCodeBlock(view.state) ? 34 : 184, height: 34 })
+  bubbleToolbarPosition.value = positionOverlayAroundBounds(
+    {
+      top: Math.min(start.top, end.top),
+      right: selectionRight,
+      bottom: Math.max(start.bottom, end.bottom),
+      left: selectionLeft,
+    },
+    { width: selectionTouchesCodeBlock(view.state) ? 34 : 184, height: 34 },
+  )
   selectionInCodeBlock.value = selectionTouchesCodeBlock(view.state)
   bubbleToolbarOpen.value = true
 }
@@ -176,28 +241,15 @@ function selectionTouchesCodeBlock(state: EditorState) {
 
 async function openContextMenu(event: MouseEvent) {
   if (!editor) return
-  const menuWidth = 192
-
-  editor.action((ctx) => {
-    const view = ctx.get(editorViewCtx)
-    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })
-
-    if (pos && view.state.selection.empty) {
-      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos.pos))))
-    }
-
-    view.focus()
-    selectionHasText.value = getSelectionHasText(view)
-    selectionInCodeBlock.value = selectionTouchesCodeBlock(view.state)
-    contextBlockCanConvertToParagraph.value = getConvertibleBlockPosition(view.state) !== null
-  })
+  commandError.value = ''
+  openMenuTarget(event)
 
   contextMenuPosition.value = constrainOverlayPosition(
     { x: event.clientX, y: event.clientY },
-    { width: menuWidth, height: 0 },
+    { width: 216, height: 0 },
   )
   closeBubbleToolbar()
-  contextMenuOpen.value = true
+  closeImageToolbar()
   await nextTick()
 
   const menuBounds = contextMenu.value?.getBounds()
@@ -212,47 +264,11 @@ async function openContextMenu(event: MouseEvent) {
   contextMenu.value?.focusFirstItem()
 }
 
-const editorCommands = createEditorCommands({
-  getEditor: () => editor,
-  onBeforeCommand: closeContextMenu,
-  onCopy: closeBubbleToolbar,
-  onImageAlign(view, align) {
-    selectedImageAlign.value = align
-    requestAnimationFrame(() => {
-      const nextSelection = view.state.selection
-      if (nextSelection instanceof NodeSelection) updateSelectedImageToolbar(view, nextSelection)
-    })
-  },
-})
-
-const {
-  activeFindMatchIndex,
-  closeFindReplace,
-  findMatches,
-  findReplaceOpen,
-  handleFindQueryInput,
-  moveFindMatch,
-  openFindReplace,
-  replaceAllMatches,
-  replaceCurrentMatch,
-  syncFindMatches,
-} = useFindReplace({
-  closeOverlays() {
-    closeContextMenu()
-    closeBubbleToolbar()
-    closeImageToolbar()
-  },
-  focusWidget: (select) => findReplaceWidget.value?.focus(select),
-  getEditor: () => editor,
-})
-
 function handleWindowPointerDown(event: PointerEvent) {
   // 新操作开始时立即关闭工具栏，并取消上一次尚未执行的选区折叠任务。
   cancelAnimationFrame(collapseSelectionFrame)
   collapseSelectionFrame = 0
-  pointerDownPosition = event.button === 0
-    ? { x: event.clientX, y: event.clientY }
-    : null
+  pointerDownPosition = event.button === 0 ? { x: event.clientX, y: event.clientY } : null
   bubbleToolbarSuppressed = event.button === 0
   closeContextMenu()
   closeBubbleToolbar()
@@ -300,7 +316,9 @@ function handleWindowPointerUp(event: PointerEvent) {
       const position = view.posAtCoords({ left: pointerPosition.x, top: pointerPosition.y })
       const cursorPosition = position?.pos ?? view.state.doc.content.size
       // 普通单击应折叠旧选区，防止遗留选区再次触发浮动工具栏。
-      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(cursorPosition))))
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(cursorPosition))),
+      )
       bubbleToolbarSuppressed = false
       closeBubbleToolbar()
     })
@@ -362,6 +380,7 @@ onMounted(async () => {
     onImageSelect: updateSelectedImageToolbar,
     onMarkdownChange(markdown, view) {
       if (disposed) return
+      if (view) invalidateMenuTarget(view)
       editorMarkdown = markdown
       if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
         persistDocumentSession()
@@ -369,6 +388,7 @@ onMounted(async () => {
       if (findReplaceOpen.value && view) syncFindMatches(view)
     },
     onSelectionChange(view, line, column) {
+      if (view) invalidateMenuTarget(view)
       if (boundDocumentId) updateDocumentCursor(boundDocumentId, line, column)
       updateBubbleToolbar(view)
     },
@@ -400,14 +420,26 @@ onMounted(async () => {
 })
 
 /** 打开文件或新建文档时，将外部 Markdown 更新到 Milkdown。 */
+watch(
+  () => activeDocument.value?.id,
+  () => {
+    closeContextMenu()
+    closeProperties()
+  },
+)
+
 watch(content, (markdown) => {
   if (!editor || activeDocument.value?.id !== boundDocumentId || markdown === editorMarkdown) return
   editorMarkdown = markdown
+  closeContextMenu()
+  closeProperties()
   replaceEditorMarkdown(editor, markdown)
 })
 
 onBeforeUnmount(() => {
   disposed = true
+  closeContextMenu()
+  closeProperties()
   cancelAnimationFrame(collapseSelectionFrame)
   window.removeEventListener('pointerdown', handleWindowPointerDown)
   window.removeEventListener('pointerup', handleWindowPointerUp)
@@ -422,45 +454,85 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="lume-wysiwyg-pane">
-   <div ref="editorRef" class="lume-wysiwyg-pane__content lume-markdown-content"
-      @contextmenu.prevent="openContextMenu"></div>
+    <div v-if="commandError" class="lume-wysiwyg-pane__error" role="alert">
+      {{ commandError }} <button type="button" @click="commandError = ''">关闭</button>
+    </div>
+    <div
+      ref="editorRef"
+      class="lume-wysiwyg-pane__content lume-markdown-content"
+      @contextmenu.prevent="openContextMenu"
+    ></div>
 
-  <FindReplaceWidget v-show="findReplaceOpen" ref="findReplaceWidget" :active-index="activeFindMatchIndex"
-      :match-count="findMatches.length" @close="closeFindReplace" @find="handleFindQueryInput" @move="moveFindMatch"
-      @replace="replaceCurrentMatch" @replace-all="replaceAllMatches" />
+    <FindReplaceWidget
+      v-show="findReplaceOpen"
+      ref="findReplaceWidget"
+      :active-index="activeFindMatchIndex"
+      :match-count="findMatches.length"
+      @close="closeFindReplace"
+      @find="handleFindQueryInput"
+      @move="moveFindMatch"
+      @replace="replaceCurrentMatch"
+      @replace-all="replaceAllMatches"
+    />
   </section>
 
   <Teleport to="body">
-   <TextSelectionToolbar
+    <TextSelectionToolbar
       v-if="bubbleToolbarOpen"
-:in-code-block="selectionInCodeBlock"
-     :position="bubbleToolbarPosition" @clear-formatting="editorCommands.clearInlineFormatting"
-      @copy="editorCommands.copy" @toggle-bold="editorCommands.toggleBold"
-      @toggle-inline-code="editorCommands.toggleInlineCode" @toggle-italic="editorCommands.toggleItalic" />
+      :in-code-block="selectionInCodeBlock"
+      :position="bubbleToolbarPosition"
+      @clear-formatting="editorCommands.clearInlineFormatting"
+      @copy="editorCommands.copy"
+      @toggle-bold="editorCommands.toggleBold"
+      @toggle-inline-code="editorCommands.toggleInlineCode"
+      @toggle-italic="editorCommands.toggleItalic"
+    />
 
-  <ImageToolbar
+    <ImageToolbar
       v-if="imageToolbarOpen"
-:align="selectedImageAlign" :position="imageToolbarPosition"
-     @align="editorCommands.setImageAlign" />
+      :align="selectedImageAlign"
+      :position="imageToolbarPosition"
+      @align="editorCommands.setImageAlign"
+    />
 
-  <EditorContextMenu
+    <EditorContextMenu
       v-if="contextMenuOpen"
       ref="contextMenu"
-     :can-convert-to-paragraph="contextBlockCanConvertToParagraph" :has-selection="selectionHasText"
-     :in-code-block="selectionInCodeBlock" :position="contextMenuPosition"
-      @clear-formatting="editorCommands.clearInlineFormatting" @close="closeContextMenu"
-      @convert-to-paragraph="editorCommands.convertCurrentBlockToParagraph" @copy="editorCommands.copy"
-      @cut="editorCommands.cut" @insert-blockquote="editorCommands.insertBlockquote"
-      @insert-code-block="editorCommands.insertCodeBlock" @insert-heading="editorCommands.insertHeading"
-      @insert-horizontal-rule="editorCommands.insertHorizontalRule" @insert-image="editorCommands.insertImageTemplate"
-      @insert-list="editorCommands.insertList" @insert-table="editorCommands.insertTable" @paste="editorCommands.paste"
-      @redo="editorCommands.redo" @select-all="editorCommands.selectAll" @toggle-bold="editorCommands.toggleBold"
-      @toggle-inline-code="editorCommands.toggleInlineCode" @toggle-italic="editorCommands.toggleItalic"
-      @undo="editorCommands.undo" />
+      :groups="contextMenuGroups"
+      :position="contextMenuPosition"
+      @action="handleContextAction"
+      @close="closeContextMenu"
+    />
+    <NodePropertiesDialog
+      v-if="propertyForm"
+      :form="propertyForm"
+      @close="closeProperties"
+      @submit="submitProperties"
+    />
   </Teleport>
 </template>
 
 <style scoped>
+.lume-wysiwyg-pane__error {
+  position: absolute;
+  z-index: 1;
+  top: var(--lume-space-3);
+  left: var(--lume-space-3);
+  right: var(--lume-space-3);
+  padding: var(--lume-space-3);
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-sm);
+  background: var(--lume-bg-overlay);
+  color: var(--lume-text-primary);
+}
+.lume-wysiwyg-pane__error button {
+  float: right;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
 .lume-wysiwyg-pane {
   position: relative;
   flex: 1;
@@ -614,7 +686,8 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode .lume-image-resizer__handle) {
+.lume-wysiwyg-pane__content
+  :deep(.lume-image-resizer.ProseMirror-selectednode .lume-image-resizer__handle) {
   opacity: 1;
   pointer-events: auto;
 }
@@ -628,5 +701,4 @@ onBeforeUnmount(() => {
   background-color: color-mix(in srgb, var(--lume-accent-default) 48%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--lume-accent-default) 70%, transparent);
 }
-
 </style>

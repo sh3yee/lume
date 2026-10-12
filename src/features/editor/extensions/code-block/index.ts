@@ -1,12 +1,17 @@
 import { type Editor } from '@milkdown/kit/core'
 import { CodeMirrorBlock, codeBlockConfig } from '@milkdown/components/code-block'
 import { defaultKeymap, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { LanguageDescription, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import {
+  LanguageDescription,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+} from '@codemirror/language'
 import { keymap } from '@codemirror/view'
 import type MarkdownIt from 'markdown-it'
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark'
 import { $view } from '@milkdown/kit/utils'
 import { codeBlockInteractionPlugin } from '../../wysiwyg/codeBlock'
+import { preservedCodeSchema } from '../../wysiwyg/codeSchema'
 
 let highlightSequence = 0
 
@@ -21,7 +26,8 @@ const codeLanguages = [
     name: 'TypeScript',
     alias: ['typescript', 'ts', 'tsx'],
     extensions: ['ts', 'tsx', 'mts', 'cts'],
-    load: async () => (await import('@codemirror/lang-javascript')).javascript({ jsx: true, typescript: true }),
+    load: async () =>
+      (await import('@codemirror/lang-javascript')).javascript({ jsx: true, typescript: true }),
   }),
   LanguageDescription.of({
     name: 'HTML',
@@ -88,27 +94,20 @@ const codeLanguages = [
 const eagerCodeBlockView = $view(codeBlockSchema.node, (ctx) => {
   const config = ctx.get(codeBlockConfig.key)
   const languageLoader = {
-    getAll: () => codeLanguages.map((language) => ({
-      name: language.name,
-      alias: language.alias,
-    })),
+    getAll: () =>
+      codeLanguages.map((language) => ({
+        name: language.name,
+        alias: language.alias,
+      })),
     load: (languageName: string) => {
-      const language = codeLanguages.find((item) =>
-        item.alias.includes(languageName.toLowerCase()),
-      )
+      const language = codeLanguages.find((item) => item.alias.includes(languageName.toLowerCase()))
       if (!language) return Promise.resolve(undefined)
       if (language.support) return Promise.resolve(language.support)
       return language.load()
     },
   } as unknown as ConstructorParameters<typeof CodeMirrorBlock>[3]
   return (node, view, getPos) => {
-    const block = new CodeMirrorBlock(
-      node,
-      view,
-      getPos,
-      languageLoader,
-      config,
-    )
+    const block = new CodeMirrorBlock(node, view, getPos, languageLoader, config)
 
     // 官方 NodeView 默认等待视口观察；嵌套滚动容器中可能无法及时触发，主动初始化避免长期显示纯文本占位符。
     queueMicrotask(() => {
@@ -139,7 +138,8 @@ export function useCodeBlockWysiwygExtension(editor: Editor) {
         copyIcon: '',
         onCopy: () => {
           const button = document.activeElement
-          if (!(button instanceof HTMLButtonElement) || !button.classList.contains('copy-button')) return
+          if (!(button instanceof HTMLButtonElement) || !button.classList.contains('copy-button'))
+            return
 
           button.textContent = '已复制'
           button.dataset.copied = 'true'
@@ -152,6 +152,7 @@ export function useCodeBlockWysiwygExtension(editor: Editor) {
       })
     })
     .use(codeBlockConfig)
+    .use(preservedCodeSchema)
     .use(eagerCodeBlockView)
     .use(codeBlockInteractionPlugin)
 }
@@ -176,34 +177,38 @@ export function useCodeBlockPreviewExtension(markdown: MarkdownIt) {
 
 /** 按需加载 Shiki，并增强当前 Preview 中尚未高亮的代码块。 */
 export async function highlightCodeBlocks(container: HTMLElement) {
-  const blocks = Array.from(container.querySelectorAll<HTMLElement>('.lume-code-block[data-code-source]'))
+  const blocks = Array.from(
+    container.querySelectorAll<HTMLElement>('.lume-code-block[data-code-source]'),
+  )
   if (blocks.length === 0) return
 
   const sequence = ++highlightSequence
   const { codeToHtml } = await import('shiki')
   const theme = document.documentElement.dataset.theme === 'dark' ? 'github-dark' : 'github-light'
 
-  await Promise.all(blocks.map(async (block) => {
-    const encodedSource = block.dataset.codeSource
-    const encodedLanguage = block.dataset.codeLanguage
-    if (!encodedSource || !encodedLanguage) return
+  await Promise.all(
+    blocks.map(async (block) => {
+      const encodedSource = block.dataset.codeSource
+      const encodedLanguage = block.dataset.codeLanguage
+      if (!encodedSource || !encodedLanguage) return
 
-    try {
-      const html = await codeToHtml(decodeURIComponent(encodedSource), {
-        lang: decodeURIComponent(encodedLanguage),
-        theme,
-      })
-      if (sequence !== highlightSequence || !block.isConnected) return
-      const template = document.createElement('template')
-      template.innerHTML = html.trim()
-      const highlighted = template.content.firstElementChild
-      if (!(highlighted instanceof HTMLElement)) return
-      highlighted.classList.add('lume-code-block', 'lume-code-block--highlighted')
-      block.replaceWith(highlighted)
-    } catch {
-      // 未知语言或加载失败时保留 markdown-it 的安全纯文本回退。
-      block.classList.add('lume-code-block--fallback')
-      block.removeAttribute('data-code-source')
-    }
-  }))
+      try {
+        const html = await codeToHtml(decodeURIComponent(encodedSource), {
+          lang: decodeURIComponent(encodedLanguage),
+          theme,
+        })
+        if (sequence !== highlightSequence || !block.isConnected) return
+        const template = document.createElement('template')
+        template.innerHTML = html.trim()
+        const highlighted = template.content.firstElementChild
+        if (!(highlighted instanceof HTMLElement)) return
+        highlighted.classList.add('lume-code-block', 'lume-code-block--highlighted')
+        block.replaceWith(highlighted)
+      } catch {
+        // 未知语言或加载失败时保留 markdown-it 的安全纯文本回退。
+        block.classList.add('lume-code-block--fallback')
+        block.removeAttribute('data-code-source')
+      }
+    }),
+  )
 }
