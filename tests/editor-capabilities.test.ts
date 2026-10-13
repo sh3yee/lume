@@ -7,9 +7,10 @@ import {
   schemaCtx,
   remarkStringifyOptionsCtx,
   editorViewCtx,
+  serializerCtx,
 } from '@milkdown/kit/core'
 import { Schema } from '@milkdown/kit/prose/model'
-import { EditorState, TextSelection, NodeSelection } from '@milkdown/kit/prose/state'
+import { EditorState, TextSelection, NodeSelection, AllSelection } from '@milkdown/kit/prose/state'
 import { CellSelection } from '@milkdown/kit/prose/tables'
 import { history, undo, redo } from '@milkdown/kit/prose/history'
 import { ParserState, SerializerState } from '@milkdown/kit/transformer'
@@ -42,8 +43,32 @@ import {
   preservedOrderedListSchema,
 } from '../src/features/editor/extensions/gfm'
 import { useImagesPreviewExtension } from '../src/features/editor/extensions/images'
-import { selectionContainsPosition } from '../src/features/editor/wysiwyg/contextTarget'
+import {
+  selectionContainsPosition,
+  resolveContextTarget,
+} from '../src/features/editor/wysiwyg/contextTarget'
+import {
+  resolveSelectionContext,
+  restoreEditorContext,
+} from '../src/features/editor/wysiwyg/selectionContext'
+import { getSelectionToolbarModel } from '../src/features/editor/wysiwyg/selectionToolbarItems'
+import { getActionState } from '../src/features/editor/wysiwyg/actionState'
+import { getEditorCommand } from '../src/features/editor/wysiwyg/editorCommands'
+import {
+  clipSelectionBounds,
+  pickSelectionAnchor,
+} from '../src/features/editor/wysiwyg/selectionGeometry'
+import { cutCodeSelection, pasteCodeClipboard } from '../src/features/editor/wysiwyg/codeClipboard'
+import { getPendingEditorMarkdown } from '../src/features/editor/wysiwyg/editorLifecycle'
+import {
+  getShortcutCommand,
+  createEditorInteractionPlugin,
+} from '../src/features/editor/wysiwyg/editorInteraction'
+import { EditorState as CodeState, EditorSelection } from '@codemirror/state'
+import { inlineMathSchema, blockMathSchema } from '../src/features/editor/extensions/math'
+import remarkMath from 'remark-math'
 import { getContextMenuGroups } from '../src/features/editor/wysiwyg/contextMenuItems'
+import { arePreviewRangesEqual } from '../src/features/editor/preview/usePreviewInteractions'
 import { pasteClipboard } from '../src/features/editor/wysiwyg/clipboard'
 import { createEditorCommands } from '../src/features/editor/wysiwyg/editorCommands'
 import { useEditorContextMenu } from '../src/features/editor/wysiwyg/useEditorContextMenu'
@@ -66,13 +91,20 @@ for (const value of [
   taskListSchema,
   preservedBulletListSchema,
   preservedOrderedListSchema,
+  inlineMathSchema,
+  blockMathSchema,
 ]) {
   if (!value?.key || (!value.node && !value.mark)) continue
   value.ctx(context)
   await (value.node ?? value.mark)(context)()
 }
+const nodeEntries = context.get(nodesCtx)
 const schema = new Schema({
-  nodes: Object.fromEntries(context.get(nodesCtx)),
+  // 与生产 commonmark 保持一致：默认段落排在引用节点前，不能按模块导出字母序填充空文档。
+  nodes: Object.fromEntries([
+    ...nodeEntries.filter(([name]) => name === 'paragraph'),
+    ...nodeEntries.filter(([name]) => name !== 'paragraph'),
+  ]),
   marks: Object.fromEntries(context.get(marksCtx)),
 })
 context.inject(schemaCtx, schema)
@@ -80,6 +112,7 @@ const remark = unified()
   .use(remarkParse)
   .use(remarkStringify)
   .use(remarkGfm)
+  .use(remarkMath)
   .use(() => resolveReferences)
 const parse = ParserState.create(schema, remark)
 context.inject(editorViewCtx)
@@ -393,4 +426,538 @@ test('链接菜单支持 HTTP(S)、文档锚点和本地 Markdown，限制无处
     'custom:note.md',
   ])
     assert.equal(canOpenEditorLink(href), false)
+})
+
+test('混合格式显示 mixed，点击统一应用，再点击统一移除且保留选区', () => {
+  const initial = selectAllText(stateFor('**粗体** 普通文字'))
+  const context = resolveSelectionContext(initial)
+  assert.equal(context.target, 'text')
+  assert.equal(context.marks.strong, 'mixed')
+  const model = getSelectionToolbarModel(context, initial)
+  assert.equal(model.items.find((item) => item.id === 'bold').active, 'mixed')
+  let state = run(initial, getEditorCommand(initial, 'bold'))
+  assert.equal(resolveSelectionContext(state).marks.strong, 'on')
+  assert.equal(state.selection.from, initial.selection.from)
+  assert.equal(state.selection.to, initial.selection.to)
+  state = run(state, getEditorCommand(state, 'bold'))
+  assert.equal(resolveSelectionContext(state).marks.strong, 'off')
+  assert.equal(state.doc.textContent, initial.doc.textContent)
+})
+
+test('行内代码与跨对象、跨代码、全选范围不提供普通格式命令', () => {
+  const inline = selectAllText(stateFor('`hello`'))
+  const context = resolveSelectionContext(inline)
+  assert.equal(context.target, 'inlineCode')
+  assert.deepEqual(
+    getSelectionToolbarModel(context, inline).items.map((item) => item.id),
+    ['copy', 'inlineCode'],
+  )
+  assert.equal(getEditorCommand(inline, 'bold')(inline), false)
+  assert.equal(
+    resolveSelectionContext(run(inline, getEditorCommand(inline, 'inlineCode'))).target,
+    'text',
+  )
+  for (const source of [
+    '文字 `代码`',
+    '文字 ![图片](a.png)',
+    '文字 $E=mc^2$',
+    '文字\n\n```ts\ncode\n```\n\n正文',
+  ]) {
+    const state = selectAllText(stateFor(source))
+    const context = resolveSelectionContext(state)
+    assert.equal(context.target, 'mixed', source)
+    assert.deepEqual(
+      getSelectionToolbarModel(context, state).items.map((item) => item.id),
+      ['copy', 'cut'],
+    )
+    assert.equal(getEditorCommand(state, 'bold')(state), false)
+    assert.equal(getEditorCommand(state, 'heading2')(state), false)
+  }
+  const document = stateFor('正文')
+  const all = document.apply(document.tr.setSelection(new AllSelection(document.doc)))
+  assert.equal(resolveSelectionContext(all).target, 'all')
+  assert.equal(getEditorCommand(all, 'bold')(all), false)
+})
+
+test('链接范围完整识别，跨多个链接不猜测编辑目标；普通光标不出现格式栏', () => {
+  const state = stateFor(
+    '普通 [链接**粗体**](https://example.com) 其他 [另一个](https://example.com)',
+  )
+  let linkPos = -1
+  let lastPos = -1
+  state.doc.descendants((node, pos) => {
+    if (node.isText && node.marks.some((mark) => mark.type.name === 'link')) {
+      if (linkPos === -1) linkPos = pos
+      lastPos = pos
+    }
+  })
+  const caret = state.apply(state.tr.setSelection(TextSelection.create(state.doc, linkPos + 1)))
+  const context = resolveSelectionContext(caret)
+  assert.equal(context.link.from, linkPos)
+  assert.equal(context.link.to - context.link.from, 4)
+  assert.equal(getSelectionToolbarModel(context, caret).title, '链接')
+  const range = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, linkPos, lastPos + 1)),
+  )
+  assert.equal(resolveSelectionContext(range).link, null)
+  const plain = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)))
+  assert.equal(getSelectionToolbarModel(resolveSelectionContext(plain), plain), null)
+})
+
+test('图片、公式、脚注、源码和分割线使用对象控件；代码光标和代码选区不同', () => {
+  const cases = [
+    ['![图片](a.png)', 'image', 'editImage'],
+    ['$E=mc^2$', 'math', 'editMath'],
+    ['<span>源代码</span>', 'source', 'copySource'],
+    ['[dev]: ./development.md', 'source', 'editSource'],
+    ['---', 'rule', 'paragraphAfter'],
+    ['正文[^a]\n\n[^a]: 定义', 'footnote', 'gotoFootnote'],
+  ]
+  for (const [source, expected, action] of cases) {
+    let state = stateFor(source)
+    let position = -1
+    state.doc.descendants((node, pos) => {
+      if (position === -1 && node.isAtom && !node.isText && node.type.name !== 'hardbreak')
+        position = pos
+    })
+    assert.ok(position >= 0, source)
+    state = state.apply(state.tr.setSelection(NodeSelection.create(state.doc, position)))
+    const context = resolveSelectionContext(state)
+    assert.equal(context.target, expected, source)
+    const model = getSelectionToolbarModel(context, state)
+    assert.ok(
+      model.items.some((item) => item.id === action),
+      source,
+    )
+    assert.ok(!model.items.some((item) => item.id === 'bold'), source)
+  }
+  const code = stateFor('```ts\nhello\n```')
+  assert.equal(getSelectionToolbarModel(resolveSelectionContext(code), code), null)
+  const selected = code.apply(code.tr.setSelection(TextSelection.create(code.doc, 1, 4)))
+  assert.deepEqual(
+    getSelectionToolbarModel(resolveSelectionContext(selected), selected).items.map(
+      (item) => item.id,
+    ),
+    ['copy'],
+  )
+})
+
+test('单元格文字与多单元格具有不同动作，列对齐反映混合状态和 GFM 删除限制', () => {
+  let state = stateFor('| 左 | 右 |\n| :--- | ---: |\n| AB | CD |')
+  const cells = []
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === 'table_cell') cells.push(pos)
+  })
+  const text = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, cells[0] + 2, cells[0] + 3)),
+  )
+  assert.equal(resolveSelectionContext(text).target, 'text')
+  assert.ok(
+    getSelectionToolbarModel(resolveSelectionContext(text), text).items.some(
+      (item) => item.id === 'bold',
+    ),
+  )
+  state = state.apply(state.tr.setSelection(CellSelection.create(state.doc, cells[0], cells[1])))
+  const context = resolveSelectionContext(state)
+  assert.equal(context.target, 'cells')
+  assert.ok(!getSelectionToolbarModel(context, state).items.some((item) => item.id === 'bold'))
+  assert.equal(getActionState(state, context, 'alignColumnLeft').active, 'mixed')
+  assert.equal(getActionState(state, context, 'deleteRow').disabled, true)
+  assert.match(getActionState(state, context, 'deleteRow').reason, /至少一行/)
+  state = run(state, getEditorCommand(state, 'alignColumnCenter'))
+  assert.equal(
+    getActionState(state, resolveSelectionContext(state), 'alignColumnCenter').active,
+    true,
+  )
+})
+
+test('只读能力及共享执行入口拒绝修改，快捷键映射与菜单一致', () => {
+  const state = selectAllText(stateFor('文字'))
+  const target = resolveSelectionContext(state)
+  const model = getSelectionToolbarModel(target, state, false)
+  assert.deepEqual(
+    model.items.map((item) => item.id),
+    ['copy'],
+  )
+  assert.equal(getActionState(state, target, 'bold', false).disabled, true)
+  const view = {
+    state,
+    editable: false,
+    dispatch: (tr) => {
+      view.state = view.state.apply(tr)
+    },
+    focus() {},
+  }
+  const editor = { action: (callback) => callback({ get: () => view }) }
+  const actions = useEditorContextMenu({
+    getEditor: () => editor,
+    getCommands: () => commands,
+    isActive: () => true,
+    onError: assert.fail,
+    onOpenLink: async () => {},
+  }).actions
+  const commands = createEditorCommands({
+    getEditor: () => editor,
+    onBeforeCommand: () => true,
+    onCopy() {},
+    onError: assert.fail,
+    isActive: () => true,
+    onImageAlign() {},
+  })
+  actions.execute('bold', target)
+  assert.equal(view.state.doc, state.doc)
+  assert.equal(
+    getShortcutCommand({ ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, key: 'b' }),
+    'bold',
+  )
+  assert.equal(
+    getShortcutCommand({ ctrlKey: true, metaKey: false, altKey: true, shiftKey: false, key: 'c' }),
+    'insertCode',
+  )
+  assert.equal(
+    getShortcutCommand({
+      ctrlKey: true,
+      metaKey: false,
+      altKey: true,
+      shiftKey: false,
+      key: '8',
+      getModifierState: () => true,
+    }),
+    null,
+  )
+})
+
+test('可见选区定位按活动端选择矩形，裁剪滚出视口的范围', () => {
+  const viewport = { top: 100, bottom: 300, left: 50, right: 450 }
+  const rects = [
+    { top: 10, bottom: 30, left: 60, right: 160 },
+    { top: 90, bottom: 120, left: 30, right: 160 },
+    { top: 200, bottom: 230, left: 60, right: 160 },
+    { top: 500, bottom: 530, left: 60, right: 160 },
+  ]
+  assert.deepEqual(pickSelectionAnchor(rects, viewport, true), {
+    top: 100,
+    bottom: 120,
+    left: 50,
+    right: 160,
+  })
+  assert.deepEqual(pickSelectionAnchor(rects, viewport, false), rects[2])
+  assert.equal(clipSelectionBounds(rects[0], viewport), null)
+  assert.equal(pickSelectionAnchor([rects[3]], viewport, false), null)
+})
+
+test('代码多范围剪切与粘贴保留各范围，异步期间切换文档拒绝剪切', async () => {
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  const native = CodeState.create({
+    doc: 'ab12cd34ef',
+    extensions: [CodeState.allowMultipleSelections.of(true)],
+    selection: EditorSelection.create(
+      [EditorSelection.range(2, 4), EditorSelection.range(6, 8)],
+      0,
+    ),
+  })
+  let codeEvent = ''
+  const code = {
+    state: native,
+    dispatch: (spec) => {
+      codeEvent = spec.userEvent ?? codeEvent
+      code.state = code.state.update(spec).state
+    },
+    focus() {},
+    contentDOM: { addEventListener() {}, removeEventListener() {} },
+  }
+  const outer = stateFor('```ts\nab12cd34ef\n```')
+  const view = { state: outer, isDestroyed: false, dispatch() {} }
+  const target = { ...resolveSelectionContext(outer), nativeCode: { view: code, state: native } }
+  let copied = ''
+  let clipboardText = 'X'
+  let beforeWrite = () => {}
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: {
+        writeText: async (text) => {
+          copied = text
+          beforeWrite()
+        },
+        readText: async () => clipboardText,
+      },
+    },
+  })
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: { execCommand: () => false },
+  })
+  try {
+    await cutCodeSelection(view, target, () => true, assert.fail)
+    assert.equal(copied, '12\n34')
+    assert.equal(code.state.doc.toString(), 'abcdef')
+    assert.equal(codeEvent, 'delete.cut')
+    code.state = native
+    await pasteCodeClipboard(view, target, () => true, assert.fail)
+    assert.equal(code.state.doc.toString(), 'abXcdXef')
+    assert.equal(codeEvent, 'input.paste')
+    code.state = native
+    clipboardText = 'X\r\nY'
+    await pasteCodeClipboard(view, target, () => true, assert.fail)
+    assert.equal(code.state.doc.toString(), 'abXcdYef')
+    assert.deepEqual(
+      code.state.selection.ranges.map((range) => [range.anchor, range.head]),
+      [
+        [3, 3],
+        [6, 6],
+      ],
+    )
+    code.state = native
+    clipboardText = 'X\nY\nZ'
+    await pasteCodeClipboard(view, target, () => true, assert.fail)
+    assert.equal(code.state.doc.toString(), 'abX\nY\nZcdX\nY\nZef')
+    code.state = native
+    beforeWrite = () => {
+      view.state = stateFor('另一个文档')
+    }
+    await cutCodeSelection(view, target, () => true, assert.fail)
+    assert.equal(code.state.doc.toString(), native.doc.toString())
+    assert.equal(restoreEditorContext(view, target), false)
+  } finally {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator)
+    else delete globalThis.navigator
+    if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument)
+    else delete globalThis.document
+  }
+})
+
+test('模式切换只补齐未同步编辑，纯选区变化不格式化未编辑的文件', () => {
+  const original = stateFor('正文\n\n```js title="保留"\ncode\n```')
+  const view = { state: original }
+  const editor = {
+    action: (callback) =>
+      callback({
+        get: (key) =>
+          key === editorViewCtx ? view : key === serializerCtx ? serialize : undefined,
+      }),
+  }
+  assert.equal(getPendingEditorMarkdown(editor, original.doc), null)
+  view.state = original.apply(original.tr.setSelection(TextSelection.create(original.doc, 2)))
+  assert.equal(getPendingEditorMarkdown(editor, original.doc), null)
+  const selected = selectAllText(stateFor('**恢复原样**'))
+  view.state = run(
+    run(selected, getEditorCommand(selected, 'bold')),
+    getEditorCommand(selected, 'bold'),
+  )
+  assert.notEqual(view.state.doc, selected.doc)
+  assert.equal(view.state.doc.eq(selected.doc), true)
+  assert.equal(getPendingEditorMarkdown(editor, selected.doc), null)
+  view.state = original
+  view.state = view.state.apply(view.state.tr.insertText('编辑', 1))
+  const source = getPendingEditorMarkdown(editor, original.doc)
+  assert.match(source, /编辑正文/)
+  assert.match(source, /js title="保留"/)
+})
+
+test('整块代码的通用复制保留围栏元数据，剪贴板失败不删除块', async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  let state = stateFor('```ts title="保持"\nconst value = 1\n```')
+  state = state.apply(state.tr.setSelection(NodeSelection.create(state.doc, 0)))
+  const view = {
+    state,
+    editable: true,
+    focus() {},
+    dispatch: (tr) => {
+      view.state = view.state.apply(tr)
+    },
+  }
+  const editor = {
+    action: (callback) => callback({ get: (key) => (key === editorViewCtx ? view : serialize) }),
+  }
+  let copied = ''
+  let fail = false
+  const errors = []
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: {
+        writeText: async (text) => {
+          if (fail) throw new Error('denied')
+          copied = text
+        },
+      },
+    },
+  })
+  const actions = useEditorContextMenu({
+    getEditor: () => editor,
+    getCommands: () => commands,
+    isActive: () => true,
+    onError: (message) => errors.push(message),
+    onOpenLink: async () => {},
+  }).actions
+  const commands = createEditorCommands({
+    getEditor: () => editor,
+    onBeforeCommand: () => true,
+    onCopy() {},
+    onError: assert.fail,
+    isActive: () => true,
+    onImageAlign() {},
+  })
+  try {
+    actions.execute('copy', resolveSelectionContext(state))
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.match(copied, /ts title="保持"/)
+    assert.match(copied, /const value = 1/)
+    fail = true
+    actions.execute('cut', resolveSelectionContext(state))
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.equal(view.state.doc, state.doc)
+    assert.equal(errors.length, 1)
+    fail = false
+    actions.execute('cut', resolveSelectionContext(state))
+    await new Promise((resolve) => setImmediate(resolve))
+    view.state.doc.check()
+    assert.equal(view.state.doc.firstChild.type.name, 'paragraph')
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'navigator', original)
+    else delete globalThis.navigator
+  }
+})
+
+test('代码块内右键保留文档全选、整块选区及跨块文字范围', () => {
+  const originals = ['Element', 'HTMLElement'].map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  )
+  class TestElement {
+    contains(element) {
+      return element === this
+    }
+    closest() {
+      return null
+    }
+  }
+  for (const key of ['Element', 'HTMLElement'])
+    Object.defineProperty(globalThis, key, { configurable: true, value: TestElement })
+  try {
+    const initial = stateFor('前段\n\n```ts\ncode\n```\n\n后段')
+    let codePosition = 0
+    initial.doc.descendants((node, pos) => {
+      if (node.type.name === 'code_block') codePosition = pos
+    })
+    const element = new TestElement()
+    const view = {
+      state: initial,
+      nodeDOM: (pos) => (pos === codePosition ? element : null),
+      posAtCoords: () => ({ pos: codePosition + 2 }),
+      dispatch: (tr) => {
+        view.state = view.state.apply(tr)
+      },
+    }
+    const event = { target: element, clientX: 0, clientY: 0 }
+    for (const selection of [
+      new AllSelection(initial.doc),
+      NodeSelection.create(initial.doc, codePosition),
+      TextSelection.create(initial.doc, 1, initial.doc.content.size - 1),
+    ]) {
+      view.state = initial.apply(initial.tr.setSelection(selection))
+      const before = view.state
+      const target = resolveContextTarget(view, event)
+      assert.equal(view.state, before)
+      assert.equal(target.selection.eq(selection), true)
+    }
+    view.state = initial
+    const target = resolveContextTarget(view, event)
+    assert.equal(target.target, 'code')
+    assert.equal(target.kind, 'node')
+  } finally {
+    for (const [index, key] of ['Element', 'HTMLElement'].entries()) {
+      if (originals[index]) Object.defineProperty(globalThis, key, originals[index])
+      else delete globalThis[key]
+    }
+  }
+})
+
+test('格式快捷键通过共享动作更新当前选区状态，并拦截只读修改', async () => {
+  const original = selectAllText(stateFor('普通 **粗体**'))
+  const view = {
+    state: original,
+    editable: true,
+    focus() {},
+    dispatch: (tr) => {
+      view.state = view.state.apply(tr)
+    },
+  }
+  const editor = {
+    action: (callback) => callback({ get: () => view }),
+  }
+  const commands = createEditorCommands({
+    getEditor: () => editor,
+    onBeforeCommand: () => true,
+    onCopy() {},
+    onError: assert.fail,
+    isActive: () => true,
+    onImageAlign() {},
+  })
+  const actions = useEditorContextMenu({
+    getEditor: () => editor,
+    getCommands: () => commands,
+    isActive: () => true,
+    onError: assert.fail,
+    onOpenLink: async () => {},
+  }).actions
+  const received = []
+  const interaction = createEditorInteractionPlugin({
+    onAction: (id, target) => {
+      received.push(id)
+      actions.execute(id, target)
+    },
+  })
+  await interaction({ wait: async () => {}, update() {} })()
+  const handle = interaction.plugin().props.handleDOMEvents.keydown
+  let prevented = 0
+  const event = {
+    ctrlKey: true,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false,
+    key: 'b',
+    isComposing: false,
+    preventDefault: () => prevented++,
+  }
+  assert.equal(handle(view, event), true)
+  assert.deepEqual(received, ['bold'])
+  assert.equal(resolveSelectionContext(view.state).marks.strong, 'on')
+  assert.equal(view.state.selection.eq(original.selection), true)
+  assert.equal(
+    getSelectionToolbarModel(resolveSelectionContext(view.state), view.state).items.find(
+      (item) => item.id === 'bold',
+    ).active,
+    true,
+  )
+  const before = view.state
+  view.editable = false
+  assert.equal(handle(view, event), true)
+  assert.equal(view.state, before)
+  assert.deepEqual(received, ['bold'])
+  assert.equal(prevented, 2)
+  event.isComposing = true
+  assert.equal(handle(view, event), false)
+  assert.equal(prevented, 2)
+})
+
+test('预览复制目标必须匹配当前节点与范围，同样的文字不代表同一选区', () => {
+  // 验证快照边界；浏览器 Selection 事件和焦点仍需桌面验收。
+  const firstParagraph = { textContent: '重复内容' }
+  const secondParagraph = { textContent: '重复内容' }
+  const range = (node, from = 0, to = 4) => ({
+    startContainer: node,
+    startOffset: from,
+    endContainer: node,
+    endOffset: to,
+  })
+  const selected = [range(firstParagraph)]
+  assert.equal(arePreviewRangesEqual(selected, [range(firstParagraph)]), true)
+  assert.equal(arePreviewRangesEqual(selected, [range(secondParagraph)]), false)
+  assert.equal(arePreviewRangesEqual(selected, [range(firstParagraph, 1, 4)]), false)
+  assert.equal(arePreviewRangesEqual(selected, [range(firstParagraph, 4, 4)]), false)
+  assert.equal(arePreviewRangesEqual(selected, []), false)
+  const multiple = [range(firstParagraph), range(secondParagraph)]
+  assert.equal(arePreviewRangesEqual(multiple, [...multiple].reverse()), false)
 })

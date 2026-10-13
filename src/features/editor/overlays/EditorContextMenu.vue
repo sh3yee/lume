@@ -3,7 +3,11 @@ import { computed, nextTick, ref } from 'vue'
 import type { ContextMenuItem } from './contextMenuTypes'
 import { constrainOverlayPosition } from './overlayPosition'
 
-const props = defineProps<{ groups: ContextMenuItem[][]; position: { x: number; y: number } }>()
+const props = defineProps<{
+  groups: ContextMenuItem[][]
+  position: { x: number; y: number }
+  overlayId?: string
+}>()
 const emit = defineEmits<{ close: []; action: [id: string] }>()
 const menu = ref<HTMLDivElement | null>(null)
 const submenu = ref<HTMLDivElement | null>(null)
@@ -87,6 +91,7 @@ defineExpose({ focusFirstItem, getBounds })
     class="lume-editor-context-menu"
     role="menu"
     aria-label="编辑区操作"
+    :data-editor-overlay="overlayId"
     :style="{ left: `${position.x}px`, top: `${position.y}px` }"
     @contextmenu.prevent
     @keydown="handleKeydown($event)"
@@ -98,15 +103,19 @@ defineExpose({ focusFirstItem, getBounds })
         v-for="item in group"
         :key="item.id"
         type="button"
-        role="menuitem"
+        :role="item.active === undefined ? 'menuitem' : 'menuitemcheckbox'"
         :data-action="item.id"
         :disabled="item.disabled"
+        :aria-checked="item.active"
+        :title="item.reason"
+        :aria-label="item.reason ? `${item.label}，${item.reason}` : item.label"
         :aria-haspopup="item.children ? 'menu' : undefined"
         :aria-expanded="item.children ? expanded?.id === item.id : undefined"
         @mouseenter="openSubmenu(item, $event.currentTarget as HTMLButtonElement)"
         @click="handleActivate(item, $event)"
       >
         <span>{{ item.label }}</span
+        ><span v-if="item.active" aria-hidden="true">{{ item.active === 'mixed' ? '−' : '✓' }}</span
         ><span v-if="item.children" aria-hidden="true">›</span>
       </button>
     </template>
@@ -118,6 +127,7 @@ defineExpose({ focusFirstItem, getBounds })
       class="lume-editor-context-menu lume-editor-context-menu--submenu"
       role="menu"
       :aria-label="expanded.label"
+      :data-editor-overlay="overlayId"
       :style="{ left: `${submenuPosition.x}px`, top: `${submenuPosition.y}px` }"
       @contextmenu.prevent
       @pointerdown.stop
@@ -127,11 +137,17 @@ defineExpose({ focusFirstItem, getBounds })
         v-for="item in submenuItems"
         :key="item.id"
         type="button"
-        role="menuitem"
+        :role="item.active === undefined ? 'menuitem' : 'menuitemcheckbox'"
         :disabled="item.disabled"
+        :aria-checked="item.active"
+        :title="item.reason"
+        :aria-label="item.reason ? `${item.label}，${item.reason}` : item.label"
         @click="emit('action', item.id)"
       >
-        {{ item.label }}
+        <span>{{ item.label }}</span
+        ><span v-if="item.active" aria-hidden="true">{{
+          item.active === 'mixed' ? '−' : '✓'
+        }}</span>
       </button>
     </div>
   </Teleport>

@@ -12,12 +12,16 @@ import { useMermaidPreviewExtension, useMermaidWysiwygExtension } from './mermai
 import { useSearchWysiwygExtension } from './search'
 
 /** 按稳定顺序注册 WYSIWYG Markdown 扩展。 */
-export function useWysiwygMarkdownExtensions(editor: Editor, options: {
-  importImageFile: (file: File) => Promise<string | null>
-  isDocumentActive: () => boolean
-  onImageSelect: (view: EditorView, selection: NodeSelection) => void
-  resolveImageSource: (src: string) => string | Promise<string>
-}) {
+export function useWysiwygMarkdownExtensions(
+  editor: Editor,
+  options: {
+    importImageFile: (file: File) => Promise<string | null>
+    isDocumentActive: () => boolean
+    onImageSelect: (view: EditorView, selection: NodeSelection) => void
+    resolveImageSource: (src: string) => string | Promise<string>
+    onViewUpdate?: (view: EditorView) => void
+  },
+) {
   const baseEditor = useGfmWysiwygExtension(useBaseWysiwygExtension(editor))
   const imageEditor = useImagesWysiwygExtension(baseEditor, {
     importFile: options.importImageFile,
@@ -28,7 +32,7 @@ export function useWysiwygMarkdownExtensions(editor: Editor, options: {
   const mathEditor = useMathWysiwygExtension(imageEditor)
   const mermaidEditor = useMermaidWysiwygExtension(mathEditor)
   const footnotesEditor = useFootnotesWysiwygExtension(mermaidEditor)
-  const codeBlockEditor = useCodeBlockWysiwygExtension(footnotesEditor)
+  const codeBlockEditor = useCodeBlockWysiwygExtension(footnotesEditor, options.onViewUpdate)
   return useMarkdownPasteWysiwygExtension(useSearchWysiwygExtension(codeBlockEditor))
 }
 

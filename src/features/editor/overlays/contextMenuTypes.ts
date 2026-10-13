@@ -2,6 +2,8 @@ export interface ContextMenuItem {
   id: string
   label: string
   disabled?: boolean
+  active?: boolean | 'mixed'
+  reason?: string
   children?: ContextMenuItem[]
 }
 

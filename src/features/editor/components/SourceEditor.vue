@@ -18,6 +18,7 @@ const emit = defineEmits<{
 const { content, updateCursor } = useDocument()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 let isApplyingScrollSync = false
+defineExpose({ focus: () => textareaRef.value?.focus() })
 
 function syncCursor(element: HTMLTextAreaElement) {
   const lines = element.value.substring(0, element.selectionStart).split('\n')
@@ -53,16 +54,19 @@ function handleCursorChange(event: Event) {
   syncCursor(event.target as HTMLTextAreaElement)
 }
 
-watch(() => props.syncRatio, (ratio) => {
-  const element = textareaRef.value
-  if (!element || typeof ratio !== 'number' || !Number.isFinite(ratio)) return
-  const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
-  isApplyingScrollSync = true
-  element.scrollTop = ratio * maxScrollTop
-  requestAnimationFrame(() => {
-    isApplyingScrollSync = false
-  })
-})
+watch(
+  () => props.syncRatio,
+  (ratio) => {
+    const element = textareaRef.value
+    if (!element || typeof ratio !== 'number' || !Number.isFinite(ratio)) return
+    const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+    isApplyingScrollSync = true
+    element.scrollTop = ratio * maxScrollTop
+    requestAnimationFrame(() => {
+      isApplyingScrollSync = false
+    })
+  },
+)
 
 onMounted(() => {
   if (textareaRef.value) syncCursor(textareaRef.value)
@@ -87,7 +91,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.lume-source-editor { flex: 1; display: flex; min-width: 0; overflow: hidden; background-color: var(--lume-bg-surface); }
+.lume-source-editor {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  background-color: var(--lume-bg-surface);
+}
 .lume-source-editor__textarea {
   flex: 1;
   width: 100%;
@@ -105,10 +115,25 @@ onMounted(() => {
   tab-size: 2;
   -moz-tab-size: 2;
 }
-.lume-source-editor__textarea::placeholder { color: var(--lume-text-tertiary); }
-.lume-source-editor__textarea::selection { background-color: var(--lume-accent-subtle); }
-.lume-source-editor__textarea::-webkit-scrollbar { width: 10px; height: 10px; }
-.lume-source-editor__textarea::-webkit-scrollbar-track { background: transparent; }
-.lume-source-editor__textarea::-webkit-scrollbar-thumb { border: 2px solid var(--lume-bg-surface); border-radius: var(--lume-radius-full); background-color: var(--lume-border-default); }
-.lume-source-editor__textarea::-webkit-scrollbar-thumb:hover { background-color: var(--lume-border-strong); }
+.lume-source-editor__textarea::placeholder {
+  color: var(--lume-text-tertiary);
+}
+.lume-source-editor__textarea::selection {
+  background-color: var(--lume-accent-subtle);
+}
+.lume-source-editor__textarea::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.lume-source-editor__textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lume-source-editor__textarea::-webkit-scrollbar-thumb {
+  border: 2px solid var(--lume-bg-surface);
+  border-radius: var(--lume-radius-full);
+  background-color: var(--lume-border-default);
+}
+.lume-source-editor__textarea::-webkit-scrollbar-thumb:hover {
+  background-color: var(--lume-border-strong);
+}
 </style>

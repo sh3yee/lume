@@ -10,7 +10,9 @@
   border-radius: 9px;
   background-color: color-mix(in srgb, var(--lume-bg-overlay) 88%, transparent);
   color: var(--lume-text-secondary);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 10%);
+  box-shadow:
+    0 8px 22px rgb(0 0 0 / 12%),
+    0 1px 2px rgb(0 0 0 / 10%);
   user-select: none;
   backdrop-filter: blur(20px) saturate(1.35);
 }
@@ -50,7 +52,9 @@
   pointer-events: none;
   opacity: 0;
   transform: translate(-50%, -2px);
-  transition: opacity 100ms ease, transform 100ms ease;
+  transition:
+    opacity 100ms ease,
+    transform 100ms ease;
 }
 
 .lume-floating-toolbar button:hover::after,
@@ -59,7 +63,7 @@
   transform: translate(-50%, 0);
 }
 
-.lume-floating-toolbar button:hover,
+.lume-floating-toolbar button:not(:disabled):hover,
 .lume-floating-toolbar button:focus-visible,
 .lume-floating-toolbar button.is-active {
   outline: none;
@@ -69,6 +73,22 @@
 
 .lume-floating-toolbar svg {
   flex: none;
+}
+
+.lume-floating-toolbar button:disabled {
+  opacity: 0.4;
+}
+.lume-floating-toolbar button.is-mixed {
+  background-color: color-mix(in srgb, var(--lume-accent-default) 12%, transparent);
+}
+.lume-floating-toolbar button.is-mixed::before {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--lume-accent-default);
 }
 
 .lume-floating-toolbar__separator {

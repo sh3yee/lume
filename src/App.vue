@@ -1,6 +1,10 @@
 <template>
   <div class="lume-app" :class="{ 'lume-app--focus': focusMode }">
-    <TitleBar :theme="resolvedTheme" @open-settings="openSettings" @close-window="handleCloseWindow" />
+    <TitleBar
+      :theme="resolvedTheme"
+      @open-settings="openSettings"
+      @close-window="handleCloseWindow"
+    />
 
     <div class="lume-app__body">
       <SideBar v-if="sidebarVisible && !focusMode" />
@@ -8,9 +12,17 @@
       <div class="lume-app__workspace">
         <DocumentTabs v-if="!focusMode" :file-drop-paths="fileDragPaths" />
         <main class="lume-app__main">
-          <WysiwygPane v-if="viewMode === 'wysiwyg'" :key="activeDocumentId" />
+          <WysiwygPane
+            v-if="viewMode === 'wysiwyg'"
+            :key="activeDocumentId"
+            @edit-source="handleEditSource"
+          />
           <div v-else class="lume-app__split-view">
-            <SourceEditor :sync-ratio="splitScrollRatio" @scroll-ratio="handleSplitScrollRatio" />
+            <SourceEditor
+              ref="sourceEditorRef"
+              :sync-ratio="splitScrollRatio"
+              @scroll-ratio="handleSplitScrollRatio"
+            />
             <PreviewPane :sync-ratio="splitScrollRatio" @scroll-ratio="handleSplitScrollRatio" />
           </div>
         </main>
@@ -18,25 +30,39 @@
     </div>
 
     <StatusBar :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
-    <CommandPalette :open="commandPaletteOpen" :items="commandPaletteItems" @close="closeCommandPalette"
-      @select="handleCommandPaletteSelect" />
+    <CommandPalette
+      :open="commandPaletteOpen"
+      :items="commandPaletteItems"
+      @close="closeCommandPalette"
+      @select="handleCommandPaletteSelect"
+    />
     <SettingsDialog
       :open="settingsOpen"
       :view-mode="viewMode"
       :theme="themePreference"
       :focus-mode="focusMode"
-      :writing-width="writingWidth" :font-scale="fontScale"
+      :writing-width="writingWidth"
+      :font-scale="fontScale"
       @close="settingsOpen = false"
       @update:view-mode="viewMode = $event"
       @update:theme="themePreference = $event"
       @update:focus-mode="focusMode = $event"
-@update:writing-width="writingWidth = $event"
+      @update:writing-width="writingWidth = $event"
       @update:font-scale="fontScale = $event"
     />
-    <UnsavedChangesDialog v-if="pendingCloseDocument" :file-name="pendingCloseDocument.name"
-      @cancel="cancelCloseDocument" @confirm="confirmCloseDocument" />
-   <ExternalConflictDialog v-if="externalConflict" :file-name="externalConflict.fileName"
-      :deleted="externalConflict.kind === 'deleted'" @keep="keepLocalChanges" @reload="reloadConflictedDocument" />
+    <UnsavedChangesDialog
+      v-if="pendingCloseDocument"
+      :file-name="pendingCloseDocument.name"
+      @cancel="cancelCloseDocument"
+      @confirm="confirmCloseDocument"
+    />
+    <ExternalConflictDialog
+      v-if="externalConflict"
+      :file-name="externalConflict.fileName"
+      :deleted="externalConflict.kind === 'deleted'"
+      @keep="keepLocalChanges"
+      @reload="reloadConflictedDocument"
+    />
     <FileDropMessage :message="fileDropMessage" @dismiss="dismissMessage" />
   </div>
 </template>
@@ -60,7 +86,7 @@ import CommandPalette from '@components/CommandPalette.vue'
 import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import FileDropMessage from '@components/FileDropMessage.vue'
 import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { useAppShortcuts } from '@/app/commands/useAppShortcuts'
@@ -78,6 +104,7 @@ import type { OpenDocument } from '@/features/documents/model/documentTypes'
 type ViewMode = 'wysiwyg' | 'split'
 
 const viewMode = ref<ViewMode>('wysiwyg')
+const sourceEditorRef = ref<{ focus: () => void } | null>(null)
 const sidebarVisible = ref(false)
 const focusMode = ref(false)
 const splitScrollRatio = ref(0)
@@ -116,18 +143,20 @@ const {
 const { themePreference, resolvedTheme } = useThemePreference()
 const { writingWidth, fontScale } = useWritingPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
-const { externalConflict, keepLocalChanges, reloadConflictedDocument } = useWorkspaceLifecycle(showMessage)
+const { externalConflict, keepLocalChanges, reloadConflictedDocument } =
+  useWorkspaceLifecycle(showMessage)
 const { flushDocumentSession } = useDocumentSessionPersistence(
   documents,
   activeDocumentId,
   persistDocumentSession,
 )
-const { fileDragPaths } = useFileDrop(
-  viewMode,
-  openFilesFromPaths,
-  showMessage,
-  dismissMessage,
-)
+const { fileDragPaths } = useFileDrop(viewMode, openFilesFromPaths, showMessage, dismissMessage)
+
+const handleEditSource = async () => {
+  viewMode.value = 'split'
+  await nextTick()
+  sourceEditorRef.value?.focus()
+}
 
 function openSettings() {
   settingsOpen.value = true
@@ -145,7 +174,9 @@ function handleSplitScrollRatio(value: number) {
 async function handleCloseWindow() {
   flushDocumentSession()
   requestCloseDocuments(
-    documents.value.filter((document: OpenDocument) => document.isDirty).map((document: OpenDocument) => document.id),
+    documents.value
+      .filter((document: OpenDocument) => document.isDirty)
+      .map((document: OpenDocument) => document.id),
     (completed: boolean) => {
       if (completed) void closeApplicationWindow()
     },

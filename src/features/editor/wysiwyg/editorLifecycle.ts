@@ -5,6 +5,17 @@ import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { replaceAll } from '@milkdown/kit/utils'
 import { useWysiwygMarkdownExtensions } from '../extensions'
+import { createEditorInteractionPlugin } from './editorInteraction'
+import type { EditorContext } from './selectionContext'
+import type { Node } from '@milkdown/kit/prose/model'
+
+export const getPendingEditorMarkdown = (editor: Editor | null, synchronizedDoc: Node | null) => {
+  if (!editor || !synchronizedDoc) return null
+  return editor.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    return view.state.doc.eq(synchronizedDoc) ? null : ctx.get(serializerCtx)(view.state.doc)
+  })
+}
 
 export async function createWysiwygEditor(options: {
   initialMarkdown: string
@@ -15,6 +26,8 @@ export async function createWysiwygEditor(options: {
   onMarkdownChange: (markdown: string, view: EditorView | null) => void
   onSelectionChange: (view: EditorView | null, line: number, column: number) => void
   resolveImageSource: (src: string) => string | Promise<string>
+  onViewUpdate?: (view: EditorView) => void
+  onAction?: (id: string, target: EditorContext) => void
 }) {
   return useWysiwygMarkdownExtensions(
     Editor.make().config((ctx) => {
@@ -52,6 +65,7 @@ export async function createWysiwygEditor(options: {
   )
     .use(history)
     .use(listener)
+    .use(createEditorInteractionPlugin(options))
     .create()
 }
 

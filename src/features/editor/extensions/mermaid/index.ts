@@ -26,7 +26,9 @@ export function useMermaidPreviewExtension(markdown: MarkdownIt) {
 
 /** 按需加载 Mermaid，并增强当前 Preview 中尚未渲染的图表。 */
 export async function renderMermaidDiagrams(container: HTMLElement) {
-  const diagrams = Array.from(container.querySelectorAll<HTMLElement>('.lume-mermaid[data-mermaid-source]'))
+  const diagrams = Array.from(
+    container.querySelectorAll<HTMLElement>('.lume-mermaid[data-mermaid-source]'),
+  )
   if (diagrams.length === 0) return
 
   const sequence = ++renderSequence
@@ -45,10 +47,14 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
 
     try {
       const source = decodeURIComponent(encodedSource)
-      const { svg, bindFunctions } = await mermaid.render(`lume-mermaid-${sequence}-${index}`, source)
+      const { svg, bindFunctions } = await mermaid.render(
+        `lume-mermaid-${sequence}-${index}`,
+        source,
+      )
       if (sequence !== renderSequence || !diagram.isConnected) return
       diagram.innerHTML = svg
       diagram.classList.remove('lume-mermaid--error')
+      diagram.dataset.copySource = encodedSource
       diagram.removeAttribute('data-mermaid-source')
       bindFunctions?.(diagram)
     } catch (error) {

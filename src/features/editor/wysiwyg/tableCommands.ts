@@ -49,10 +49,15 @@ const alignColumns =
       rect.table.forEach((row, rowOffset) =>
         row.forEach((_cell, cellOffset, col) => {
           if (col < rect.left || col >= rect.right) return
-          tr.setNodeAttribute(rect.tableStart + rowOffset + 1 + cellOffset, 'alignment', alignment)
+          if (_cell.attrs.alignment !== alignment)
+            tr.setNodeAttribute(
+              rect.tableStart + rowOffset + 1 + cellOffset,
+              'alignment',
+              alignment,
+            )
         }),
       )
-      dispatch(tr.scrollIntoView())
+      if (tr.docChanged) dispatch(tr.scrollIntoView())
     }
     return true
   }

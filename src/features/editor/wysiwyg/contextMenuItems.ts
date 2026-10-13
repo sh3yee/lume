@@ -1,43 +1,37 @@
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { ContextMenuItem } from '../overlays/contextMenuTypes'
-import { getEditorCommand } from './editorCommands'
-import type { EditorContext } from './contextTarget'
-import { canOpenEditorLink } from './editorLinks'
+import { getActionState } from './actionState'
+import { hasSelectedContent, type EditorContext } from './selectionContext'
 
 export const getContextMenuGroups = (
   context: EditorContext,
   state: EditorState,
+  editable = true,
 ): ContextMenuItem[][] => {
-  const item = (id: string, label: string): ContextMenuItem => ({ id, label })
-  const command = (id: string, label: string): ContextMenuItem => ({
+  const item = (id: string, label: string): ContextMenuItem => ({
     id,
     label,
-    disabled: !getEditorCommand(state, id)?.(state),
+    ...getActionState(state, context, id, editable),
   })
   const groups: ContextMenuItem[][] = []
-  let touchesCode = false
-  state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
-    if (node.type.name === 'code_block') touchesCode = true
-  })
-  if (!context.selection.empty) groups.push([item('copy', '复制'), item('cut', '剪切')])
-  if (context.target === 'text' && !touchesCode)
+  if (hasSelectedContent(context))
+    groups.push([item('copy', '复制所选内容'), item('cut', '剪切所选内容')])
+  if (context.target === 'text')
     groups.push([
-      command('bold', '加粗'),
-      command('italic', '斜体'),
-      command('strike', '删除线'),
-      command('inlineCode', '行内代码'),
-      item('setLink', '设置链接'),
-      command('clearFormatting', '清除行内格式'),
+      item('bold', '加粗'),
+      item('italic', '斜体'),
+      item('strike', '删除线'),
+      item('inlineCode', '行内代码'),
+      item('setLink', '设置所选文字链接'),
+      item('clearFormatting', '清除所选文字格式'),
     ])
+  if (context.target === 'inlineCode') groups.push([item('inlineCode', '取消行内代码')])
   if (context.link)
     groups.push([
-      {
-        ...item('openLink', '打开链接'),
-        disabled: !canOpenEditorLink(String(context.link.mark.attrs.href ?? '')),
-      },
+      item('openLink', '打开链接'),
       item('copyLink', '复制链接地址'),
-      item('editLink', '编辑链接'),
-      item('removeLink', '移除链接'),
+      item('editLink', '编辑当前链接地址'),
+      item('removeLink', '移除当前链接'),
     ])
   if (context.target === 'image')
     groups.push([
@@ -53,14 +47,14 @@ export const getContextMenuGroups = (
           item('imageRight', '右对齐'),
         ],
       },
-      item('resetImageSize', '恢复尺寸'),
-      item('deleteNode', '删除图片'),
+      item('resetImageSize', '恢复图片尺寸'),
+      item('deleteNode', '删除当前图片'),
     ])
   if (context.target === 'math')
     groups.push([
       item('editMath', '编辑公式源码'),
       item('copyMath', '复制公式源码'),
-      item('deleteNode', '删除公式'),
+      item('deleteNode', '删除当前公式'),
     ])
   if (context.target === 'code')
     groups.push([
@@ -69,44 +63,74 @@ export const getContextMenuGroups = (
       item('paragraphBefore', '在代码前插入段落'),
       item('paragraphAfter', '在代码后插入段落'),
     ])
+  if (['source', 'footnote'].includes(context.target))
+    groups.push([
+      ...(context.node?.node.type.name === 'footnote_reference'
+        ? [item('gotoFootnote', '跳转 / 编辑脚注定义')]
+        : []),
+      item('copySource', '复制节点 Markdown'),
+      item('editSource', '在源码模式编辑'),
+    ])
+  if (context.target === 'rule')
+    groups.push([
+      item('paragraphBefore', '在分割线前插入段落'),
+      item('paragraphAfter', '在分割线后插入段落'),
+      item('deleteNode', '删除分割线'),
+    ])
+  if (context.target === 'block' && context.kind === 'node')
+    groups.push([
+      item('paragraphBefore', '在所选块前插入段落'),
+      item('paragraphAfter', '在所选块后插入段落'),
+      item('deleteNode', '删除整个所选块'),
+    ])
   if (context.containers.includes('table'))
     groups.push([
       {
         id: 'tableActions',
-        label: '表格操作',
+        label: '当前表格 / 所选行列',
         children: [
-          command('rowBefore', '上方插入行'),
-          command('rowAfter', '下方插入行'),
-          command('deleteRow', '删除行'),
-          command('colBefore', '左侧插入列'),
-          command('colAfter', '右侧插入列'),
-          command('deleteColumn', '删除列'),
-          command('alignColumnLeft', '列左对齐'),
-          command('alignColumnCenter', '列居中'),
-          command('alignColumnRight', '列右对齐'),
-          command('deleteTable', '删除表格'),
+          item('rowBefore', '上方插入行'),
+          item('rowAfter', '下方插入行'),
+          item('deleteRow', '删除所选行'),
+          item('colBefore', '左侧插入列'),
+          item('colAfter', '右侧插入列'),
+          item('deleteColumn', '删除所选列'),
+          item('alignColumnLeft', '整列左对齐'),
+          item('alignColumnCenter', '整列居中'),
+          item('alignColumnRight', '整列右对齐'),
+          item('deleteTable', '删除整个表格'),
         ],
       },
     ])
-  if (context.containers.includes('list_item'))
+  if (context.containers.includes('list_item') && ['block', 'text'].includes(context.target))
     groups.push([
-      command('toggleTask', '切换任务完成状态'),
-      command('indentList', '增加缩进'),
-      command('outdentList', '减少缩进 / 退出列表'),
+      item('toggleTask', '切换当前任务项状态'),
+      item('indentList', '增加所选项缩进'),
+      item('outdentList', '减少所选项缩进 / 退出列表'),
     ])
-  if (['text', 'block'].includes(context.target) && !touchesCode)
+  if (['text', 'block'].includes(context.target))
     groups.push([
       {
         id: 'convert',
-        label: '转换当前块',
+        label: context.selection.empty ? '转换当前块' : '所选块 / 容器操作',
         children: [
-          command('paragraph', '转为正文 / 退出容器'),
+          item('paragraph', '转为正文 / 退出所在容器'),
           ...Array.from({ length: 6 }, (_, index) =>
-            command(`heading${index + 1}`, `${index + 1} 级标题`),
+            item(`heading${index + 1}`, `转为 ${index + 1} 级标题`),
           ),
-          command('bulletList', '无序列表'),
-          command('orderedList', '有序列表'),
-          command('blockquote', '引用'),
+          item(
+            'bulletList',
+            context.containers.includes('list_item')
+              ? '整个列表改为无序列表'
+              : '所选块转为无序列表',
+          ),
+          item(
+            'orderedList',
+            context.containers.includes('list_item')
+              ? '整个列表改为有序列表'
+              : '所选块转为有序列表',
+          ),
+          item('blockquote', '所选块转为引用'),
         ],
       },
       {
@@ -122,9 +146,21 @@ export const getContextMenuGroups = (
     ])
   groups.push([
     item('paste', context.target === 'code' ? '粘贴纯文本' : '粘贴'),
-    command('undo', '撤销'),
-    command('redo', '重做'),
+    item('undo', '撤销'),
+    item('redo', '重做'),
     item('selectAll', context.target === 'code' ? '全选代码' : '全选'),
   ])
-  return groups
+  return editable
+    ? groups
+    : groups
+        .map((group) =>
+          group.flatMap((item) => {
+            if (item.children) {
+              const children = item.children.filter((child) => !child.disabled)
+              return children.length ? [{ ...item, children }] : []
+            }
+            return item.disabled ? [] : [item]
+          }),
+        )
+        .filter((group) => group.length)
 }

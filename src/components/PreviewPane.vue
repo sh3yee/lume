@@ -7,6 +7,9 @@
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useMarkdownPreview } from '@/features/editor/preview/useMarkdownPreview.ts'
+import { usePreviewInteractions } from '@/features/editor/preview/usePreviewInteractions'
+import SelectionToolbar from '@/features/editor/overlays/SelectionToolbar.vue'
+import { openEditorLink } from '@/features/editor/wysiwyg/editorLinks'
 
 const props = defineProps<{
   syncRatio?: number
@@ -16,14 +19,45 @@ const emit = defineEmits<{
   (e: 'scroll-ratio', value: number): void
 }>()
 
-const { activeDocument, content } = useDocument()
+const { activeDocument, content, openDocument } = useDocument()
 const { enhancePreview, renderedHtml } = useMarkdownPreview(content, activeDocument)
 const previewContentRef = ref<HTMLElement | null>(null)
+const previewToolbarRef = ref<{
+  getBounds: () => DOMRect | null
+  focusFirstItem: () => void
+} | null>(null)
+const interactionError = ref('')
 let isApplyingScrollSync = false
+
+const {
+  toolbar: previewToolbar,
+  handleAction,
+  dismiss,
+  refresh: refreshPreviewToolbar,
+} = usePreviewInteractions({
+  getRoot: () => previewContentRef.value,
+  getToolbar: () => previewToolbarRef.value,
+  getHtml: () => renderedHtml.value,
+  getDocumentId: () => activeDocument.value?.id,
+  onError: (message) => {
+    interactionError.value = message
+  },
+  onOpenLink: (href) => {
+    const document = activeDocument.value
+    return openEditorLink(href, {
+      documentPath: document?.path ?? null,
+      root: previewContentRef.value,
+      isActive: () =>
+        Boolean(previewContentRef.value?.isConnected) && activeDocument.value?.id === document?.id,
+      onOpenDocument: openDocument,
+    })
+  },
+})
 
 async function renderPreviewExtensions() {
   await nextTick()
   if (previewContentRef.value) await enhancePreview(previewContentRef.value)
+  refreshPreviewToolbar()
 }
 
 function handleScroll(event: Event) {
@@ -35,39 +69,74 @@ function handleScroll(event: Event) {
 
 watch(renderedHtml, () => void renderPreviewExtensions())
 
-watch(() => props.syncRatio, (ratio) => {
-  const element = previewContentRef.value
-  if (!element || typeof ratio !== 'number' || !Number.isFinite(ratio)) return
-  const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
-  isApplyingScrollSync = true
-  element.scrollTop = ratio * maxScrollTop
-  requestAnimationFrame(() => {
-    isApplyingScrollSync = false
-  })
-})
+watch(
+  () => props.syncRatio,
+  (ratio) => {
+    const element = previewContentRef.value
+    if (!element || typeof ratio !== 'number' || !Number.isFinite(ratio)) return
+    const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+    isApplyingScrollSync = true
+    element.scrollTop = ratio * maxScrollTop
+    requestAnimationFrame(() => {
+      isApplyingScrollSync = false
+    })
+  },
+)
 
 onMounted(() => void renderPreviewExtensions())
 </script>
 
 <template>
   <section class="lume-preview-pane">
-   <div
+    <div v-if="interactionError" class="lume-preview-pane__error" role="alert">
+      {{ interactionError }} <button type="button" @click="interactionError = ''">关闭</button>
+    </div>
+    <div
       ref="previewContentRef"
       class="lume-preview-pane__content lume-markdown-content"
       v-html="renderedHtml"
       @scroll="handleScroll"
-   ></div>
+    ></div>
   </section>
+  <Teleport to="body">
+    <SelectionToolbar
+      v-if="previewToolbar"
+      ref="previewToolbarRef"
+      :model="previewToolbar.model"
+      :position="previewToolbar.position"
+      :revision="previewToolbar.revision"
+      :overlay-id="`preview-${activeDocument?.id ?? ''}`"
+      @action="handleAction"
+      @dismiss="dismiss"
+    />
+  </Teleport>
 </template>
 
 <style scoped>
 .lume-preview-pane {
+  position: relative;
   flex: 1;
   display: flex;
   background-color: var(--lume-bg-surface-raised);
   border-left: 1px solid var(--lume-border-subtle);
   overflow: hidden;
   min-width: 0;
+}
+.lume-preview-pane__error {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 8px;
+  background: var(--lume-bg-overlay);
+  color: var(--lume-text-primary);
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-sm);
+}
+.lume-preview-pane__content :deep(.lume-preview-selected) {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 3px;
 }
 
 .lume-preview-pane__content {

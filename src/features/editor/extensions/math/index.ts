@@ -22,7 +22,7 @@ function renderMath(value: string, displayMode: boolean) {
   return element
 }
 
-const inlineMathSchema = $nodeSchema('math_inline', () => ({
+export const inlineMathSchema = $nodeSchema('math_inline', () => ({
   inline: true,
   group: 'inline',
   atom: true,
@@ -45,7 +45,7 @@ const inlineMathSchema = $nodeSchema('math_inline', () => ({
   },
 }))
 
-const blockMathSchema = $nodeSchema('math_block', () => ({
+export const blockMathSchema = $nodeSchema('math_block', () => ({
   group: 'block',
   atom: true,
   selectable: true,

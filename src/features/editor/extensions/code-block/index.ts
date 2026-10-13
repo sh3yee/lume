@@ -6,12 +6,15 @@ import {
   syntaxHighlighting,
   defaultHighlightStyle,
 } from '@codemirror/language'
-import { keymap } from '@codemirror/view'
+import { EditorView as CodeMirrorView, keymap } from '@codemirror/view'
+import { EditorState as CodeMirrorState } from '@codemirror/state'
+import type { EditorView } from '@milkdown/kit/prose/view'
 import type MarkdownIt from 'markdown-it'
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark'
 import { $view } from '@milkdown/kit/utils'
 import { codeBlockInteractionPlugin } from '../../wysiwyg/codeBlock'
 import { preservedCodeSchema } from '../../wysiwyg/codeSchema'
+import { getShortcutCommand } from '../../wysiwyg/editorInteraction'
 
 let highlightSequence = 0
 
@@ -91,41 +94,66 @@ const codeLanguages = [
   }),
 ]
 
-const eagerCodeBlockView = $view(codeBlockSchema.node, (ctx) => {
-  const config = ctx.get(codeBlockConfig.key)
-  const languageLoader = {
-    getAll: () =>
-      codeLanguages.map((language) => ({
-        name: language.name,
-        alias: language.alias,
-      })),
-    load: (languageName: string) => {
-      const language = codeLanguages.find((item) => item.alias.includes(languageName.toLowerCase()))
-      if (!language) return Promise.resolve(undefined)
-      if (language.support) return Promise.resolve(language.support)
-      return language.load()
-    },
-  } as unknown as ConstructorParameters<typeof CodeMirrorBlock>[3]
-  return (node, view, getPos) => {
-    const block = new CodeMirrorBlock(node, view, getPos, languageLoader, config)
+const createEagerCodeBlockView = (onViewUpdate?: (view: EditorView) => void) =>
+  $view(codeBlockSchema.node, (ctx) => {
+    const config = ctx.get(codeBlockConfig.key)
+    const languageLoader = {
+      getAll: () =>
+        codeLanguages.map((language) => ({
+          name: language.name,
+          alias: language.alias,
+        })),
+      load: (languageName: string) => {
+        const language = codeLanguages.find((item) =>
+          item.alias.includes(languageName.toLowerCase()),
+        )
+        if (!language) return Promise.resolve(undefined)
+        if (language.support) return Promise.resolve(language.support)
+        return language.load()
+      },
+    } as unknown as ConstructorParameters<typeof CodeMirrorBlock>[3]
+    return (node, view, getPos) => {
+      const block = new CodeMirrorBlock(node, view, getPos, languageLoader, {
+        ...config,
+        extensions: [
+          ...config.extensions,
+          CodeMirrorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged)
+              queueMicrotask(() => {
+                if (!view.isDestroyed) onViewUpdate?.(view)
+              })
+          }),
+        ],
+      })
 
-    // 官方 NodeView 默认等待视口观察；嵌套滚动容器中可能无法及时触发，主动初始化避免长期显示纯文本占位符。
-    queueMicrotask(() => {
-      const eagerBlock = block as unknown as { initializeCodeMirror: () => void }
-      eagerBlock.initializeCodeMirror()
-    })
-    return block
-  }
-})
+      // 官方 NodeView 默认等待视口观察；嵌套滚动容器中可能无法及时触发，主动初始化避免长期显示纯文本占位符。
+      queueMicrotask(() => {
+        const eagerBlock = block as unknown as { initializeCodeMirror: () => void }
+        eagerBlock.initializeCodeMirror()
+      })
+      return block
+    }
+  })
 
 /** 注册代码块退出和空代码块转换交互。 */
-export function useCodeBlockWysiwygExtension(editor: Editor) {
+export function useCodeBlockWysiwygExtension(
+  editor: Editor,
+  onViewUpdate?: (view: EditorView) => void,
+) {
   return editor
     .config((ctx) => {
       ctx.set(codeBlockConfig.key, {
         ...ctx.get(codeBlockConfig.key),
         languages: codeLanguages,
         extensions: [
+          CodeMirrorState.allowMultipleSelections.of(true),
+          CodeMirrorView.domEventHandlers({
+            keydown: (event) => {
+              if (!getShortcutCommand(event) || event.isComposing) return false
+              event.preventDefault()
+              return true
+            },
+          }),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         ],
@@ -153,7 +181,7 @@ export function useCodeBlockWysiwygExtension(editor: Editor) {
     })
     .use(codeBlockConfig)
     .use(preservedCodeSchema)
-    .use(eagerCodeBlockView)
+    .use(createEagerCodeBlockView(onViewUpdate))
     .use(codeBlockInteractionPlugin)
 }
 

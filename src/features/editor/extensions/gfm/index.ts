@@ -46,6 +46,7 @@ const taskCheckboxes = $prose(
                   input.type = 'checkbox'
                   input.className = 'lume-task-checkbox'
                   input.checked = node.attrs.checked
+                  input.disabled = !view.editable
                   input.contentEditable = 'false'
                   input.setAttribute('aria-label', '切换任务完成状态')
                   input.addEventListener('mousedown', (event) => event.preventDefault())
@@ -53,6 +54,10 @@ const taskCheckboxes = $prose(
                     const item = view.state.doc.nodeAt(pos)
                     if (item?.type.name !== 'list_item' || typeof item.attrs.checked !== 'boolean')
                       return
+                    if (!view.editable) {
+                      input.checked = item.attrs.checked
+                      return
+                    }
                     view.dispatch(view.state.tr.setNodeAttribute(pos, 'checked', input.checked))
                   })
                   return input

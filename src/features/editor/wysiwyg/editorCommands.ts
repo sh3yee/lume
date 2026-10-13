@@ -21,9 +21,42 @@ import {
 } from './blockCommands'
 import { pasteClipboard } from './clipboard'
 import { tableCommands } from './tableCommands'
+import { resolveSelectionContext } from './selectionContext'
 
-export const getEditorCommand = (state: EditorState, name: string): Command | undefined => {
-  const marks = state.schema.marks
+const toggleSelectedMark =
+  (name: string): Command =>
+  (state, dispatch) => {
+    const context = resolveSelectionContext(state)
+    const type = state.schema.marks[name]
+    if (!type) return false
+    if (state.selection.empty) {
+      if (
+        context.target !== 'block' ||
+        state.selection.$from.parent.type.spec.code ||
+        context.marks?.inlineCode === 'on'
+      )
+        return false
+      return name !== 'inlineCode' && toggleMark(type)(state, dispatch)
+    }
+    if (name === 'inlineCode') {
+      if (!['text', 'inlineCode'].includes(context.target)) return false
+      if (dispatch) {
+        const { from, to } = state.selection
+        const tr = state.tr
+        if (context.marks?.inlineCode === 'on') tr.removeMark(from, to, type)
+        else tr.removeMark(from, to).addMark(from, to, type.create())
+        dispatch(tr.scrollIntoView())
+      }
+      return true
+    }
+    if (context.target !== 'text') return false
+    return toggleMark(type, null, { removeWhenPresent: false, includeWhitespace: true })(
+      state,
+      dispatch,
+    )
+  }
+
+export const getEditorCommand = (_state: EditorState, name: string): Command | undefined => {
   const commands: Record<string, Command> = {
     paragraph: convertParagraph,
     blockquote: convertBlockquote,
@@ -32,12 +65,16 @@ export const getEditorCommand = (state: EditorState, name: string): Command | un
     indentList,
     outdentList,
     toggleTask,
-    bold: toggleMark(marks.strong),
-    italic: toggleMark(marks.emphasis),
-    strike: toggleMark(marks.strike_through),
-    inlineCode: toggleMark(marks.inlineCode),
+    bold: toggleSelectedMark('strong'),
+    italic: toggleSelectedMark('emphasis'),
+    strike: toggleSelectedMark('strike_through'),
+    inlineCode: toggleSelectedMark('inlineCode'),
     clearFormatting: (current, dispatch) => {
-      if (current.selection.empty) return false
+      if (
+        current.selection.empty ||
+        !['text', 'inlineCode'].includes(resolveSelectionContext(current).target)
+      )
+        return false
       const { from, to } = current.selection
       dispatch?.(current.tr.removeMark(from, to).scrollIntoView())
       return true
@@ -47,7 +84,27 @@ export const getEditorCommand = (state: EditorState, name: string): Command | un
     ...tableCommands,
   }
   const heading = name.match(/^heading([1-6])$/)
-  return heading ? convertHeading(Number(heading[1])) : commands[name]
+  const command = heading ? convertHeading(Number(heading[1])) : commands[name]
+  if (!command) return undefined
+  return (current, dispatch, view) => {
+    const context = resolveSelectionContext(current)
+    if (name in tableCommands && !context.containers.includes('table')) return false
+    if (
+      (heading ||
+        [
+          'paragraph',
+          'blockquote',
+          'bulletList',
+          'orderedList',
+          'indentList',
+          'outdentList',
+          'toggleTask',
+        ].includes(name)) &&
+      !['text', 'block'].includes(context.target)
+    )
+      return false
+    return command(current, dispatch, view)
+  }
 }
 
 export function createEditorCommands(options: {
