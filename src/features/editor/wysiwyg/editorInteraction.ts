@@ -1,4 +1,4 @@
-import { Plugin, NodeSelection } from '@milkdown/kit/prose/state'
+import { Plugin, NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { getEditorCommand } from './editorCommands'
@@ -55,6 +55,32 @@ export const createEditorInteractionPlugin = (options: {
                 return true
               }
               const context = captureSelectionContext(view)
+              if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                if (context.target === 'code' || context.containers.includes('table')) return false
+                if (!view.editable) return false
+                event.preventDefault()
+                if (
+                  context.containers.some((name) =>
+                    ['list_item', 'bullet_list', 'ordered_list'].includes(name),
+                  )
+                ) {
+                  const command = event.shiftKey ? 'outdentList' : 'indentList'
+                  if (options.onAction) options.onAction(command, context)
+                  else getEditorCommand(view.state, command)?.(view.state, view.dispatch, view)
+                  return true
+                }
+                if (!event.shiftKey && view.state.selection.$from.parent.inlineContent) {
+                  const indent = '    '
+                  const { from, to } = view.state.selection
+                  const tr = view.state.tr.replaceWith(from, to, view.state.schema.text(indent))
+                  view.dispatch(
+                    tr
+                      .setSelection(TextSelection.create(tr.doc, from + indent.length))
+                      .scrollIntoView(),
+                  )
+                }
+                return true
+              }
               if (event.key === 'Enter' && context.target === 'math' && context.kind === 'node') {
                 event.preventDefault()
                 options.onAction?.('editMath', context)

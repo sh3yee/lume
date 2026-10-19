@@ -53,6 +53,12 @@
   margin: var(--lume-space-3) 0;
   padding-left: var(--lume-space-6);
 }
+.lume-markdown-content ul {
+  list-style-type: disc;
+}
+.lume-markdown-content ol {
+  list-style-type: decimal;
+}
 .lume-markdown-content li {
   margin: var(--lume-space-1) 0;
 }

@@ -182,16 +182,6 @@ export function createImageInputPlugin(options: {
       },
       handleKeyDown(view, event) {
         if (deleteAdjacentImage(view, event)) return true
-        if (event.key === 'Tab' && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey) {
-          event.preventDefault()
-          if (!event.shiftKey) {
-            const indent = '    '
-            const { from, to } = view.state.selection
-            const tr = view.state.tr.replaceWith(from, to, view.state.schema.text(indent))
-            view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + indent.length)).scrollIntoView())
-          }
-          return true
-        }
         if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return false
         if (event.key !== 'Enter' && event.key !== ' ') return false
         const converted = convertImageSourceBeforeCursor(view, event.key === 'Enter')
