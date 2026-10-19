@@ -1,13 +1,238 @@
 import { type Editor } from '@milkdown/kit/core'
+import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model'
 import { NodeSelection } from '@milkdown/kit/prose/state'
-import { Plugin } from '@milkdown/kit/prose/state'
+import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state'
+import type { EditorView, NodeView } from '@milkdown/kit/prose/view'
 import { $nodeSchema, $prose, $remark } from '@milkdown/kit/utils'
 import markdownItKatex from '@vscode/markdown-it-katex'
 import katex from 'katex'
 import type MarkdownIt from 'markdown-it'
 import remarkMath from 'remark-math'
+import { deleteMathBlock } from './commands'
 
 const mathRemarkPlugin = $remark('lumeMath', () => remarkMath)
+
+function createBlockMathNodeView(
+  node: ProseMirrorNode,
+  view: EditorView,
+  getPos: () => number | undefined,
+): NodeView {
+  const dom = document.createElement('div')
+  dom.className = 'lume-math lume-math--block'
+  dom.contentEditable = 'false'
+  let currentNode = node
+  let editing = false
+  let source: HTMLTextAreaElement | null = null
+  let preview: HTMLDivElement | null = null
+  let composing = false
+
+  const renderPreview = (target: HTMLElement, value: string) => {
+    dom.dataset.math = value
+    dom.classList.toggle('lume-math--empty', !value.trim())
+    if (!value.trim()) {
+      const placeholder = document.createElement('span')
+      placeholder.className = 'lume-math__placeholder'
+      placeholder.textContent = editing ? '公式预览' : '数学公式 · 点击编辑'
+      target.replaceChildren(placeholder)
+      return
+    }
+    katex.render(value, target, {
+      displayMode: true,
+      output: 'htmlAndMathml',
+      strict: 'ignore',
+      throwOnError: false,
+    })
+  }
+
+  const resizeSource = () => {
+    if (!source) return
+    source.style.height = 'auto'
+    source.style.height = `${source.scrollHeight}px`
+  }
+
+  const render = () => {
+    dom.replaceChildren()
+    dom.contentEditable = 'false'
+    dom.className = 'lume-math lume-math--block'
+    renderPreview(dom, String(currentNode.attrs.value ?? ''))
+  }
+
+  const finish = (direction?: number) => {
+    if (!editing || !source) return
+    const value = source.value
+    editing = false
+    source = null
+    preview = null
+    const pos = getPos()
+    if (pos == null || view.isDestroyed) return
+    const tr = view.state.tr
+    if (value !== currentNode.attrs.value)
+      tr.setNodeMarkup(pos, undefined, { ...currentNode.attrs, value })
+    if (direction) {
+      const edge = direction < 0 ? pos : pos + currentNode.nodeSize
+      const $edge = tr.doc.resolve(edge)
+      const next = Selection.findFrom($edge, direction, true)
+      if (next) tr.setSelection(next)
+      else {
+        const paragraph = view.state.schema.nodes.paragraph.createAndFill()
+        const index = $edge.index()
+        if (paragraph && $edge.parent.canReplaceWith(index, index, paragraph.type)) {
+          tr.insert(edge, paragraph)
+          tr.setSelection(TextSelection.create(tr.doc, edge + 1))
+        }
+      }
+    }
+    render()
+    if (tr.docChanged || tr.selectionSet) view.dispatch(tr.scrollIntoView())
+    if (direction) view.focus()
+  }
+
+  const start = () => {
+    if (editing || !view.editable) return
+    editing = true
+    source = document.createElement('textarea')
+    source.className = 'lume-math__source'
+    source.value = String(currentNode.attrs.value ?? '')
+    source.setAttribute('aria-label', '公式源码')
+    source.placeholder = '在此输入 LaTeX 公式'
+    source.rows = 1
+    source.spellcheck = false
+    preview = document.createElement('div')
+    preview.className = 'lume-math__preview'
+    renderPreview(preview, source.value)
+    source.addEventListener('compositionstart', () => {
+      composing = true
+    })
+    source.addEventListener('compositionend', () => {
+      composing = false
+    })
+    source.addEventListener('keydown', (event) => {
+      if (event.isComposing || composing || !source || !view.editable) return
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        if (source.value.length) return
+        const pos = getPos()
+        if (pos == null || view.isDestroyed) return
+        const tr = deleteMathBlock(view.state, pos)
+        if (!tr) return
+        event.preventDefault()
+        editing = false
+        source = null
+        preview = null
+        view.dispatch(tr.scrollIntoView())
+        view.focus()
+        return
+      }
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault()
+        finish(1)
+      } else if (
+        event.key === 'ArrowUp' &&
+        !composing &&
+        !event.shiftKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !source?.value.slice(0, source.selectionStart).includes('\n')
+      ) {
+        event.preventDefault()
+        finish(-1)
+      } else if (
+        event.key === 'ArrowDown' &&
+        !composing &&
+        !event.shiftKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !source?.value.slice(source.selectionEnd).includes('\n')
+      ) {
+        event.preventDefault()
+        finish(1)
+      }
+    })
+    source.addEventListener('input', () => {
+      if (!preview || !source) return
+      resizeSource()
+      renderPreview(preview, source.value)
+      const pos = getPos()
+      if (pos != null && source.value !== currentNode.attrs.value)
+        view.dispatch(
+          view.state.tr.setNodeMarkup(pos, undefined, {
+            ...currentNode.attrs,
+            value: source.value,
+          }),
+        )
+    })
+    source.addEventListener('blur', () => finish(), { once: true })
+    const controls = document.createElement('div')
+    controls.className = 'lume-math__controls'
+    const label = document.createElement('span')
+    label.textContent = 'LaTeX'
+    const done = document.createElement('button')
+    done.type = 'button'
+    done.className = 'lume-math__done'
+    done.setAttribute('aria-label', '完成公式编辑')
+    done.title = '完成编辑（Ctrl/⌘ + Enter）'
+    const check = document.createElement('span')
+    check.className = 'lume-math__check'
+    check.setAttribute('aria-hidden', 'true')
+    done.append(check)
+    done.addEventListener('mousedown', (event) => event.preventDefault())
+    done.addEventListener('click', () => finish(1))
+    controls.append(label, done)
+    const editor = document.createElement('div')
+    editor.className = 'lume-math__editor'
+    editor.append(source, controls)
+    dom.replaceChildren(editor, preview)
+    dom.classList.add('lume-math--editing')
+    requestAnimationFrame(() => {
+      resizeSource()
+      source?.focus()
+    })
+  }
+
+  const edit = () => {
+    start()
+    source?.focus()
+  }
+  dom.addEventListener('lume-edit-math', edit)
+  dom.addEventListener('click', (event) => {
+    if (event.target instanceof Element && event.target.closest('textarea, button')) return
+    if (view.state.selection instanceof NodeSelection && view.state.selection.from === getPos())
+      edit()
+  })
+  render()
+
+  return {
+    dom,
+    update(updated) {
+      if (updated.type !== node.type) return false
+      currentNode = updated
+      if (!editing) render()
+      else if (source && preview && source.value !== updated.attrs.value) {
+        source.value = String(updated.attrs.value ?? '')
+        renderPreview(preview, source.value)
+        resizeSource()
+      }
+      return true
+    },
+    stopEvent(event) {
+      return (
+        editing &&
+        event.target instanceof Element &&
+        Boolean(event.target.closest('textarea, button'))
+      )
+    },
+    ignoreMutation() {
+      return true
+    },
+    destroy() {
+      source = null
+      preview = null
+    },
+    selectNode: start,
+    deselectNode: () => finish(),
+  }
+}
 
 function renderMath(value: string, displayMode: boolean) {
   const element = document.createElement(displayMode ? 'div' : 'span')
@@ -71,6 +296,34 @@ const mathInputPlugin = $prose(
   (ctx) =>
     new Plugin({
       props: {
+        handleKeyDown(view, event) {
+          if (
+            event.key !== 'Enter' ||
+            event.isComposing ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            event.shiftKey ||
+            !view.editable
+          )
+            return false
+          const { $from, empty } = view.state.selection
+          if (
+            !empty ||
+            $from.parent.type.name !== 'paragraph' ||
+            $from.parentOffset !== $from.parent.content.size ||
+            $from.parent.textContent !== '$$'
+          )
+            return false
+          const pos = $from.before()
+          const tr = view.state.tr.replaceWith(
+            pos,
+            $from.after(),
+            blockMathSchema.type(ctx).create(),
+          )
+          view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, pos)).scrollIntoView())
+          return true
+        },
         handlePaste(view, event) {
           if (view.state.selection.$from.parent.type.spec.code) return false
           const source = event.clipboardData?.getData('text/plain').trim() ?? ''
@@ -137,6 +390,9 @@ export function useMathWysiwygExtension(editor: Editor) {
     .use(mathRemarkPlugin)
     .use(inlineMathSchema)
     .use(blockMathSchema)
+    .use(
+      $prose(() => new Plugin({ props: { nodeViews: { math_block: createBlockMathNodeView } } })),
+    )
     .use(mathInputPlugin)
 }
 

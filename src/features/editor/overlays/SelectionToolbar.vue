@@ -41,7 +41,7 @@ const icons: Record<string, typeof Bold> = {
   cut: Scissors,
   editImage: Pencil,
   editMath: Pencil,
-  copyMath: Code,
+  copyMath: Copy,
   editLink: Pencil,
   openLink: ExternalLink,
   copyLink: Link,

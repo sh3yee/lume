@@ -3,6 +3,7 @@ import { editorViewCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import type { PropertyForm } from '../overlays/contextMenuTypes'
+import { deleteMathBlock } from '../extensions/math/commands'
 import { insertBlock } from './blockCommands'
 import { getActionState } from './actionState'
 import { pasteCodeClipboard, cutCodeSelection } from './codeClipboard'
@@ -14,6 +15,7 @@ export const useEditorActions = (options: {
   getCommands: () => ReturnType<typeof createEditorCommands>
   isActive: () => boolean
   onError: (message: string) => void
+  onSuccess?: (message: string) => void
   onOpenLink: (href: string) => Promise<void>
   onEditSource?: () => void
   onAfterAction?: (view: EditorView) => void
@@ -110,6 +112,21 @@ export const useEditorActions = (options: {
         !getActionState(view.state, target, id, view.editable !== false).disabled
     })
     if (!allowed) return
+    if (id === 'copyMath' && target.node) {
+      void copyText(String(target.node.node.attrs.value ?? '')).then((copied) => {
+        if (copied && options.isActive()) options.onSuccess?.('公式源码已复制')
+      })
+      return
+    }
+    if (id === 'editMath' && target.node?.node.type.name === 'math_block') {
+      options.getEditor()?.action((ctx) => {
+        const view = ctx.get(editorViewCtx)
+        const dom = view.nodeDOM(target.node!.pos)
+        if (!(dom instanceof HTMLElement)) return
+        dom.dispatchEvent(new Event('lume-edit-math'))
+      })
+      return
+    }
     if (
       ['editImage', 'insertImage', 'editMath', 'editLink', 'setLink', 'editCodeLanguage'].includes(
         id,
@@ -194,8 +211,7 @@ export const useEditorActions = (options: {
           view.state.schema.nodes.paragraph.create(null, node.node),
         )
         void copyText(ctx.get(serializerCtx)(doc))
-      } else if (id === 'copyMath') void copyText(String(node?.node.attrs.value ?? ''))
-      else if (id === 'copyCode') void copyText(node?.node.textContent ?? '')
+      } else if (id === 'copyCode') void copyText(node?.node.textContent ?? '')
       else if (id === 'copySource' && node) {
         const content = node.node.isInline
           ? view.state.schema.nodes.paragraph.create(null, node.node)
@@ -218,11 +234,13 @@ export const useEditorActions = (options: {
               .setSelection(TextSelection.near(view.state.doc.resolve(position + 1)))
               .scrollIntoView(),
           )
-      } else if (id === 'deleteNode' && node)
-        view.dispatch(
-          view.state.tr.delete(node.pos, node.pos + node.node.nodeSize).scrollIntoView(),
-        )
-      else if (id.startsWith('image') && node) {
+      } else if (id === 'deleteNode' && node) {
+        const tr =
+          node.node.type.name === 'math_block'
+            ? deleteMathBlock(view.state, node.pos)
+            : view.state.tr.delete(node.pos, node.pos + node.node.nodeSize)
+        if (tr) view.dispatch(tr.scrollIntoView())
+      } else if (id.startsWith('image') && node) {
         const align = (
           { imageLeft: 'left', imageCenter: 'center', imageRight: 'right' } as Record<
             string,

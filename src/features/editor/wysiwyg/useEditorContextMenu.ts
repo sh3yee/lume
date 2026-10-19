@@ -13,6 +13,7 @@ export const useEditorContextMenu = (options: {
   getCommands: () => ReturnType<typeof createEditorCommands>
   isActive: () => boolean
   onError: (message: string) => void
+  onSuccess?: (message: string) => void
   onOpenLink: (href: string) => Promise<void>
   onEditSource?: () => void
   onAfterAction?: (view: EditorView) => void

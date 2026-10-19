@@ -18,8 +18,130 @@
   text-align: center;
 }
 
+.lume-markdown-content .lume-math--block {
+  position: relative;
+}
+
+.lume-markdown-content .lume-math--block > .katex-display,
+.lume-markdown-content .lume-math__preview > .katex-display {
+  margin: 0;
+}
+
+.lume-markdown-content .lume-math__editor {
+  overflow: hidden;
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-sm);
+  background: var(--lume-bg-surface-raised);
+}
+
+.lume-markdown-content .lume-math__source {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3em;
+  padding: var(--lume-space-3);
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--lume-text-primary);
+  font: inherit;
+  font-family: var(--lume-font-mono, monospace);
+  font-size: 0.9em;
+  line-height: 1.5;
+  resize: none;
+  user-select: text;
+}
+
+.lume-markdown-content .lume-math__source::placeholder {
+  color: var(--lume-text-tertiary);
+  opacity: 1;
+}
+
+.lume-markdown-content .lume-math__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 0 var(--lume-space-2) 0 var(--lume-space-3);
+  border-top: 1px solid var(--lume-border-subtle);
+  color: var(--lume-text-tertiary);
+  font-family: var(--lume-font-sans);
+  font-size: 0.75em;
+  line-height: 1;
+}
+
+.lume-markdown-content .lume-math__done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lume-radius-sm);
+  background: transparent;
+  color: var(--lume-accent-default);
+  cursor: pointer;
+}
+
+.lume-markdown-content .lume-math__done:hover {
+  background: color-mix(in srgb, var(--lume-accent-default) 10%, transparent);
+}
+
+.lume-markdown-content .lume-math__done:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: -2px;
+}
+
+.lume-markdown-content .lume-math__check {
+  width: 12px;
+  height: 7px;
+  margin-top: -4px;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.lume-markdown-content .lume-math__preview {
+  padding: var(--lume-space-4) var(--lume-space-3);
+  overflow-x: auto;
+  text-align: center;
+}
+
+.lume-markdown-content .lume-math__placeholder {
+  color: var(--lume-text-tertiary);
+  font-family: var(--lume-font-sans);
+  font-size: 0.85em;
+}
+
+.lume-markdown-content .lume-math--empty:not(.lume-math--editing) {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lume-space-4);
+  border: 1px dashed var(--lume-border-default);
+  border-radius: var(--lume-radius-sm);
+  background: var(--lume-bg-surface-raised);
+  cursor: text;
+}
+
+.ProseMirror .lume-math {
+  user-select: none;
+}
+
 .lume-markdown-content .lume-math.ProseMirror-selectednode {
   border-radius: var(--lume-radius-sm);
   outline: 2px solid var(--lume-accent-default);
   outline-offset: 2px;
+}
+
+.lume-markdown-content .lume-math--block.ProseMirror-selectednode {
+  outline: none;
+}
+
+.lume-markdown-content .lume-math--editing:focus-within .lume-math__editor {
+  border-color: var(--lume-border-default);
 }

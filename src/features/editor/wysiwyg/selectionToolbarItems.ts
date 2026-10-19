@@ -51,7 +51,7 @@ export const getSelectionToolbarModel = (
   } else if (objectSelected && context.target === 'math') {
     title = '公式'
     placement = 'object'
-    ids = ['editMath', 'copyMath']
+    ids = context.node?.node.type.name === 'math_block' ? ['copyMath'] : ['editMath', 'copyMath']
   } else if (context.target === 'code') {
     title = objectSelected ? '代码块' : '选中代码'
     placement = objectSelected ? 'object' : 'range'

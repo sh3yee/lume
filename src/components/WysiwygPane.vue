@@ -7,6 +7,7 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Check } from 'lucide-vue-next'
 import { editorViewCtx, parserCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import type { EditorView } from '@milkdown/kit/prose/view'
@@ -64,6 +65,7 @@ const contextMenu = ref<{
 } | null>(null)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const commandError = ref('')
+const commandNotice = ref('')
 const selectionToolbarRef = ref<{
   getElement: () => HTMLElement | null
   getBounds: () => DOMRect | null
@@ -74,6 +76,7 @@ let disposed = false
 let editorMarkdown = content.value
 let synchronizedDoc: ProseNode | null = null
 let sourceDocument: { doc: ProseNode; markdown: string } | null = null
+let commandNoticeTimer: ReturnType<typeof setTimeout> | undefined
 const {
   context: menuContext,
   groups: contextMenuGroups,
@@ -91,7 +94,16 @@ const {
   getCommands: () => editorCommands,
   isActive: () => !disposed && activeDocument.value?.id === boundDocumentId,
   onError: (message) => {
+    commandNotice.value = ''
     commandError.value = message
+  },
+  onSuccess: (message) => {
+    clearTimeout(commandNoticeTimer)
+    commandError.value = ''
+    commandNotice.value = message
+    commandNoticeTimer = setTimeout(() => {
+      commandNotice.value = ''
+    }, 1800)
   },
   onEditSource: () => {
     flushPendingMarkdown()
@@ -339,6 +351,7 @@ onBeforeUnmount(() => {
   // 模式或标签切换时，补齐 Milkdown 防抖回调尚未写入 Store 的编辑。
   flushPendingMarkdown()
   disposed = true
+  clearTimeout(commandNoticeTimer)
   closeContextMenu()
   closeProperties()
   window.removeEventListener('pointerdown', handleWindowPointerDown)
@@ -376,6 +389,10 @@ onBeforeUnmount(() => {
   </section>
 
   <Teleport to="body">
+    <div v-if="commandNotice" class="lume-wysiwyg-pane__notice" role="status" aria-live="polite">
+      <Check :size="16" aria-hidden="true" />
+      {{ commandNotice }}
+    </div>
     <SelectionToolbar
       v-if="selectionToolbar"
       ref="selectionToolbarRef"
@@ -406,6 +423,31 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.lume-wysiwyg-pane__notice {
+  position: fixed;
+  z-index: var(--lume-z-tooltip);
+  bottom: 48px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-2);
+  max-width: calc(100vw - 32px);
+  padding: var(--lume-space-2) var(--lume-space-3);
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-bg-overlay);
+  color: var(--lume-text-primary);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  font-size: var(--lume-font-size-sm);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.lume-wysiwyg-pane__notice svg {
+  flex: none;
+  color: var(--lume-accent-default);
+}
+
 .lume-wysiwyg-pane__error {
   position: absolute;
   z-index: 1;

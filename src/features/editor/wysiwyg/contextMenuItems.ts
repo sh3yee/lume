@@ -52,7 +52,7 @@ export const getContextMenuGroups = (
     ])
   if (context.target === 'math')
     groups.push([
-      item('editMath', '编辑公式源码'),
+      ...(context.node?.node.type.name === 'math_block' ? [] : [item('editMath', '编辑公式源码')]),
       item('copyMath', '复制公式源码'),
       item('deleteNode', '删除当前公式'),
     ])

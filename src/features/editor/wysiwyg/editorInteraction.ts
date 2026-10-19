@@ -1,4 +1,4 @@
-import { Plugin, NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
+import { Plugin, NodeSelection, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { getEditorCommand } from './editorCommands'
@@ -55,6 +55,39 @@ export const createEditorInteractionPlugin = (options: {
                 return true
               }
               const context = captureSelectionContext(view)
+              const { selection } = view.state
+              if (
+                view.editable &&
+                selection instanceof NodeSelection &&
+                selection.node.type.name.startsWith('math_') &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.altKey &&
+                !event.shiftKey
+              ) {
+                const block = selection.node.type.name === 'math_block'
+                const direction = ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1
+                const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+                if (arrow || (block && event.key === 'Enter')) {
+                  const tr = view.state.tr
+                  const position = direction < 0 ? selection.from : selection.to
+                  const $position = tr.doc.resolve(position)
+                  const next = Selection.findFrom($position, direction, true)
+                  if (block && (event.key === 'Enter' || !next)) {
+                    const paragraph = view.state.schema.nodes.paragraph.createAndFill()
+                    const index = $position.index()
+                    if (!paragraph || !$position.parent.canReplaceWith(index, index, paragraph.type))
+                      return false
+                    tr.insert(position, paragraph)
+                    tr.setSelection(TextSelection.create(tr.doc, position + 1))
+                  } else if (next) {
+                    tr.setSelection(next)
+                  } else return false
+                  event.preventDefault()
+                  view.dispatch(tr.scrollIntoView())
+                  return true
+                }
+              }
               if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
                 if (context.target === 'code' || context.containers.includes('table')) return false
                 if (!view.editable) return false
@@ -79,11 +112,6 @@ export const createEditorInteractionPlugin = (options: {
                       .scrollIntoView(),
                   )
                 }
-                return true
-              }
-              if (event.key === 'Enter' && context.target === 'math' && context.kind === 'node') {
-                event.preventDefault()
-                options.onAction?.('editMath', context)
                 return true
               }
               return false
@@ -125,7 +153,7 @@ export const createEditorInteractionPlugin = (options: {
             if (
               !direct ||
               event.button !== 0 ||
-              !['math_inline', 'math_block', 'footnote_reference'].includes(node.type.name)
+              !['math_inline', 'footnote_reference'].includes(node.type.name)
             )
               return false
             view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)))
