@@ -22,6 +22,7 @@ import {
 import { pasteClipboard } from './clipboard'
 import { tableCommands } from './tableCommands'
 import { resolveSelectionContext } from './selectionContext'
+import { insertHorizontalRule } from '../extensions/base/horizontalRule'
 
 const toggleSelectedMark =
   (name: string): Command =>
@@ -152,7 +153,10 @@ export function createEditorCommands(options: {
     insertHeading: (level: number) => execute(`heading${level}`),
     insertList: (ordered: boolean) => execute(ordered ? 'orderedList' : 'bulletList'),
     insertCodeBlock: () => insertNode('code_block'),
-    insertHorizontalRule: () => insertNode('hr'),
+    insertHorizontalRule: () =>
+      runWithView((view) => {
+        insertHorizontalRule(view.state, view.dispatch)
+      }),
     insertTable: () =>
       runWithView((view) => {
         const { schema } = view.state

@@ -5,6 +5,7 @@ import { $prose } from '@milkdown/kit/utils'
 import { getEditorCommand } from './editorCommands'
 import { captureSelectionContext, findLinkAt, type EditorContext } from './selectionContext'
 import { parseLinkSource } from '../extensions/base/linkEditing'
+import { handleHorizontalRuleKeyDown } from '../extensions/base/horizontalRule'
 
 const getLinkElement = (view: EditorView, target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest('a, [data-link-source]') : null
@@ -70,6 +71,7 @@ export const createEditorInteractionPlugin = (options: {
         props: {
           handleDOMEvents: {
             keydown(view, event) {
+              if (handleHorizontalRuleKeyDown(view, event)) return true
               if (event.isComposing) return false
               const shortcut = getShortcutCommand(event)
               if (shortcut) {

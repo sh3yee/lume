@@ -1,5 +1,9 @@
 import { type Editor } from '@milkdown/kit/core'
-import { commonmark, remarkInlineLinkPlugin } from '@milkdown/kit/preset/commonmark'
+import {
+  commonmark,
+  insertHrInputRule,
+  remarkInlineLinkPlugin,
+} from '@milkdown/kit/preset/commonmark'
 import MarkdownIt from 'markdown-it'
 import { linkDefinitionSchema, preservedReferences } from './linkDefinitions'
 import { inlineLinkInputRule, linkDefinitionInputRule, referenceLinkInputRule } from './linkInput'
@@ -9,7 +13,11 @@ import { linkDefinitionPlugin, referenceLinkSchema } from './referenceLinks'
 /** 注册 CommonMark 基础语法。 */
 export function useBaseWysiwygExtension(editor: Editor) {
   return editor
-    .use(commonmark.filter((plugin) => !remarkInlineLinkPlugin.includes(plugin)))
+    .use(
+      commonmark.filter(
+        (plugin) => plugin !== insertHrInputRule && !remarkInlineLinkPlugin.includes(plugin),
+      ),
+    )
     .use(preservedReferences)
     .use(referenceLinkSchema)
     .use(linkDefinitionSchema)
