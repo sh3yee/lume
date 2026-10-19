@@ -43,6 +43,7 @@ onMounted(() => dialog.value?.showModal())
 
 <style scoped>
 .lume-node-properties {
+  margin: auto;
   width: min(480px, calc(100vw - 48px));
   padding: var(--lume-space-5);
   border: 1px solid var(--lume-border-default);
