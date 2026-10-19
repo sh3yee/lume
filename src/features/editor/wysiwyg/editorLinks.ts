@@ -1,4 +1,5 @@
 import { isTauri } from '@/platform/tauri/client'
+import { openWebUrl } from '@/platform/tauri/system'
 import { readDroppedDocuments } from '@/features/files/services/documentFileService'
 
 export const canOpenEditorLink = (href: string) => {
@@ -18,7 +19,8 @@ export const openEditorLink = async (
 ) => {
   if (!canOpenEditorLink(href) || !options.isActive()) return
   if (/^https?:\/\//i.test(href)) {
-    window.open(href, '_blank', 'noopener,noreferrer')
+    if (isTauri()) await openWebUrl(href)
+    else window.open(href, '_blank', 'noopener,noreferrer')
     return
   }
   if (href.startsWith('#')) {

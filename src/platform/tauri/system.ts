@@ -12,3 +12,7 @@ export function healthCheck() {
 export function startupFilePaths() {
   return invokeCommand<string[]>('lume_startup_file_paths')
 }
+
+export function openWebUrl(url: string) {
+  return invokeCommand<void>('lume_open_web_url', { url })
+}

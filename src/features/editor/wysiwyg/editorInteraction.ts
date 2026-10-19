@@ -1,8 +1,10 @@
+import { parserCtx } from '@milkdown/kit/core'
 import { Plugin, NodeSelection, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { getEditorCommand } from './editorCommands'
 import { captureSelectionContext, findLinkAt, type EditorContext } from './selectionContext'
+import { parseLinkSource } from '../extensions/base/linkEditing'
 
 export const getShortcutCommand = (
   event: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'key'> & {
@@ -35,11 +37,30 @@ export const createEditorInteractionPlugin = (options: {
   onAction?: (id: string, target: EditorContext) => void
 }) =>
   $prose(
-    () =>
+    (ctx) =>
       new Plugin({
         view(view) {
+          const ownerDocument = view.dom.ownerDocument
+          const ownerWindow = ownerDocument.defaultView
+          const handleLinkModifier = (event: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey'>) => {
+            view.dom.classList.toggle('lume-link-navigation', event.ctrlKey || event.metaKey)
+          }
+          const clearLinkModifier = () => view.dom.classList.remove('lume-link-navigation')
+          ownerDocument.addEventListener('keydown', handleLinkModifier, true)
+          ownerDocument.addEventListener('keyup', handleLinkModifier, true)
+          view.dom.addEventListener('pointermove', handleLinkModifier)
+          ownerWindow?.addEventListener('blur', clearLinkModifier)
           options.onViewUpdate?.(view)
-          return { update: (nextView) => options.onViewUpdate?.(nextView) }
+          return {
+            update: (nextView) => options.onViewUpdate?.(nextView),
+            destroy() {
+              ownerDocument.removeEventListener('keydown', handleLinkModifier, true)
+              ownerDocument.removeEventListener('keyup', handleLinkModifier, true)
+              view.dom.removeEventListener('pointermove', handleLinkModifier)
+              ownerWindow?.removeEventListener('blur', clearLinkModifier)
+              clearLinkModifier()
+            },
+          }
         },
         props: {
           handleDOMEvents: {
@@ -67,7 +88,9 @@ export const createEditorInteractionPlugin = (options: {
               ) {
                 const block = selection.node.type.name === 'math_block'
                 const direction = ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1
-                const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+                const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
+                  event.key,
+                )
                 if (arrow || (block && event.key === 'Enter')) {
                   const tr = view.state.tr
                   const position = direction < 0 ? selection.from : selection.to
@@ -76,7 +99,10 @@ export const createEditorInteractionPlugin = (options: {
                   if (block && (event.key === 'Enter' || !next)) {
                     const paragraph = view.state.schema.nodes.paragraph.createAndFill()
                     const index = $position.index()
-                    if (!paragraph || !$position.parent.canReplaceWith(index, index, paragraph.type))
+                    if (
+                      !paragraph ||
+                      !$position.parent.canReplaceWith(index, index, paragraph.type)
+                    )
                       return false
                     tr.insert(position, paragraph)
                     tr.setSelection(TextSelection.create(tr.doc, position + 1))
@@ -117,16 +143,27 @@ export const createEditorInteractionPlugin = (options: {
               return false
             },
             click(view, event) {
-              const anchor = event.target instanceof Element ? event.target.closest('a') : null
+              const anchor =
+                event.target instanceof Element
+                  ? event.target.closest('a, [data-link-source]')
+                  : null
               if (!anchor || !view.dom.contains(anchor)) return false
-              event.preventDefault()
               if (event.ctrlKey || event.metaKey) {
+                event.preventDefault()
                 const pos = view.posAtDOM(anchor, 0)
                 const context = captureSelectionContext(view)
-                context.link = findLinkAt(view.state, pos)
+                const $pos = view.state.doc.resolve(pos)
+                if ($pos.parent.type.name === 'link_source') {
+                  const paragraph = parseLinkSource($pos.parent.textContent, ctx.get(parserCtx))
+                  const mark = paragraph?.firstChild?.marks.find(
+                    (item) => item.type.name === 'link',
+                  )
+                  context.link = mark ? { from: $pos.before(), to: $pos.after(), mark } : null
+                } else context.link = findLinkAt(view.state, pos)
                 if (context.link) options.onAction?.('openLink', context)
                 return true
               }
+              if (anchor.matches('a')) event.preventDefault()
               return false
             },
             focus(view) {

@@ -34,6 +34,23 @@ pub fn lume_startup_file_paths() -> LumeResult<Vec<String>> {
 }
 
 #[tauri::command]
+pub fn lume_open_web_url(url: String) -> LumeResult<()> {
+    let target = tauri::Url::parse(&url)
+        .map_err(|_| LumeError::Generic("链接地址无效".to_string()))?;
+    if !matches!(target.scheme(), "http" | "https") || target.host_str().is_none() {
+        return Err(LumeError::Generic("仅支持打开 HTTP(S) 网页链接".to_string()));
+    }
+    // 将地址作为独立参数交给系统默认浏览器，不经过 shell 解释。
+    #[cfg(target_os = "windows")]
+    Command::new("explorer.exe").arg(target.as_str()).spawn()?;
+    #[cfg(target_os = "macos")]
+    Command::new("open").arg(target.as_str()).spawn()?;
+    #[cfg(all(unix, not(target_os = "macos")))]
+    Command::new("xdg-open").arg(target.as_str()).spawn()?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn lume_reveal_file(path: String) -> LumeResult<()> {
     let file_path = Path::new(&path);
     if !file_path.is_file() {

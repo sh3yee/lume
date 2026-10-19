@@ -36,7 +36,7 @@ export interface EditorContext {
   nativeCode?: { view: CodeMirrorView; state: CodeState }
 }
 
-export const findLinkAt = (state: EditorState, pos: number) => {
+export const findLinkAt = (state: Pick<EditorState, 'doc'>, pos: number) => {
   const $pos = state.doc.resolve(pos)
   const ranges: { from: number; to: number; mark: Mark }[] = []
   $pos.parent.forEach((node, offset) => {
@@ -131,7 +131,7 @@ export const resolveSelectionContext = (state: EditorState): EditorContext => {
             ? 'code'
             : name.startsWith('footnote_')
               ? 'footnote'
-              : ['html', 'link_definition'].includes(name)
+              : ['html', 'link_definition', 'link_source'].includes(name)
                 ? 'source'
                 : name === 'hr'
                   ? 'rule'

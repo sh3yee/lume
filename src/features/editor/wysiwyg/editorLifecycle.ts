@@ -13,7 +13,11 @@ export const getPendingEditorMarkdown = (editor: Editor | null, synchronizedDoc:
   if (!editor || !synchronizedDoc) return null
   return editor.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    return view.state.doc.eq(synchronizedDoc) ? null : ctx.get(serializerCtx)(view.state.doc)
+    if (view.state.doc.eq(synchronizedDoc)) return null
+    const serialize = ctx.get(serializerCtx)
+    const markdown = serialize(view.state.doc)
+    // 链接源码的展开与收起会改变编辑态节点，但不应让未编辑的文件重新格式化。
+    return markdown === serialize(synchronizedDoc) ? null : markdown
   })
 }
 

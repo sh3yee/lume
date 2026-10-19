@@ -75,6 +75,25 @@
 .lume-markdown-content .lume-task-checkbox:disabled {
   opacity: 1;
 }
+.lume-markdown-content .lume-link-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lume-markdown-content .lume-link-source--valid {
+  color: var(--lume-accent-default);
+}
+
+.lume-markdown-content .ProseMirror a,
+.lume-markdown-content .lume-link-source {
+  cursor: text;
+}
+
+.lume-markdown-content .lume-link-navigation a,
+.lume-markdown-content .lume-link-navigation .lume-link-source--valid {
+  cursor: pointer;
+}
+
 .lume-markdown-content .lume-link-definition {
   margin: var(--lume-space-3) 0;
   color: var(--lume-text-secondary);
