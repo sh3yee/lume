@@ -1,5 +1,5 @@
 import { nextTick, shallowRef } from 'vue'
-import { editorViewCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
+import { editorViewCtx, remarkCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import type { PropertyForm } from '../overlays/contextMenuTypes'
@@ -290,6 +290,40 @@ export const useEditorActions = (options: {
       }
       let tr = view.state.tr
       if (action === 'editLink' || action === 'setLink') {
+        const referenceId = action === 'editLink' ? target.link?.mark.attrs.referenceId : ''
+        if (referenceId) {
+          let updated = false
+          view.state.doc.descendants((node, pos) => {
+            if (
+              updated ||
+              node.type.name !== 'link_definition' ||
+              node.attrs.identifier !== referenceId
+            )
+              return
+            const source = ctx
+              .get(remarkCtx)
+              .stringify({
+                type: 'root',
+                children: [
+                  {
+                    type: 'definition',
+                    identifier: referenceId,
+                    label: node.attrs.label,
+                    url: values.href.trim(),
+                    title: values.title || null,
+                  },
+                ],
+              })
+              .trimEnd()
+            tr.insertText(source, pos + 1, pos + 1 + node.content.size)
+            updated = true
+            return false
+          })
+          if (!updated) return
+          closeProperties()
+          view.dispatch(tr.scrollIntoView())
+          return
+        }
         const from =
           action === 'editLink'
             ? (target.link?.from ?? target.selection.from)

@@ -6,6 +6,11 @@ import { getEditorCommand } from './editorCommands'
 import { captureSelectionContext, findLinkAt, type EditorContext } from './selectionContext'
 import { parseLinkSource } from '../extensions/base/linkEditing'
 
+const getLinkElement = (view: EditorView, target: EventTarget | null) => {
+  const element = target instanceof Element ? target.closest('a, [data-link-source]') : null
+  return element && view.dom.contains(element) ? element : null
+}
+
 export const getShortcutCommand = (
   event: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'key'> & {
     getModifierState?: (key: string) => boolean
@@ -142,19 +147,31 @@ export const createEditorInteractionPlugin = (options: {
               }
               return false
             },
+            mousedown(view, event) {
+              if (
+                event.button !== 0 ||
+                (!event.ctrlKey && !event.metaKey) ||
+                !getLinkElement(view, event.target)
+              )
+                return false
+              // 在鼠标按下时拦截，避免 ProseMirror 在抬起时将 Ctrl+点击解释为整段选择。
+              event.preventDefault()
+              return true
+            },
             click(view, event) {
-              const anchor =
-                event.target instanceof Element
-                  ? event.target.closest('a, [data-link-source]')
-                  : null
-              if (!anchor || !view.dom.contains(anchor)) return false
+              const anchor = getLinkElement(view, event.target)
+              if (!anchor) return false
               if (event.ctrlKey || event.metaKey) {
                 event.preventDefault()
                 const pos = view.posAtDOM(anchor, 0)
                 const context = captureSelectionContext(view)
                 const $pos = view.state.doc.resolve(pos)
                 if ($pos.parent.type.name === 'link_source') {
-                  const paragraph = parseLinkSource($pos.parent.textContent, ctx.get(parserCtx))
+                  const paragraph = parseLinkSource(
+                    $pos.parent.textContent,
+                    ctx.get(parserCtx),
+                    $pos.parent.attrs.definitions,
+                  )
                   const mark = paragraph?.firstChild?.marks.find(
                     (item) => item.type.name === 'link',
                   )

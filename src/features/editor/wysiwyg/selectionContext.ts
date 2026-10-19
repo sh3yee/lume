@@ -26,6 +26,7 @@ export interface EditorContext {
     | 'all'
     | 'footnote'
     | 'source'
+    | 'linkDefinition'
     | 'rule'
   containers: string[]
   node: { pos: number; node: Node } | null
@@ -131,11 +132,13 @@ export const resolveSelectionContext = (state: EditorState): EditorContext => {
             ? 'code'
             : name.startsWith('footnote_')
               ? 'footnote'
-              : ['html', 'link_definition', 'link_source'].includes(name)
-                ? 'source'
-                : name === 'hr'
-                  ? 'rule'
-                  : 'block'
+              : name === 'link_definition'
+                ? 'linkDefinition'
+                : ['html', 'link_source'].includes(name)
+                  ? 'source'
+                  : name === 'hr'
+                    ? 'rule'
+                    : 'block'
   } else if (kind === 'text') {
     target =
       parts.size === 1 && parts.has('text')

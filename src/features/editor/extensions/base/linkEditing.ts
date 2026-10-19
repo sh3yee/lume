@@ -7,6 +7,7 @@ import type { EditorView } from '@milkdown/kit/prose/view'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { $nodeSchema, $prose } from '@milkdown/kit/utils'
 import { findLinkAt } from '../../wysiwyg/selectionContext'
+import { getLinkDefinitionSource } from './referenceLinks'
 
 const linkEditingKey = new PluginKey('lumeLinkEditing')
 
@@ -73,11 +74,19 @@ const replaceLinkPresentation = (tr: Transaction, from: number, to: number, cont
   return tr
 }
 
-export const parseLinkSource = (source: string, parse: (source: string) => Node) => {
-  const doc = parse(source)
+export const parseLinkSource = (
+  source: string,
+  parse: (source: string) => Node,
+  definitions = '',
+) => {
+  let doc = parse(source)
+  if (doc.childCount !== 1 || doc.firstChild?.type.name !== 'paragraph') return null
+  if (definitions && !doc.firstChild.firstChild?.marks.some((mark) => mark.type.name === 'link'))
+    doc = parse(`${source}\n\n${definitions}`)
   const paragraph = doc.firstChild
-  if (doc.childCount !== 1 || paragraph?.type.name !== 'paragraph' || !paragraph.childCount)
-    return null
+  if (paragraph?.type.name !== 'paragraph' || !paragraph.childCount) return null
+  for (let index = 1; index < doc.childCount; index += 1)
+    if (doc.child(index).type.name !== 'link_definition') return null
   const mark = paragraph.firstChild?.marks.find((item) => item.type.name === 'link')
   if (!mark) return null
   let valid = true
@@ -96,11 +105,14 @@ export const openLinkSource = (
   const { schema } = tr.doc.type
   const paragraph = schema.nodes.paragraph.create(null, tr.doc.slice(from, to).content)
   const source = serialize(schema.nodes.doc.create(null, paragraph)).replace(/\n$/, '')
+  const definitions = getLinkDefinitionSource(tr.doc)
   replaceLinkPresentation(
     tr,
     from,
     to,
-    Fragment.from(schema.nodes.link_source.create({ original: source }, schema.text(source))),
+    Fragment.from(
+      schema.nodes.link_source.create({ original: source, definitions }, schema.text(source)),
+    ),
   )
   return source
 }
@@ -110,7 +122,7 @@ export const linkSourceSchema = $nodeSchema('link_source', (ctx) => ({
   inline: true,
   group: 'inline',
   content: 'text*',
-  attrs: { original: { default: '' } },
+  attrs: { original: { default: '' }, definitions: { default: '' } },
   marks: '',
   code: true,
   selectable: false,
@@ -120,7 +132,11 @@ export const linkSourceSchema = $nodeSchema('link_source', (ctx) => ({
   toMarkdown: {
     match: (node) => node.type.name === 'link_source',
     runner: (state, node) => {
-      const paragraph = parseLinkSource(node.textContent, ctx.get(parserCtx))
+      const paragraph = parseLinkSource(
+        node.textContent,
+        ctx.get(parserCtx),
+        node.attrs.definitions,
+      )
       if (paragraph) state.next(paragraph.content)
       // 未补全的语法按原文输出，避免被普通文字序列化器转义。
       else state.addNode('html', undefined, node.textContent)
@@ -172,7 +188,7 @@ export const linkEditingPlugin = $prose((ctx) => {
         const decorations: Decoration[] = []
         state.doc.descendants((node, pos) => {
           if (node.type.name !== 'link_source') return
-          if (parseLinkSource(node.textContent, ctx.get(parserCtx)))
+          if (parseLinkSource(node.textContent, ctx.get(parserCtx), node.attrs.definitions))
             decorations.push(
               Decoration.node(pos, pos + node.nodeSize, { class: 'lume-link-source--valid' }),
             )
@@ -189,10 +205,15 @@ export const linkEditingPlugin = $prose((ctx) => {
           !text ||
           !selection.empty ||
           $from.parent.type.name !== 'link_source' ||
-          $from.parentOffset !== $from.parent.content.size ||
-          !parseLinkSource($from.parent.textContent, ctx.get(parserCtx))
+          $from.parentOffset !== $from.parent.content.size
         )
           return false
+        const paragraph = parseLinkSource(
+          $from.parent.textContent,
+          ctx.get(parserCtx),
+          $from.parent.attrs.definitions,
+        )
+        if (!paragraph) return false
         const position = $from.after()
         const tr = view.state.tr.insertText(text, position, position)
         view.dispatch(tr.setSelection(TextSelection.create(tr.doc, position + text.length)))
@@ -263,7 +284,7 @@ export const linkEditingPlugin = $prose((ctx) => {
           continue
         }
         const paragraph =
-          parseLinkSource(source, ctx.get(parserCtx)) ??
+          parseLinkSource(source, ctx.get(parserCtx), getLinkDefinitionSource(tr.doc)) ??
           (!/[\[\]()<>]/.test(source)
             ? state.schema.nodes.paragraph.create(null, state.schema.text(source))
             : null)

@@ -97,14 +97,13 @@
 .lume-markdown-content .lume-link-definition {
   margin: var(--lume-space-3) 0;
   color: var(--lume-text-secondary);
-  font-family: 'Cascadia Code', Consolas, monospace;
-  font-size: 0.875em;
+  font-family: inherit;
+  font-size: inherit;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .lume-markdown-content [data-type='html'].ProseMirror-selectednode,
-.lume-markdown-content .lume-link-definition.ProseMirror-selectednode,
 .lume-markdown-content hr.ProseMirror-selectednode {
   outline: 2px solid var(--lume-accent-default);
   outline-offset: 3px;
