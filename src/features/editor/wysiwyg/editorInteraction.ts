@@ -6,6 +6,7 @@ import { getEditorCommand } from './editorCommands'
 import { captureSelectionContext, findLinkAt, type EditorContext } from './selectionContext'
 import { parseLinkSource } from '../extensions/base/linkEditing'
 import { handleHorizontalRuleKeyDown } from '../extensions/base/horizontalRule'
+import { handleDocumentBlockKeyDown } from '../extensions/blockInput'
 
 const getLinkElement = (view: EditorView, target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest('a, [data-link-source]') : null
@@ -71,6 +72,7 @@ export const createEditorInteractionPlugin = (options: {
         props: {
           handleDOMEvents: {
             keydown(view, event) {
+              if (handleDocumentBlockKeyDown(view, event)) return true
               if (handleHorizontalRuleKeyDown(view, event)) return true
               if (event.isComposing) return false
               const shortcut = getShortcutCommand(event)

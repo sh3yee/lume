@@ -54,7 +54,7 @@ export const convertBlockquote: Command = (state, dispatch) => {
 export const convertParagraph: Command = (state, dispatch) => {
   const list = findContainer(state, ['list_item'])
   if (list) return liftListItem(state.schema.nodes.list_item)(state, dispatch)
-  if (findContainer(state, ['blockquote'])) return lift(state, dispatch)
+  if (findContainer(state, ['blockquote', 'callout'])) return lift(state, dispatch)
   return setBlockType(state.schema.nodes.paragraph)(state, dispatch)
 }
 

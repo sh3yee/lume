@@ -1,0 +1,46 @@
+.lume-markdown-content .lume-callout {
+  --callout-color: #4493f8;
+  border-left: 4px solid var(--callout-color);
+  padding: 12px 18px;
+  margin: 1em 0;
+  background: color-mix(in srgb, var(--callout-color) 7%, transparent);
+}
+.lume-markdown-content .lume-callout[data-callout='TIP'] {
+  --callout-color: #3fb950;
+}
+.lume-markdown-content .lume-callout[data-callout='IMPORTANT'] {
+  --callout-color: #ab7df8;
+}
+.lume-markdown-content .lume-callout[data-callout='WARNING'] {
+  --callout-color: #bf8700;
+}
+.lume-markdown-content .lume-callout[data-callout='CAUTION'] {
+  --callout-color: #f85149;
+}
+.lume-callout-title {
+  color: var(--callout-color);
+  font-weight: 600;
+  margin-bottom: 8px;
+  user-select: none;
+}
+.lume-callout-body > :first-child {
+  margin-top: 0;
+}
+.lume-callout-body > :last-child {
+  margin-bottom: 0;
+}
+[data-github-alerts='false'] .lume-markdown-content .lume-callout {
+  border-left-color: var(--lume-border-default, #8885);
+  background: none;
+}
+[data-github-alerts='false'] .lume-callout-title {
+  color: inherit;
+  font-weight: inherit;
+  user-select: text;
+}
+[data-github-alerts='false'] .lume-callout-title > span {
+  display: none;
+}
+[data-github-alerts='false'] .lume-callout-title::before {
+  content: attr(data-marker);
+}

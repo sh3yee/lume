@@ -8,6 +8,15 @@ import { Plugin } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { $inputRule, $prose, $useKeymap } from '@milkdown/kit/utils'
 import { tableInputPlugin } from './tableInput'
+import type { Node } from '@milkdown/kit/prose/model'
+
+// remark expects a boolean; the string 'false' would otherwise turn a tight list into a loose one.
+const normalizeListSpread = (node: Node) =>
+  node.type.create(
+    { ...node.attrs, spread: node.attrs.spread === true || node.attrs.spread === 'true' },
+    node.content,
+    node.marks,
+  )
 
 // Milkdown 列表解析器把 spread 写为字符串，兼容其序列化约定和命令创建的布尔值。
 export const preservedBulletListSchema = bulletListSchema.extendSchema((previous) => (ctx) => {
@@ -15,6 +24,10 @@ export const preservedBulletListSchema = bulletListSchema.extendSchema((previous
   return {
     ...schema,
     attrs: { ...schema.attrs, spread: { default: false, validate: 'boolean|string' } },
+    toMarkdown: {
+      ...schema.toMarkdown,
+      runner: (state, node) => schema.toMarkdown.runner(state, normalizeListSpread(node)),
+    },
   }
 })
 export const preservedOrderedListSchema = orderedListSchema.extendSchema((previous) => (ctx) => {
@@ -22,6 +35,10 @@ export const preservedOrderedListSchema = orderedListSchema.extendSchema((previo
   return {
     ...schema,
     attrs: { ...schema.attrs, spread: { default: false, validate: 'boolean|string' } },
+    toMarkdown: {
+      ...schema.toMarkdown,
+      runner: (state, node) => schema.toMarkdown.runner(state, normalizeListSpread(node)),
+    },
   }
 })
 export const taskListSchema = extendListItemSchemaForTask.extendSchema((previous) => (ctx) => {
@@ -29,6 +46,10 @@ export const taskListSchema = extendListItemSchemaForTask.extendSchema((previous
   return {
     ...schema,
     attrs: { ...schema.attrs, spread: { default: true, validate: 'boolean|string' } },
+    toMarkdown: {
+      ...schema.toMarkdown,
+      runner: (state, node) => schema.toMarkdown.runner(state, normalizeListSpread(node)),
+    },
   }
 })
 

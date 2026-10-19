@@ -144,6 +144,19 @@ export const getContextMenuGroups = (
           item('insertCode', '代码块'),
           item('insertTable', '表格'),
           item('insertImage', '图片'),
+          item('insertFrontMatter', 'YAML 元数据（文首）'),
+          item('insertToc', '目录'),
+          {
+            id: 'insertCallout',
+            label: '提示块',
+            children: [
+              item('insertNote', 'Note · 说明'),
+              item('insertTip', 'Tip · 技巧'),
+              item('insertImportant', 'Important · 重要'),
+              item('insertWarning', 'Warning · 警告'),
+              item('insertCaution', 'Caution · 注意'),
+            ],
+          },
         ],
       },
     ])

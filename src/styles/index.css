@@ -11,4 +11,7 @@
 @import '../features/editor/extensions/code-block/styles.css';
 @import '../features/editor/extensions/footnotes/styles.css';
 @import '../features/editor/extensions/math/styles.css';
+@import '../features/editor/extensions/front-matter/styles.css';
+@import '../features/editor/extensions/toc/styles.css';
+@import '../features/editor/extensions/callouts/styles.css';
 @import '../features/editor/extensions/mermaid/styles.css';

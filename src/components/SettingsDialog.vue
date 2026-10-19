@@ -20,6 +20,7 @@ const props = defineProps<{
   focusMode: boolean
   writingWidth: WritingWidth
   fontScale: FontScale
+  githubAlerts: boolean
 }>()
 
 const emit = defineEmits<{
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   (e: 'update:focus-mode', value: boolean): void
   (e: 'update:writing-width', value: WritingWidth): void
   (e: 'update:font-scale', value: FontScale): void
+  (e: 'update:github-alerts', value: boolean): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
@@ -163,6 +165,18 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 <span class="lume-settings__check"></span>
               </button>
             </div>
+          </section>
+
+          <section v-if="activeCategory === 'editor'" class="lume-settings__section lume-settings__section--divided">
+            <div class="lume-settings__section-heading">
+              <h3 class="lume-settings__label">GitHub Style Alerts</h3>
+              <p class="lume-settings__hint">将 Note、Tip、Important、Warning、Caution 显示为彩色提示块；关闭后显示引用样式与原始标记。</p>
+            </div>
+            <button type="button" class="lume-settings__option" role="switch" :aria-checked="githubAlerts"
+              :class="{ 'lume-settings__option--active': githubAlerts }" @click="emit('update:github-alerts', !githubAlerts)">
+              <span class="lume-settings__option-copy"><strong>GitHub 提示块样式</strong><small>{{ githubAlerts ? '已启用' : '已关闭' }}</small></span>
+              <span class="lume-settings__check"></span>
+            </button>
           </section>
 
           <section v-if="activeCategory === 'writing'" class="lume-settings__section">

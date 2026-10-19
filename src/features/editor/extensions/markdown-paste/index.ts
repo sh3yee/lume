@@ -5,6 +5,7 @@ import { $prose } from '@milkdown/kit/utils'
 import { parseWithFootnoteContext } from '../footnotes/references'
 
 const BLOCK_MARKDOWN_PATTERNS = [
+  /^\[toc\]$/im,
   /^ {0,3}#{1,6}\s+\S/m,
   /^ {0,3}(?:[-+*]\s+\S|\d+[.)]\s+\S)/m,
   /^ {0,3}>\s?\S/m,

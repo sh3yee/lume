@@ -1,0 +1,26 @@
+.lume-markdown-content .lume-toc {
+  padding: 16px 20px;
+  margin: 1em 0;
+  border: 1px solid var(--lume-border-default, #8885);
+  border-radius: 6px;
+}
+.lume-markdown-content .lume-toc-entry {
+  display: block;
+  border: 0;
+  background: none;
+  color: var(--lume-accent-default);
+  font: inherit;
+  text-align: start;
+  padding-block: 3px;
+  cursor: pointer;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  width: 100%;
+  box-sizing: border-box;
+}
+.lume-markdown-content .lume-toc-entry:hover {
+  text-decoration: underline;
+}
+.lume-markdown-content .lume-toc-entry:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+}

@@ -44,12 +44,14 @@
       :focus-mode="focusMode"
       :writing-width="writingWidth"
       :font-scale="fontScale"
+      :github-alerts="githubAlerts"
       @close="settingsOpen = false"
       @update:view-mode="viewMode = $event"
       @update:theme="themePreference = $event"
       @update:focus-mode="focusMode = $event"
       @update:writing-width="writingWidth = $event"
       @update:font-scale="fontScale = $event"
+      @update:github-alerts="githubAlerts = $event"
     />
     <UnsavedChangesDialog
       v-if="pendingCloseDocument"
@@ -143,7 +145,7 @@ const {
   requestCloseDocuments,
 } = useDocument()
 const { themePreference, resolvedTheme } = useThemePreference()
-const { writingWidth, fontScale } = useWritingPreference()
+const { writingWidth, fontScale, githubAlerts } = useWritingPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
 const { externalConflict, keepLocalChanges, reloadConflictedDocument } =
   useWorkspaceLifecycle(showMessage)

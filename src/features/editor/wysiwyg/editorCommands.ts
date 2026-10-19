@@ -23,6 +23,7 @@ import { pasteClipboard } from './clipboard'
 import { tableCommands } from './tableCommands'
 import { resolveSelectionContext } from './selectionContext'
 import { insertHorizontalRule } from '../extensions/base/horizontalRule'
+import { insertDocumentBlock } from '../extensions/blockInput'
 
 const toggleSelectedMark =
   (name: string): Command =>
@@ -80,6 +81,13 @@ export const getEditorCommand = (_state: EditorState, name: string): Command | u
       dispatch?.(current.tr.removeMark(from, to).scrollIntoView())
       return true
     },
+    insertFrontMatter: insertDocumentBlock('front_matter'),
+    insertToc: insertDocumentBlock('toc'),
+    insertNote: insertDocumentBlock('callout', 'NOTE'),
+    insertTip: insertDocumentBlock('callout', 'TIP'),
+    insertImportant: insertDocumentBlock('callout', 'IMPORTANT'),
+    insertWarning: insertDocumentBlock('callout', 'WARNING'),
+    insertCaution: insertDocumentBlock('callout', 'CAUTION'),
     undo,
     redo,
     ...tableCommands,

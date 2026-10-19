@@ -1,0 +1,22 @@
+.lume-markdown-content .lume-front-matter {
+  white-space: pre-wrap;
+  tab-size: 2;
+  padding: 12px 18px;
+  border: 1px solid var(--lume-border-default, #8885);
+  border-radius: 6px;
+  background: var(--lume-bg-secondary, #8881);
+  font-family: ui-monospace, monospace;
+  line-height: 1.65;
+}
+.lume-front-matter::before,
+.lume-front-matter::after {
+  content: '---';
+  display: block;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.lume-markdown-content .lume-front-matter code {
+  padding: 0;
+  background: none;
+  color: inherit;
+}
