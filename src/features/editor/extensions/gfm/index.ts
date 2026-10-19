@@ -1,10 +1,12 @@
 import { type Editor } from '@milkdown/kit/core'
-import { extendListItemSchemaForTask, gfm } from '@milkdown/preset-gfm'
+import { extendListItemSchemaForTask, gfm, wrapInTaskListInputRule } from '@milkdown/preset-gfm'
 import { bulletListSchema, orderedListSchema } from '@milkdown/kit/preset/commonmark'
 import type MarkdownIt from 'markdown-it'
+import { InputRule } from '@milkdown/kit/prose/inputrules'
+import { splitListItem } from '@milkdown/kit/prose/schema-list'
 import { Plugin } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
-import { $prose } from '@milkdown/kit/utils'
+import { $inputRule, $prose, $useKeymap } from '@milkdown/kit/utils'
 
 // Milkdown 列表解析器把 spread 写为字符串，兼容其序列化约定和命令创建的布尔值。
 export const preservedBulletListSchema = bulletListSchema.extendSchema((previous) => (ctx) => {
@@ -27,6 +29,54 @@ export const taskListSchema = extendListItemSchemaForTask.extendSchema((previous
     ...schema,
     attrs: { ...schema.attrs, spread: { default: true, validate: 'boolean|string' } },
   }
+})
+
+const taskListInputRule = $inputRule(
+  () =>
+    new InputRule(/^\[([ xX])\]\s$/, (state, match, start, end) => {
+      const $start = state.doc.resolve(start)
+      if (
+        $start.depth < 2 ||
+        $start.parent.type.name !== 'paragraph' ||
+        $start.marks().some((mark) => mark.type.spec.code)
+      )
+        return null
+      const item = $start.node(-1)
+      if (item.type.name !== 'list_item' || $start.index(-1) !== 0 || item.attrs.checked != null)
+        return null
+      return state.tr
+        .delete(start, end)
+        .setNodeAttribute($start.before(-1), 'checked', match[1].toLowerCase() === 'x')
+    }),
+)
+
+const taskListKeymap = $useKeymap('lumeTaskList', {
+  NextTask: {
+    shortcuts: 'Enter',
+    priority: 60,
+    command: () => (state, dispatch, view) => {
+      const { $from, $to } = state.selection
+      if (
+        $from.depth < 2 ||
+        !$from.sameParent($to) ||
+        $from.parent.type.name !== 'paragraph' ||
+        $from.parent.content.size === 0
+      )
+        return false
+      const item = $from.node(-1)
+      if (item.type.name !== 'list_item' || typeof item.attrs.checked !== 'boolean') return false
+      return splitListItem(item.type)(
+        state,
+        dispatch &&
+          ((tr) => {
+            // 段尾和段中拆分均创建未完成任务，不继承原项的勾选状态。
+            tr.setNodeAttribute(tr.selection.$from.before(-1), 'checked', false)
+            dispatch(tr)
+          }),
+        view,
+      )
+    },
+  },
 })
 
 const taskCheckboxes = $prose(
@@ -75,10 +125,11 @@ const taskCheckboxes = $prose(
 /** 注册表格、任务列表和删除线等 GFM 编辑能力。 */
 export function useGfmWysiwygExtension(editor: Editor) {
   return editor
-    .use(gfm)
+    .use(gfm.map((plugin) => (plugin === wrapInTaskListInputRule ? taskListInputRule : plugin)))
     .use(preservedBulletListSchema)
     .use(preservedOrderedListSchema)
     .use(taskListSchema)
+    .use(taskListKeymap)
     .use(taskCheckboxes)
 }
 
