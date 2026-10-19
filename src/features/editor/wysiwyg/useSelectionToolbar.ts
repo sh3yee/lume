@@ -103,6 +103,7 @@ export const useSelectionToolbar = (options: {
     const active = view.dom.ownerDocument.activeElement
     if (
       phase !== 'idle' ||
+      (active instanceof Element && Boolean(active.closest('.lume-footnote-source'))) ||
       view.composing ||
       options.isSuspended() ||
       (!isEditorTarget(active) && !ownsOverlay(active))

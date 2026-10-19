@@ -2,6 +2,7 @@ import { parserCtx, schemaCtx, type Editor } from '@milkdown/kit/core'
 import { DOMParser, DOMSerializer } from '@milkdown/kit/prose/model'
 import { Plugin } from '@milkdown/kit/prose/state'
 import { $prose } from '@milkdown/kit/utils'
+import { parseWithFootnoteContext } from '../footnotes/references'
 
 const BLOCK_MARKDOWN_PATTERNS = [
   /^ {0,3}#{1,6}\s+\S/m,
@@ -14,6 +15,7 @@ const BLOCK_MARKDOWN_PATTERNS = [
 ]
 
 const INLINE_MARKDOWN_PATTERNS = [
+  /\[\^[^\]\s]+\]/,
   /!?\[[^\]\n]+\]\([^\s)]+(?:\s+["'][^"']*["'])?\)/,
   /(?:^|\s)\*\*\S(?:.*?\S)?\*\*(?:\s|$)/,
   /(?:^|\s)~~\S(?:.*?\S)?~~(?:\s|$)/,
@@ -32,9 +34,11 @@ function hasMarkdownTable(source: string) {
 function isMarkdownSource(source: string) {
   const value = source.trim()
   if (!value) return false
-  return BLOCK_MARKDOWN_PATTERNS.some((pattern) => pattern.test(value))
-    || INLINE_MARKDOWN_PATTERNS.some((pattern) => pattern.test(value))
-    || hasMarkdownTable(value)
+  return (
+    BLOCK_MARKDOWN_PATTERNS.some((pattern) => pattern.test(value)) ||
+    INLINE_MARKDOWN_PATTERNS.some((pattern) => pattern.test(value)) ||
+    hasMarkdownTable(value)
+  )
 }
 
 const markdownPastePlugin = $prose((ctx) => {
@@ -44,7 +48,11 @@ const markdownPastePlugin = $prose((ctx) => {
   return new Plugin({
     props: {
       handleKeyDown(_view, event) {
-        if (event.key.toLowerCase() !== 'v' || !event.shiftKey || (!event.ctrlKey && !event.metaKey)) {
+        if (
+          event.key.toLowerCase() !== 'v' ||
+          !event.shiftKey ||
+          (!event.ctrlKey && !event.metaKey)
+        ) {
           return false
         }
 
@@ -64,7 +72,9 @@ const markdownPastePlugin = $prose((ctx) => {
 
           event.preventDefault()
           const { from, to } = view.state.selection
-          view.dispatch(view.state.tr.insertText(source, from, to).scrollIntoView())
+          view.dispatch(
+            view.state.tr.insertText(source, from, to).setMeta('uiEvent', 'paste').scrollIntoView(),
+          )
           return true
         }
 
@@ -72,15 +82,18 @@ const markdownPastePlugin = $prose((ctx) => {
         if (!clipboard || clipboard.files.length > 0) return false
 
         const source = clipboard.getData('text/plain').replace(/\r\n?/g, '\n')
-        if (!isMarkdownSource(source) || view.state.selection.$from.parent.type.spec.code) return false
+        if (!isMarkdownSource(source) || view.state.selection.$from.parent.type.spec.code)
+          return false
 
-        const doc = ctx.get(parserCtx)(source)
+        const doc = parseWithFootnoteContext(source, view.state.doc, ctx.get(parserCtx))
         const schema = ctx.get(schemaCtx)
         const fragment = DOMSerializer.fromSchema(schema).serializeFragment(doc.content)
         const slice = DOMParser.fromSchema(schema).parseSlice(fragment)
 
         event.preventDefault()
-        view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView())
+        view.dispatch(
+          view.state.tr.replaceSelection(slice).setMeta('uiEvent', 'paste').scrollIntoView(),
+        )
         return true
       },
     },

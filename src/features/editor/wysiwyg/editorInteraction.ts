@@ -150,17 +150,9 @@ export const createEditorInteractionPlugin = (options: {
             return true
           },
           handleDoubleClickOn(view, _pos, node, nodePos, event, direct) {
-            if (
-              !direct ||
-              event.button !== 0 ||
-              !['math_inline', 'footnote_reference'].includes(node.type.name)
-            )
-              return false
+            if (!direct || event.button !== 0 || node.type.name !== 'math_inline') return false
             view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)))
-            options.onAction?.(
-              node.type.name === 'footnote_reference' ? 'gotoFootnote' : 'editMath',
-              captureSelectionContext(view),
-            )
+            options.onAction?.('editMath', captureSelectionContext(view))
             return true
           },
         },

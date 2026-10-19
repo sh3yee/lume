@@ -86,7 +86,6 @@
 
 .lume-markdown-content [data-type='html'].ProseMirror-selectednode,
 .lume-markdown-content .lume-link-definition.ProseMirror-selectednode,
-.lume-markdown-content [data-type='footnote_reference'].ProseMirror-selectednode,
 .lume-markdown-content hr.ProseMirror-selectednode {
   outline: 2px solid var(--lume-accent-default);
   outline-offset: 3px;

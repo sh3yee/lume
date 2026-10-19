@@ -7,9 +7,126 @@
 }
 
 .lume-markdown-content [data-type='footnote_reference'] {
-  padding: 0 var(--lume-space-1);
+  display: inline-block;
+  padding: 2px 4px;
   border-radius: var(--lume-radius-sm);
   color: var(--lume-accent-default);
+  background-color: var(--lume-accent-subtle);
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lume-markdown-content [data-type='footnote_reference'].ProseMirror-selectednode {
+  outline: 1px solid var(--lume-accent-default);
+  outline-offset: 1px;
+  user-select: none;
+}
+
+/* 对象选中时隐藏浏览器文字高亮，避免蓝色行高选区与标签边框重叠。 */
+.lume-markdown-content [data-type='footnote_reference'].ProseMirror-selectednode::selection {
+  color: inherit;
+  background: transparent;
+}
+
+.lume-markdown-content [data-type='footnote_reference'].lume-footnote--editing,
+.lume-markdown-content [data-type='footnote_reference'].lume-footnote--raw {
+  padding: 0;
+  outline: none;
+  color: inherit;
+  background: none;
+  font-size: 1em;
+  line-height: inherit;
+  vertical-align: baseline;
+  user-select: text;
+  cursor: text;
+}
+
+.lume-markdown-content .lume-footnote-source {
+  max-width: min(48ch, 70vw);
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font-family: var(--lume-font-mono);
+  font-size: inherit;
+  line-height: inherit;
+  user-select: text;
+}
+
+.lume-markdown-content .lume-footnote-source::selection {
+  color: var(--lume-accent-contrast);
+  background: var(--lume-accent-default);
+}
+
+/* 定义标记与首段正文共享基线，避免 dl/dt/dd 的默认块布局造成视觉换行。 */
+.lume-markdown-content dl[data-type='footnote_definition'] {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5ch;
+  margin: var(--lume-space-3) 0;
+  color: var(--lume-text-secondary);
+  font-size: 0.9em;
+}
+
+.lume-markdown-content dl[data-type='footnote_definition'] > dt {
+  flex: 0 0 auto;
+  font-weight: var(--lume-font-weight-semibold);
+  white-space: pre;
+}
+
+.lume-markdown-content dl[data-type='footnote_definition'] > dt::before {
+  content: '[^';
+  color: var(--lume-text-tertiary);
+  font-weight: normal;
+}
+
+.lume-markdown-content dl[data-type='footnote_definition'] > dt::after {
+  content: ']:';
+  color: var(--lume-text-tertiary);
+  font-weight: normal;
+}
+
+.lume-markdown-content dl[data-type='footnote_definition'] > dd {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.lume-markdown-content dl[data-type='footnote_definition'] > dd > :first-child {
+  margin-top: 0;
+}
+
+.lume-markdown-content dl[data-type='footnote_definition'] > dd > :last-child {
+  margin-bottom: 0;
+}
+
+.lume-markdown-content dl.lume-footnote-empty > dd > p {
+  position: relative;
+}
+
+.lume-markdown-content dl.lume-footnote-empty > dd > p::before {
+  content: '输入脚注内容';
+  position: absolute;
+  color: var(--lume-text-tertiary);
+  pointer-events: none;
+  user-select: none;
+}
+
+.lume-markdown-content .lume-footnote-backref {
+  margin-left: 0.5ch;
+  padding: 0 0.15em;
+  border: 0;
+  color: var(--lume-accent-default);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lume-markdown-content .lume-footnote-backref:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 2px;
 }
 
 .lume-markdown-content .footnote-ref a,

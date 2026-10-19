@@ -4,6 +4,7 @@ import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import type { PropertyForm } from '../overlays/contextMenuTypes'
 import { deleteMathBlock } from '../extensions/math/commands'
+import { goToFootnoteDefinition } from '../extensions/footnotes/commands'
 import { insertBlock } from './blockCommands'
 import { getActionState } from './actionState'
 import { pasteCodeClipboard, cutCodeSelection } from './codeClipboard'
@@ -219,21 +220,12 @@ export const useEditorActions = (options: {
         void copyText(ctx.get(serializerCtx)(view.state.schema.nodes.doc.create(null, content)))
       } else if (id === 'editSource') options.onEditSource?.()
       else if (id === 'gotoFootnote' && node) {
-        let position: number | null = null
-        view.state.doc.descendants((item, pos) => {
-          if (
-            item.type.name === 'footnote_definition' &&
-            String(item.attrs.label).toLowerCase() === String(node.node.attrs.label).toLowerCase()
+        if (
+          !goToFootnoteDefinition(String(node.node.attrs.label))(view.state, (tr) =>
+            view.dispatch(tr),
           )
-            position = pos
-        })
-        if (position === null) options.onError('找不到对应的脚注定义。')
-        else
-          view.dispatch(
-            view.state.tr
-              .setSelection(TextSelection.near(view.state.doc.resolve(position + 1)))
-              .scrollIntoView(),
-          )
+        )
+          options.onError('找不到对应的脚注定义。')
       } else if (id === 'deleteNode' && node) {
         const tr =
           node.node.type.name === 'math_block'
