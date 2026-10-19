@@ -102,16 +102,16 @@ npm run tauri:build
 提交版本变更后，创建并推送以 `v` 开头的标签：
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag -a v0.3.0 -m "发布 v0.3.0"
+git push --atomic origin main v0.3.0
 ```
 
-工作流完成后会在 GitHub Releases 中生成草稿版本，并自动附加各平台安装包。Windows 会同时提供两种安装程序：
+推送标签后，工作流会在 GitHub Releases 中直接发布正式版本，并自动附加各平台安装包。Windows 会同时提供两种安装程序：
 
 - `.exe`：NSIS 安装程序，适合大多数用户直接下载安装
 - `.msi`：Windows Installer 安装包，适合系统管理和批量部署
 
-检查发布说明和附件无误后，在 GitHub 页面点击 **Publish release** 正式发布。
+发布后请检查 Actions 中各平台构建均已成功，并确认发布说明和安装包附件无误。
 
 也可以在 GitHub 仓库的 **Actions → Release → Run workflow** 中手动运行，填写 `v0.1.0` 形式的版本标签。正式发布仍建议直接推送版本标签，以确保 Release 标签和项目版本号一致。
 
