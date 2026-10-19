@@ -7,6 +7,7 @@ import { splitListItem } from '@milkdown/kit/prose/schema-list'
 import { Plugin } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { $inputRule, $prose, $useKeymap } from '@milkdown/kit/utils'
+import { tableInputPlugin } from './tableInput'
 
 // Milkdown 列表解析器把 spread 写为字符串，兼容其序列化约定和命令创建的布尔值。
 export const preservedBulletListSchema = bulletListSchema.extendSchema((previous) => (ctx) => {
@@ -131,6 +132,7 @@ export function useGfmWysiwygExtension(editor: Editor) {
     .use(taskListSchema)
     .use(taskListKeymap)
     .use(taskCheckboxes)
+    .use(tableInputPlugin)
 }
 
 /** 显式启用 markdown-it 内置的 GFM 兼容预览规则。 */
