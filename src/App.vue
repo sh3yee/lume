@@ -14,6 +14,7 @@
         <main class="lume-app__main">
           <WysiwygPane
             v-if="viewMode === 'wysiwyg'"
+            ref="wysiwygPaneRef"
             :key="activeDocumentId"
             @edit-source="handleEditSource"
           />
@@ -104,6 +105,7 @@ import type { OpenDocument } from '@/features/documents/model/documentTypes'
 type ViewMode = 'wysiwyg' | 'split'
 
 const viewMode = ref<ViewMode>('wysiwyg')
+const wysiwygPaneRef = ref<{ flushPendingMarkdown: () => void } | null>(null)
 const sourceEditorRef = ref<{ focus: () => void } | null>(null)
 const sidebarVisible = ref(false)
 const focusMode = ref(false)
@@ -172,13 +174,17 @@ function handleSplitScrollRatio(value: number) {
 
 /** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
 async function handleCloseWindow() {
+  wysiwygPaneRef.value?.flushPendingMarkdown()
   flushDocumentSession()
   requestCloseDocuments(
     documents.value
       .filter((document: OpenDocument) => document.isDirty)
       .map((document: OpenDocument) => document.id),
     (completed: boolean) => {
-      if (completed) void closeApplicationWindow()
+      if (!completed) return
+      void closeApplicationWindow().catch((error: unknown) => {
+        showMessage(`关闭失败：${getErrorMessage(error)}`)
+      })
     },
   )
 }

@@ -13,7 +13,8 @@ import type {
   OpenDocument,
 } from './documentTypes'
 
-const DEFAULT_CONTENT = `# 欢迎使用 Lume
+const WELCOME_DOCUMENT_NAME = '欢迎使用 Lume.md'
+export const WELCOME_DOCUMENT_CONTENT = `# 欢迎使用 Lume
 
 Lume 是一款面向个人创作与本地知识管理的桌面 Markdown 编辑器。
 
@@ -74,10 +75,13 @@ function createDocumentRecord(
   }
 }
 
-const documents = ref<OpenDocument[]>([createDocumentRecord(DEFAULT_CONTENT, '欢迎使用 Lume.md')])
+const documents = ref<OpenDocument[]>([
+  createDocumentRecord(WELCOME_DOCUMENT_CONTENT, WELCOME_DOCUMENT_NAME),
+])
 const activeDocumentId = ref(documents.value[0].id)
 const pendingCloseDocument = ref<OpenDocument | null>(null)
 const pendingCloseDocumentIds: string[] = []
+const legacyWelcomeDocuments = new Map<string, string>()
 let closeQueueCompletion: ((completed: boolean) => void) | null = null
 let sessionHydrated = false
 
@@ -95,10 +99,52 @@ function hydrateDocumentSession(session: DocumentSession | null) {
   if (!session) return
   documents.value = session.documents
   for (const document of documents.value) {
-    if (!document.isDirty) document.savedContent = document.content
+    if (document.savedContent === undefined) {
+      if (!document.isDirty) {
+        document.savedContent = document.content
+      } else if (document.path === null && document.name === WELCOME_DOCUMENT_NAME) {
+        // 旧欢迎页可恢复内置基准，未知草稿继续保留未保存状态。
+        legacyWelcomeDocuments.set(document.id, document.content)
+        document.savedContent = WELCOME_DOCUMENT_CONTENT
+      }
+    }
+    if (document.savedContent !== undefined) {
+      document.isDirty = document.content !== document.savedContent
+    }
   }
   activeDocumentId.value = session.activeDocumentId
   syncDocumentSequence()
+}
+
+/** 仅修复内置欢迎页的格式化写回，不清除真正编辑过的内容或保存基准。 */
+function restoreWelcomeDocumentBaseline(id: string, normalizedWelcomeContent: string) {
+  const document = documents.value.find((item) => item.id === id)
+  if (!document || document.path !== null || document.name !== WELCOME_DOCUMENT_NAME) return false
+  if (legacyWelcomeDocuments.get(id) !== document.content) return false
+  if (
+    document.content !== WELCOME_DOCUMENT_CONTENT &&
+    document.content !== normalizedWelcomeContent
+  )
+    return false
+
+  legacyWelcomeDocuments.delete(id)
+  if (
+    document.savedContent !== undefined &&
+    document.savedContent !== WELCOME_DOCUMENT_CONTENT &&
+    document.savedContent !== normalizedWelcomeContent
+  )
+    return false
+  if (
+    document.content === WELCOME_DOCUMENT_CONTENT &&
+    document.savedContent === WELCOME_DOCUMENT_CONTENT &&
+    !document.isDirty
+  )
+    return false
+
+  document.content = WELCOME_DOCUMENT_CONTENT
+  document.savedContent = WELCOME_DOCUMENT_CONTENT
+  document.isDirty = false
+  return true
 }
 
 const activeDocument = computed(
@@ -186,6 +232,7 @@ function closeDocument(id: string) {
   const index = documents.value.findIndex((document) => document.id === id)
   if (index < 0) return
   const wasActive = activeDocumentId.value === id
+  legacyWelcomeDocuments.delete(id)
   documents.value.splice(index, 1)
 
   if (documents.value.length === 0) {
@@ -317,6 +364,7 @@ export function useDocumentStore() {
     updateDocumentMetadata,
     completeDocumentSave,
     hydrateDocumentSession,
+    restoreWelcomeDocumentBaseline,
     getDocumentSessionSnapshot,
   }
 }

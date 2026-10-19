@@ -7,9 +7,11 @@
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { editorViewCtx, type Editor } from '@milkdown/kit/core'
+import { editorViewCtx, parserCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
+import type { EditorView } from '@milkdown/kit/prose/view'
 import { useDocument } from '@composables/useDocument'
+import { WELCOME_DOCUMENT_CONTENT } from '@/features/documents/model/documentStore'
 import { constrainOverlayPosition } from '@/features/editor/overlays/overlayPosition.ts'
 import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
 import EditorContextMenu from '@/features/editor/overlays/EditorContextMenu.vue'
@@ -44,9 +46,11 @@ const emit = defineEmits<{ editSource: [] }>()
 const {
   activeDocument,
   content,
+  documents,
   persistDocumentSession,
   updateDocumentContent,
   updateDocumentCursor,
+  restoreWelcomeDocumentBaseline,
   openDocument,
 } = useDocument()
 const boundDocumentId = activeDocument.value?.id ?? null
@@ -69,6 +73,7 @@ let editor: Editor | null = null
 let disposed = false
 let editorMarkdown = content.value
 let synchronizedDoc: ProseNode | null = null
+let sourceDocument: { doc: ProseNode; markdown: string } | null = null
 const {
   context: menuContext,
   groups: contextMenuGroups,
@@ -147,15 +152,27 @@ const selectionControls = useSelectionToolbar({
 })
 const { toolbar: selectionToolbar } = selectionControls
 
+const synchronizeMarkdown = (markdown: string, view: EditorView | null) => {
+  if (disposed) return
+  // 撤销回加载时的文档结构后恢复原文，避免序列化格式差异被当作未保存修改。
+  const nextMarkdown =
+    sourceDocument && view?.state.doc.eq(sourceDocument.doc) ? sourceDocument.markdown : markdown
+  if (view) synchronizedDoc = view.state.doc
+  if (view) invalidateMenuTarget(view)
+  editorMarkdown = nextMarkdown
+  if (boundDocumentId && updateDocumentContent(boundDocumentId, nextMarkdown)) {
+    persistDocumentSession()
+  }
+  if (findReplaceOpen.value && view) syncFindMatches(view)
+}
+
 const flushPendingMarkdown = () => {
   const markdown = getPendingEditorMarkdown(editor, synchronizedDoc)
-  if (markdown === null || !boundDocumentId) return
-  editorMarkdown = markdown
-  if (updateDocumentContent(boundDocumentId, markdown)) persistDocumentSession()
-  editor?.action((ctx) => {
-    synchronizedDoc = ctx.get(editorViewCtx).state.doc
-  })
+  if (markdown === null) return
+  editor?.action((ctx) => synchronizeMarkdown(markdown, ctx.get(editorViewCtx)))
 }
+
+defineExpose({ flushPendingMarkdown })
 
 function closeContextMenu() {
   closeMenuTarget()
@@ -239,21 +256,15 @@ onMounted(async () => {
     isDocumentActive: () => activeDocument.value?.id === boundDocumentId,
     onImageSelect: (view) => selectionControls.schedule(view),
     onViewUpdate(view) {
-      if (!synchronizedDoc) synchronizedDoc = view.state.doc
+      if (!synchronizedDoc) {
+        synchronizedDoc = view.state.doc
+        sourceDocument = { doc: view.state.doc, markdown: editorMarkdown }
+      }
       invalidateMenuTarget(view)
       selectionControls.schedule(view)
     },
     onAction: (id, target) => actions.execute(id, target),
-    onMarkdownChange(markdown, view) {
-      if (disposed) return
-      if (view) synchronizedDoc = view.state.doc
-      if (view) invalidateMenuTarget(view)
-      editorMarkdown = markdown
-      if (boundDocumentId && updateDocumentContent(boundDocumentId, markdown)) {
-        persistDocumentSession()
-      }
-      if (findReplaceOpen.value && view) syncFindMatches(view)
-    },
+    onMarkdownChange: synchronizeMarkdown,
     onSelectionChange(view, line, column) {
       if (view) invalidateMenuTarget(view)
       if (boundDocumentId) updateDocumentCursor(boundDocumentId, line, column)
@@ -272,8 +283,27 @@ onMounted(async () => {
     editor = null
     return
   }
+  if (
+    boundDocumentId &&
+    activeDocument.value?.id === boundDocumentId &&
+    documents.value.some((document) => document.path === null && document.isDirty)
+  ) {
+    const normalizedWelcomeContent = editor.action((ctx) => {
+      const welcomeDoc = ctx.get(parserCtx)(WELCOME_DOCUMENT_CONTENT)
+      return welcomeDoc ? ctx.get(serializerCtx)(welcomeDoc) : WELCOME_DOCUMENT_CONTENT
+    })
+    let restoredWelcomeDocument = false
+    for (const document of documents.value) {
+      if (restoreWelcomeDocumentBaseline(document.id, normalizedWelcomeContent)) {
+        restoredWelcomeDocument = true
+      }
+    }
+    if (restoredWelcomeDocument) persistDocumentSession()
+  }
   if (activeDocument.value?.id === boundDocumentId && content.value !== editorMarkdown) {
     editorMarkdown = content.value
+    synchronizedDoc = null
+    sourceDocument = null
     replaceEditorMarkdown(editor, content.value)
   }
 
@@ -298,6 +328,7 @@ watch(content, (markdown) => {
   if (!editor || activeDocument.value?.id !== boundDocumentId || markdown === editorMarkdown) return
   editorMarkdown = markdown
   synchronizedDoc = null
+  sourceDocument = null
   closeContextMenu()
   closeProperties()
   selectionControls.dismiss()
