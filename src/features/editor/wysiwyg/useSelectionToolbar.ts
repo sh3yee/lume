@@ -166,8 +166,11 @@ export const useSelectionToolbar = (options: {
   const handlePointerDown = (event: PointerEvent) => {
     if (ownsOverlay(event.target)) return
     options.onCloseMenus()
-    if (!isEditorTarget(event.target)) {
-      hide()
+    if (
+      !isEditorTarget(event.target) ||
+      (view && event.target instanceof Node && !view.dom.contains(event.target))
+    ) {
+      dismiss()
       return
     }
     if (event.button !== 0) {
@@ -175,6 +178,7 @@ export const useSelectionToolbar = (options: {
       return
     }
     phase = 'pointer'
+    dismissed = null
     if (event.target instanceof HTMLElement && event.target.closest('.lume-task-checkbox'))
       dismiss()
     else hide()

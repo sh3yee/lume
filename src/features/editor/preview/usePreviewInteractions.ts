@@ -7,11 +7,9 @@ import { canOpenEditorLink } from '../wysiwyg/editorLinks'
 interface PreviewTarget {
   documentId: string | undefined
   html: string
-  element: HTMLElement | null
   ranges: Range[]
   text: string
   backwards: boolean
-  href?: string
 }
 
 export const arePreviewRangesEqual = (first: readonly Range[], second: readonly Range[]) =>
@@ -81,7 +79,6 @@ export const usePreviewInteractions = (options: {
     )
   }
   const clear = () => {
-    target?.element?.classList.remove('lume-preview-selected')
     target = null
     toolbar.value = null
   }
@@ -101,7 +98,6 @@ export const usePreviewInteractions = (options: {
       target.html !== options.getHtml()
     )
       return false
-    if (target.element) return target.element.isConnected && Boolean(root?.contains(target.element))
     const selection = root?.ownerDocument.getSelection() ?? null
     const ranges = getSelectionRanges(selection)
     return (
@@ -117,9 +113,7 @@ export const usePreviewInteractions = (options: {
       return
     }
     const viewport = root.getBoundingClientRect()
-    const rectangles = target.element
-      ? [target.element.getBoundingClientRect()]
-      : target.ranges.flatMap((range) => Array.from(range.getClientRects()))
+    const rectangles = target.ranges.flatMap((range) => Array.from(range.getClientRects()))
     const anchor = pickSelectionAnchor(rectangles, viewport, target.backwards)
     if (!anchor) {
       clear()
@@ -128,16 +122,16 @@ export const usePreviewInteractions = (options: {
     const bounds = options.getToolbar()?.getBounds() ?? { width: 220, height: 34 }
     toolbar.value = { ...toolbar.value, position: positionOverlayAroundBounds(anchor, bounds) }
   }
-  const show = (
-    next: PreviewTarget,
-    title: string,
-    ids: { id: string; label: string; disabled?: boolean }[],
-  ) => {
+  const show = (next: PreviewTarget) => {
     clear()
     target = next
-    target.element?.classList.add('lume-preview-selected')
     toolbar.value = {
-      model: { title, items: ids, more: [], placement: next.element ? 'object' : 'range' },
+      model: {
+        title: '只读文字',
+        items: [{ id: 'copy', label: '复制所选文字' }],
+        more: [],
+        placement: 'range',
+      },
       position: { x: 8, y: 8 },
       revision: ++revision,
     }
@@ -151,37 +145,32 @@ export const usePreviewInteractions = (options: {
     const root = options.getRoot()
     const selection = root?.ownerDocument.getSelection() ?? null
     if (!ownsFocus()) {
-      if (!target?.element) clear()
+      clear()
       return
     }
     if (!root || !selection || !isPreviewTextSelection(root, selection)) {
       dismissedRanges = null
-      if (!target?.element) clear()
+      clear()
       return
     }
     const currentRanges = getSelectionRanges(selection)
     if (dismissedRanges && arePreviewRangesEqual(dismissedRanges, currentRanges)) return
     dismissedRanges = null
     const backwards = isSelectionBackwards(selection)
-    if (!target?.element && target?.backwards === backwards && isCurrent()) return
+    if (target?.backwards === backwards && isCurrent()) return
     const ranges = currentRanges.map((range) => range.cloneRange())
     const text = ranges.map((range) => range.toString()).join('\n')
     if (!text) {
-      if (!target?.element) clear()
+      clear()
       return
     }
-    show(
-      {
-        documentId: options.getDocumentId(),
-        html: options.getHtml(),
-        element: null,
-        ranges,
-        text,
-        backwards,
-      },
-      '只读文字',
-      [{ id: 'copy', label: '复制所选文字' }],
-    )
+    show({
+      documentId: options.getDocumentId(),
+      html: options.getHtml(),
+      ranges,
+      text,
+      backwards,
+    })
   }
   const schedule = () => {
     if (disposed || frame) return
@@ -193,11 +182,13 @@ export const usePreviewInteractions = (options: {
   }
   const handlePointerDown = (event: PointerEvent) => {
     if (event.target instanceof Element && ownsOverlay(event.target)) return
+    if (!(event.target instanceof Node) || !options.getRoot()?.contains(event.target)) {
+      pointerSelecting = false
+      dismiss()
+      return
+    }
     dismissedRanges = null
-    pointerSelecting =
-      event.button === 0 &&
-      event.target instanceof Node &&
-      Boolean(options.getRoot()?.contains(event.target))
+    pointerSelecting = event.button === 0
     clear()
   }
   const handlePointerUp = () => {
@@ -207,7 +198,7 @@ export const usePreviewInteractions = (options: {
   }
   const handleSelectionChange = () => {
     if (pointerSelecting) return
-    if (target && !target.element && !isCurrent()) clear()
+    if (target && !isCurrent()) clear()
     schedule()
   }
   const handleClick = (event: MouseEvent) => {
@@ -220,57 +211,8 @@ export const usePreviewInteractions = (options: {
       captureText()
       return
     }
-    const object = anchor ?? element.closest<HTMLElement>('img, pre, .katex, .lume-mermaid')
-    if (!object) return
-    const href = anchor?.getAttribute('href') ?? undefined
-    const text = anchor
-      ? (href ?? '')
-      : object instanceof HTMLImageElement
-        ? (object.getAttribute('src') ?? '')
-        : object.classList.contains('katex')
-          ? (object.querySelector('annotation')?.textContent ?? '')
-          : object.classList.contains('lume-mermaid')
-            ? decodeURIComponent(object.dataset.copySource ?? object.dataset.mermaidSource ?? '')
-            : (object.querySelector('code')?.textContent ?? object.textContent ?? '')
-    const title = anchor
-      ? '只读链接'
-      : object instanceof HTMLImageElement
-        ? '只读图片'
-        : object.classList.contains('katex')
-          ? '只读公式'
-          : object.classList.contains('lume-mermaid')
-            ? '只读图表'
-            : '只读代码'
-    const ids = anchor
-      ? [
-          { id: 'openLink', label: '打开链接', disabled: !canOpenEditorLink(href ?? '') },
-          { id: 'copyLink', label: '复制链接地址' },
-        ]
-      : [
-          {
-            id: 'copy',
-            label:
-              object instanceof HTMLImageElement
-                ? '复制图片地址'
-                : object.classList.contains('katex')
-                  ? '复制公式源码'
-                  : '复制整块代码',
-          },
-        ]
-    show(
-      {
-        documentId: options.getDocumentId(),
-        html: options.getHtml(),
-        element: object,
-        ranges: [],
-        text,
-        backwards: false,
-        href,
-      },
-      title,
-      ids,
-    )
-    if (anchor && href && canOpenEditorLink(href))
+    const href = anchor?.getAttribute('href')
+    if (href && canOpenEditorLink(href))
       void options
         .onOpenLink(href)
         .catch((error: unknown) =>
@@ -283,9 +225,7 @@ export const usePreviewInteractions = (options: {
       return
     }
     try {
-      if (id === 'openLink' && target.href && canOpenEditorLink(target.href))
-        await options.onOpenLink(target.href)
-      else if (id === 'copy' || id === 'copyLink') await navigator.clipboard.writeText(target.text)
+      if (id === 'copy') await navigator.clipboard.writeText(target.text)
     } catch (error) {
       options.onError(error instanceof Error ? error.message : '无法完成预览操作。')
     }

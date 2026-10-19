@@ -20,6 +20,7 @@ src-tauri/gen
 *.njsproj
 *.sln
 *.sw?
+.agents
 
 # 日志
 logs

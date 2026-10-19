@@ -23,6 +23,7 @@ import {
   FileCode,
   ArrowUp,
   ArrowDown,
+  Trash2,
 } from 'lucide-vue-next'
 import type { ContextMenuItem } from './contextMenuTypes'
 import type { SelectionToolbarModel } from '../wysiwyg/selectionToolbarItems'
@@ -63,6 +64,7 @@ const icons: Record<string, typeof Bold> = {
   paragraphAfter: ArrowDown,
   copyCode: Copy,
   editCodeLanguage: Code,
+  deleteNode: Trash2,
 }
 const props = defineProps<{
   model: SelectionToolbarModel

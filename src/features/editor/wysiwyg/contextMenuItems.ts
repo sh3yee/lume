@@ -81,7 +81,10 @@ export const getContextMenuGroups = (
     groups.push([
       item('paragraphBefore', '在所选块前插入段落'),
       item('paragraphAfter', '在所选块后插入段落'),
-      item('deleteNode', '删除整个所选块'),
+      item(
+        'deleteNode',
+        context.node?.node.type.name === 'table' ? '删除整个表格' : '删除整个所选块',
+      ),
     ])
   if (context.containers.includes('table'))
     groups.push([

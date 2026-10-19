@@ -134,11 +134,6 @@ onMounted(() => void renderPreviewExtensions())
   border: 1px solid var(--lume-border-default);
   border-radius: var(--lume-radius-sm);
 }
-.lume-preview-pane__content :deep(.lume-preview-selected) {
-  outline: 2px solid var(--lume-accent-default);
-  outline-offset: 3px;
-}
-
 .lume-preview-pane__content {
   flex: 1;
   max-width: var(--lume-preview-max-width);

@@ -1,8 +1,8 @@
-import type { EditorState } from '@milkdown/kit/prose/state'
+import { AllSelection, TextSelection, type EditorState } from '@milkdown/kit/prose/state'
 import { CellSelection, selectedRect } from '@milkdown/kit/prose/tables'
 import type { ContextMenuItem } from '../overlays/contextMenuTypes'
 import { getContextMenuGroups } from './contextMenuItems'
-import { hasSelectedContent, type EditorContext } from './selectionContext'
+import type { EditorContext } from './selectionContext'
 
 export interface SelectionToolbarModel {
   title: string
@@ -16,10 +16,18 @@ export const getSelectionToolbarModel = (
   state: EditorState,
   editable = true,
 ): SelectionToolbarModel | null => {
+  const selected = context.nativeCode
+    ? context.nativeCode.state.selection.ranges.some((range) => !range.empty)
+    : (context.selection instanceof TextSelection || context.selection instanceof AllSelection) &&
+      !context.selection.empty &&
+      Boolean(context.doc.textBetween(context.selection.from, context.selection.to))
+  const objectSelected = context.kind === 'node' && context.node !== null
+  const tableSelected =
+    context.target === 'cells' || (context.kind === 'caret' && context.containers.includes('table'))
+  if (!selected && !objectSelected && !tableSelected) return null
   let title = ''
   let ids: string[] = []
   let placement: SelectionToolbarModel['placement'] = 'range'
-  const selected = hasSelectedContent(context)
   if (context.target === 'text') {
     title = context.containers.includes('table')
       ? '单元格文字'
@@ -36,34 +44,34 @@ export const getSelectionToolbarModel = (
   } else if (context.target === 'inlineCode') {
     title = '行内代码'
     ids = ['copy', 'inlineCode']
-  } else if (context.target === 'image') {
+  } else if (objectSelected && context.target === 'image') {
     title = '图片'
     placement = 'object'
     ids = ['editImage', 'imageLeft', 'imageCenter', 'imageRight', 'resetImageSize']
-  } else if (context.target === 'math') {
+  } else if (objectSelected && context.target === 'math') {
     title = '公式'
     placement = 'object'
     ids = ['editMath', 'copyMath']
-  } else if (context.target === 'code' && selected) {
-    title = context.kind === 'node' ? '代码块' : '选中代码'
-    ids = context.kind === 'node' ? ['copyCode', 'editCodeLanguage'] : ['copy']
-  } else if (
-    context.target === 'cells' ||
-    (context.kind === 'caret' && context.containers.includes('table') && !context.link)
-  ) {
+  } else if (context.target === 'code') {
+    title = objectSelected ? '代码块' : '选中代码'
+    placement = objectSelected ? 'object' : 'range'
+    ids = objectSelected ? ['copyCode', 'editCodeLanguage'] : ['copy']
+  } else if (tableSelected) {
     const rect = selectedRect(state)
-    const selection = state.selection
+    const selection = context.selection
     title =
       selection instanceof CellSelection
-        ? selection.isColSelection()
-          ? `选中 ${rect.right - rect.left} 列`
-          : selection.isRowSelection()
-            ? `选中 ${rect.bottom - rect.top} 行`
-            : `选中 ${rect.bottom - rect.top} × ${rect.right - rect.left} 单元格`
-        : `表格 · 第 ${rect.top + 1} 行 / ${rect.left + 1} 列`
-    placement = selected ? 'range' : 'block'
+        ? selection.isRowSelection() && selection.isColSelection()
+          ? '整个表格'
+          : selection.isColSelection()
+            ? `选中 ${rect.right - rect.left} 列`
+            : selection.isRowSelection()
+              ? `选中 ${rect.bottom - rect.top} 行`
+              : `选中 ${rect.bottom - rect.top} × ${rect.right - rect.left} 单元格`
+        : `表格 · 第 ${rect.top + 1} 行 / 第 ${rect.left + 1} 列`
+    placement = selection instanceof CellSelection ? 'range' : 'block'
     ids = [
-      ...(selected ? ['copy'] : []),
+      ...(selection instanceof CellSelection ? ['copy'] : []),
       'rowAfter',
       'colAfter',
       'alignColumnLeft',
@@ -73,7 +81,7 @@ export const getSelectionToolbarModel = (
   } else if (['mixed', 'all'].includes(context.target)) {
     title = context.target === 'all' ? '整个文档' : '混合选区'
     ids = ['copy', 'cut']
-  } else if (['source', 'footnote', 'rule'].includes(context.target)) {
+  } else if (objectSelected && ['source', 'footnote', 'rule'].includes(context.target)) {
     title =
       context.target === 'source'
         ? '源码节点'
@@ -87,30 +95,11 @@ export const getSelectionToolbarModel = (
         : context.target === 'source'
           ? ['copySource', 'editSource']
           : ['paragraphBefore', 'paragraphAfter']
-  } else if (context.kind === 'node') {
-    title = context.node?.node.type.name === 'table' ? '整个表格' : '整个块'
+  } else if (objectSelected) {
+    const table = context.node?.node.type.name === 'table'
+    title = table ? '整个表格' : '整个块'
     placement = 'object'
-    ids = ['copy']
-  } else if (context.link) {
-    title = '链接'
-    ids = ['editLink', 'openLink', 'copyLink']
-  } else if (
-    context.kind === 'caret' &&
-    context.containers.some((name) =>
-      ['heading', 'list_item', 'blockquote', 'footnote_definition'].includes(name),
-    )
-  ) {
-    title = context.containers.includes('list_item')
-      ? '当前列表项'
-      : context.containers.includes('blockquote')
-        ? '引用块'
-        : context.containers.includes('footnote_definition')
-          ? '脚注定义'
-          : `H${context.blockTypes?.[0]?.slice(-1) ?? ''}`
-    placement = 'block'
-    ids = context.containers.includes('list_item')
-      ? ['indentList', 'outdentList', 'toggleTask']
-      : ['convert']
+    ids = table ? ['copy', 'cut', 'paragraphBefore', 'paragraphAfter', 'deleteNode'] : ['copy']
   } else return null
   const groups = getContextMenuGroups(context, state, editable)
   const entries = groups.flatMap((group) =>
