@@ -48,9 +48,14 @@ export const getActionState = (
       'imageCenter',
       'imageRight',
       'resetImageSize',
+      'copyImageTo',
+      'moveImageTo',
+      'uploadImage',
+      'deleteImageFile',
     ].includes(id)
   )
     enabled = context.target === 'image'
+  else if (/^imageZoom\d+$/.test(id)) enabled = context.target === 'image'
   else if (['editMath', 'copyMath'].includes(id)) enabled = context.target === 'math'
   else if (['copyCode', 'editCodeLanguage'].includes(id)) enabled = context.target === 'code'
   else if (['copySource', 'editSource'].includes(id))
@@ -60,11 +65,19 @@ export const getActionState = (
     enabled = context.kind === 'node' || Boolean(context.node && !context.selection.empty)
   else if (['paragraphBefore', 'paragraphAfter'].includes(id))
     enabled = Boolean(context.node?.node.isBlock)
-  else if (['insertHr', 'insertCode', 'insertTable', 'insertImage'].includes(id))
+  else if (id === 'insertImage')
+    enabled = !context.nativeCode && !context.selection.$from.parent.type.spec.code
+  else if (id === 'insertImageAfter') enabled = ['block', 'text'].includes(context.target)
+  else if (['insertHr', 'insertCode', 'insertTable'].includes(id))
     enabled = ['block', 'text'].includes(context.target)
   else if (!['paste', 'selectAll'].includes(id)) enabled = false
   if (id === 'openLink' && context.link)
     enabled = canOpenEditorLink(String(context.link.mark.attrs.href))
+  if (id === 'deleteImageFile' && context.node)
+    enabled =
+      enabled && !/^(?:https?:|data:|blob:|\/\/)/i.test(String(context.node.node.attrs.src ?? ''))
+  if (/^imageZoom\d+$/.test(id) && context.node)
+    active = context.node.node.attrs.zoom === Number(id.slice(9))
   if (id in markNames) {
     const value = context.marks?.[markNames[id]]
     active = value === 'mixed' ? 'mixed' : value === 'on'

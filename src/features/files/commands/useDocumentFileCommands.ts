@@ -5,6 +5,7 @@
  */
 import { computed } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
+import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
 import {
   readDroppedDocuments,
   saveDocumentFile,
@@ -35,6 +36,9 @@ export function useDocumentFileCommands() {
     const saved = await saveDocumentFile(snapshot, saveAs)
     if (!saved) return false
     completeDocumentSave(document.id, snapshot.content, saved)
+    // 并发编辑仍可能引用暂存图片，等后续完整保存成功后再清理。
+    if (document.content === saved.content)
+      await clearDocumentImageStaging(document.id, snapshot.content)
     return true
   }
 

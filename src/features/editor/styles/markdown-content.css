@@ -173,3 +173,8 @@
   border-radius: var(--lume-radius-md);
   vertical-align: text-bottom;
 }
+
+.lume-markdown-content img.lume-image-standalone {
+  display: block;
+  margin-inline: auto;
+}

@@ -7,6 +7,7 @@ import { onBeforeUnmount, watch } from 'vue'
 import { isTauri } from '@/platform/tauri/client'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { saveDocumentFile } from '@/features/files/services/documentFileService'
+import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
 import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
 import {
   getWorkspaceErrorMessage,
@@ -184,6 +185,8 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
           const saved = await saveDocumentFile(snapshot)
           if (!saved || document.path !== snapshot.path) continue
           completeDocumentSave(document.id, snapshot.content, saved)
+          if (document.content === saved.content)
+            await clearDocumentImageStaging(document.id, snapshot.content)
           saveErrors.delete(document.id)
           workspace.setAutoSaveError(saveErrors.values().next().value ?? null)
           recreateDeletedDocuments.delete(document.id)

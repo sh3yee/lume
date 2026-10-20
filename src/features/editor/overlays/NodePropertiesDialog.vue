@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import type { PropertyForm } from './contextMenuTypes'
 
 const props = defineProps<{ form: PropertyForm }>()
 const emit = defineEmits<{ close: []; submit: [values: Record<string, string>] }>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const values = ref(Object.fromEntries(props.form.fields.map((field) => [field.key, field.value])))
-const handleSubmit = () => emit('submit', values.value)
+const handleSubmit = () => {
+  if (!props.form.busy) emit('submit', { ...values.value })
+}
+watch(
+  () => props.form.fields,
+  (fields) => {
+    for (const field of fields) if (!values.value[field.key]) values.value[field.key] = field.value
+  },
+)
 onMounted(() => dialog.value?.showModal())
 </script>
 
@@ -35,7 +43,7 @@ onMounted(() => dialog.value?.showModal())
       </label>
       <div class="lume-node-properties__actions">
         <button type="button" @click="emit('close')">取消</button>
-        <button type="submit">保存</button>
+        <button type="submit" :disabled="form.busy">{{ form.busy ? '处理中…' : '保存' }}</button>
       </div>
     </form>
   </dialog>

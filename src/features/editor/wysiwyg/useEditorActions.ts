@@ -1,15 +1,23 @@
 import { nextTick, shallowRef } from 'vue'
 import { editorViewCtx, remarkCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
+import { closeHistory } from '@milkdown/kit/prose/history'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import type { PropertyForm } from '../overlays/contextMenuTypes'
 import { deleteMathBlock } from '../extensions/math/commands'
 import { goToFootnoteDefinition } from '../extensions/footnotes/commands'
-import { insertBlock } from './blockCommands'
 import { getActionState } from './actionState'
+import { insertBlock } from './blockCommands'
 import { pasteCodeClipboard, cutCodeSelection } from './codeClipboard'
 import { restoreEditorContext, type EditorContext } from './selectionContext'
 import type { createEditorCommands } from './editorCommands'
+import {
+  operateImageFile,
+  rebaseImageSource,
+  type ImageFileOperation,
+} from '@/features/images/services/imageFileOperations'
+import { useDocument } from '@/features/documents/model/useDocument'
+import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
 
 export const useEditorActions = (options: {
   getEditor: () => Editor | null
@@ -67,14 +75,6 @@ export const useEditorActions = (options: {
           { key: 'title', label: '标题', value: String(attrs.title ?? '') },
         ],
       },
-      insertImage: {
-        title: '插入图片',
-        fields: [
-          { key: 'src', label: '图片地址', value: '', required: true },
-          { key: 'alt', label: '图片说明', value: '' },
-          { key: 'title', label: '标题', value: '' },
-        ],
-      },
       editMath: {
         title: '编辑公式源码',
         fields: [
@@ -106,13 +106,70 @@ export const useEditorActions = (options: {
   }
   const execute = (id: string, target: EditorContext) => {
     let allowed = false
+    let targetMarkdown = ''
     options.getEditor()?.action((ctx) => {
       const view = ctx.get(editorViewCtx)
       allowed =
         restore(view, target) &&
         !getActionState(view.state, target, id, view.editable !== false).disabled
+      if (allowed && ['copyImageTo', 'moveImageTo', 'uploadImage', 'deleteImageFile'].includes(id))
+        targetMarkdown = ctx.get(serializerCtx)(view.state.doc)
     })
     if (!allowed) return
+    if (
+      ['copyImageTo', 'moveImageTo', 'uploadImage', 'deleteImageFile'].includes(id) &&
+      target.node
+    ) {
+      const { activeDocument, documents, updateDocumentContent, persistDocumentSession } =
+        useDocument()
+      const document = activeDocument.value
+      if (!document) return
+      const src = String(target.node.node.attrs.src ?? '')
+      const snapshot = {
+        id: document.id,
+        path: document.path,
+        content: targetMarkdown || document.content,
+      }
+      void operateImageFile(id as ImageFileOperation, src, snapshot)
+        .then(async (replacement) => {
+          if (replacement === null) return
+          const current = documents.value.find((document) => document.id === snapshot.id)
+          if (current) replacement = await rebaseImageSource(replacement, snapshot, current)
+          if (!options.isActive() || !options.getEditor()) {
+            if (current) {
+              // 文件操作完成后即使切换了标签，也更新原文档的引用。
+              const next = replaceMarkdownImageSources(
+                current.content,
+                new Map([[src, replacement]]),
+              )
+              updateDocumentContent(snapshot.id, next)
+              persistDocumentSession()
+            }
+            return
+          }
+          options.getEditor()?.action((ctx) => {
+            const view = ctx.get(editorViewCtx)
+            if (!options.isActive() || view.isDestroyed) return
+            let tr = view.state.tr
+            const images: Array<{ pos: number; size: number }> = []
+            view.state.doc.descendants((node, pos) => {
+              if (node.type.name === 'image' && node.attrs.src === src)
+                images.push({ pos, size: node.nodeSize })
+            })
+            for (const image of images.reverse()) {
+              tr = replacement
+                ? tr.setNodeAttribute(image.pos, 'src', replacement)
+                : tr.delete(image.pos, image.pos + image.size)
+            }
+            if (tr.docChanged) view.dispatch(tr.scrollIntoView())
+            options.onSuccess?.(id === 'deleteImageFile' ? '图片及原文件已删除' : '图片路径已更新')
+          })
+        })
+        .catch((error: unknown) =>
+          options.onError(error instanceof Error ? error.message : String(error)),
+        )
+      return
+    }
     if (id === 'copyMath' && target.node) {
       void copyText(String(target.node.node.attrs.value ?? '')).then((copied) => {
         if (copied && options.isActive()) options.onSuccess?.('公式源码已复制')
@@ -128,11 +185,7 @@ export const useEditorActions = (options: {
       })
       return
     }
-    if (
-      ['editImage', 'insertImage', 'editMath', 'editLink', 'setLink', 'editCodeLanguage'].includes(
-        id,
-      )
-    ) {
+    if (['editImage', 'editMath', 'editLink', 'setLink', 'editCodeLanguage'].includes(id)) {
       openProperties(id, target)
       return
     }
@@ -149,6 +202,30 @@ export const useEditorActions = (options: {
       const view = ctx.get(editorViewCtx)
       if (!restore(view, target)) return
       focusTarget(view, target)
+      if (id === 'insertImage' || id === 'insertImageAfter') {
+        const image = view.state.schema.nodes.image.create({
+          src: '',
+          alt:
+            id === 'insertImage'
+              ? target.doc.textBetween(target.selection.from, target.selection.to, ' ', '')
+              : '',
+        })
+        const tr =
+          id === 'insertImageAfter'
+            ? insertBlock(view.state, view.state.schema.nodes.paragraph.create(null, image))
+            : view.state.tr.replaceSelectionWith(image, false)
+        const pos =
+          tr.selection.$from.nodeBefore?.type === image.type
+            ? tr.selection.from - image.nodeSize
+            : tr.selection.from
+        tr.setSelection(NodeSelection.create(tr.doc, pos))
+        view.dispatch(closeHistory(tr).scrollIntoView())
+        const dom = view.nodeDOM(pos)
+        if (dom instanceof HTMLElement)
+          dom.querySelector<HTMLInputElement>('.lume-image-path__input')?.focus()
+        options.onAfterAction?.(view)
+        return
+      }
       if (
         target.target === 'code' &&
         target.kind === 'node' &&
@@ -232,6 +309,8 @@ export const useEditorActions = (options: {
             ? deleteMathBlock(view.state, node.pos)
             : view.state.tr.delete(node.pos, node.pos + node.node.nodeSize)
         if (tr) view.dispatch(tr.scrollIntoView())
+      } else if (/^imageZoom\d+$/.test(id) && node) {
+        view.dispatch(view.state.tr.setNodeAttribute(node.pos, 'zoom', Number(id.slice(9))))
       } else if (id.startsWith('image') && node) {
         const align = (
           { imageLeft: 'left', imageCenter: 'center', imageRight: 'right' } as Record<
@@ -241,8 +320,15 @@ export const useEditorActions = (options: {
         )[id]
         if (align && node.node.attrs.align !== align)
           view.dispatch(view.state.tr.setNodeAttribute(node.pos, 'align', align))
-      } else if (id === 'resetImageSize' && node && node.node.attrs.zoom !== 100)
-        view.dispatch(view.state.tr.setNodeAttribute(node.pos, 'zoom', 100))
+      } else if (id === 'resetImageSize' && node)
+        view.dispatch(
+          view.state.tr.setNodeMarkup(node.pos, undefined, {
+            ...node.node.attrs,
+            zoom: 100,
+            width: '',
+            height: '',
+          }),
+        )
       else if (['paragraphBefore', 'paragraphAfter'].includes(id) && node) {
         const pos = id === 'paragraphBefore' ? node.pos : node.pos + node.node.nodeSize
         const tr = view.state.tr.insert(pos, view.state.schema.nodes.paragraph.create())
@@ -263,6 +349,7 @@ export const useEditorActions = (options: {
     })
   }
   const submitProperties = (values: Record<string, string>) => {
+    if (propertyForm.value?.busy) return
     const target = propertyTarget
     const action = propertyAction
     options.getEditor()?.action((ctx) => {
@@ -338,10 +425,6 @@ export const useEditorActions = (options: {
           from === to
             ? tr.insertText(values.href, from, to).addMark(from, from + values.href.length, mark)
             : tr.addMark(from, to, mark)
-      } else if (action === 'insertImage') {
-        const image = view.state.schema.nodes.image.create({ ...values, src: values.src.trim() })
-        const paragraph = view.state.schema.nodes.paragraph.create(null, image)
-        tr = insertBlock(view.state, paragraph)
       } else if (target.node) {
         const node = target.node
         tr = tr.setNodeMarkup(node.pos, undefined, { ...node.node.attrs, ...values })

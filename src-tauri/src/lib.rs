@@ -13,8 +13,9 @@ mod services;
 use commands::{
     files::lume_read_markdown_file,
     images::{
-        lume_clear_staged_images, lume_import_image_file, lume_materialize_staged_images,
-        lume_resolve_image_path, lume_store_clipboard_image,
+        lume_clear_staged_images, lume_delete_image_file, lume_import_image_file,
+        lume_materialize_staged_images, lume_read_clipboard_image_paths, lume_resolve_image_path,
+        lume_store_clipboard_image, lume_transfer_image, lume_upload_image_files,
     },
     system::{lume_health_check, lume_open_web_url, lume_reveal_file, lume_startup_file_paths},
     workspace::{
@@ -35,6 +36,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             lume_clear_staged_images,
+            lume_delete_image_file,
             lume_create_workspace_entry,
             lume_delete_workspace_entry,
             lume_health_check,
@@ -42,12 +44,15 @@ pub fn run() {
             lume_import_image_file,
             lume_materialize_staged_images,
             lume_read_markdown_file,
+            lume_read_clipboard_image_paths,
             lume_read_workspace,
             lume_move_workspace_entry,
             lume_rename_workspace_entry,
             lume_resolve_image_path,
             lume_startup_file_paths,
             lume_store_clipboard_image,
+            lume_transfer_image,
+            lume_upload_image_files,
             lume_start_workspace_watcher,
             lume_stop_workspace_watcher,
             lume_reveal_file

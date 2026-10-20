@@ -29,10 +29,16 @@ import {
   getPendingEditorMarkdown,
 } from '@/features/editor/wysiwyg/editorLifecycle'
 import { insertNativeImagePaths } from '@/features/editor/extensions/images'
+import type { ImageInputAttributes } from '@/features/editor/wysiwyg/imageInput'
+import { resolveSelectionContext } from '@/features/editor/wysiwyg/selectionContext'
+import { chooseImageFiles } from '@/features/images/services/imageFileOperations'
+import { setDocumentImageMetadata } from '@/features/images/model/imageSettings'
+import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
 import { useFindReplace } from '@/features/editor/wysiwyg/useFindReplace'
 import {
   importEditorImageFile,
   importEditorImagePath,
+  importEditorImageSource,
   resolveEditorImageSource,
 } from '@/features/images/editor/imageEditorAssets'
 
@@ -184,7 +190,79 @@ const flushPendingMarkdown = () => {
   editor?.action((ctx) => synchronizeMarkdown(markdown, ctx.get(editorViewCtx)))
 }
 
-defineExpose({ flushPendingMarkdown })
+const insertLocalImages = async () => {
+  const document = activeDocument.value
+  if (!document || !editor) return
+  const documentId = document.id
+  const paths = await chooseImageFiles()
+  if (!paths.length || disposed || activeDocument.value?.id !== documentId) return
+  editor.action((ctx) => {
+    void insertNativeImagePaths(
+      ctx.get(editorViewCtx),
+      { paths },
+      {
+        importPath: (path) => importEditorImagePath(path, document.path, documentId, content.value),
+        isActive: () => !disposed && activeDocument.value?.id === documentId,
+      },
+    )
+  })
+}
+
+const insertImage = () =>
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    actions.execute('insertImage', resolveSelectionContext(view.state))
+  })
+
+const replaceImageSources = (replacements: ReadonlyMap<string, string>) =>
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    let tr = view.state.tr
+    view.state.doc.descendants((node, pos) => {
+      const replacement =
+        node.type.name === 'image' ? replacements.get(String(node.attrs.src)) : undefined
+      if (replacement !== undefined) tr = tr.setNodeAttribute(pos, 'src', replacement)
+      if (node.type.name === 'html' && typeof node.attrs.value === 'string') {
+        const next = replaceMarkdownImageSources(node.attrs.value, replacements)
+        if (next !== node.attrs.value) tr = tr.setNodeAttribute(pos, 'value', next)
+      }
+    })
+    if (tr.docChanged) view.dispatch(tr)
+    flushPendingMarkdown()
+  })
+
+const setImageMetadata = (key: 'typora-copy-images-to' | 'typora-root-url', value: string | null) =>
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const source = ctx.get(serializerCtx)(view.state.doc)
+    const next = ctx.get(parserCtx)(setDocumentImageMetadata(source, key, value))
+    if (!next) return
+    const previous = view.state.doc.firstChild
+    const matter = next.firstChild?.type.name === 'front_matter' ? next.firstChild : null
+    const tr =
+      previous?.type.name === 'front_matter'
+        ? matter
+          ? view.state.tr.replaceWith(0, previous.nodeSize, matter)
+          : view.state.tr.delete(0, previous.nodeSize)
+        : matter
+          ? view.state.tr.insert(0, matter)
+          : null
+    if (tr?.docChanged) view.dispatch(tr)
+    flushPendingMarkdown()
+  })
+
+const handleImageError = (event: Event) => {
+  if (!disposed)
+    commandError.value = String((event as CustomEvent<unknown>).detail ?? '图片操作失败')
+}
+
+defineExpose({
+  flushPendingMarkdown,
+  insertLocalImages,
+  insertImage,
+  replaceImageSources,
+  setImageMetadata,
+})
 
 function closeContextMenu() {
   closeMenuTarget()
@@ -248,7 +326,7 @@ function handleNativeImageDrop(event: Event) {
     const documentPath = activeDocument.value?.path ?? null
     if (!documentId) return
     void insertNativeImagePaths(ctx.get(editorViewCtx), detail, {
-      importPath: (path) => importEditorImagePath(path, documentPath, documentId),
+      importPath: (path) => importEditorImagePath(path, documentPath, documentId, content.value),
       isActive: () => activeDocument.value?.id === documentId,
     })
   })
@@ -263,9 +341,46 @@ onMounted(async () => {
     async importImageFile(file) {
       const documentId = activeDocument.value?.id
       if (!documentId) return null
-      return importEditorImageFile(file, activeDocument.value?.path ?? null, documentId)
+      return importEditorImageFile(
+        file,
+        activeDocument.value?.path ?? null,
+        documentId,
+        content.value,
+      )
     },
+    importImageSource: (src) =>
+      importEditorImageSource(
+        src,
+        activeDocument.value?.path ?? null,
+        boundDocumentId ?? '',
+        content.value,
+      ),
     isDocumentActive: () => activeDocument.value?.id === boundDocumentId,
+    async selectImages() {
+      const document = activeDocument.value
+      if (!document || document.id !== boundDocumentId) return []
+      const documentPath = document.path
+      const isActive = () => !disposed && activeDocument.value?.id === document.id
+      const paths = await chooseImageFiles()
+      if (!paths.length || !isActive()) return []
+      const markdown =
+        editor?.action((ctx) => ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc)) ??
+        content.value
+      const images: ImageInputAttributes[] = []
+      for (const path of paths) {
+        if (!isActive()) return []
+        try {
+          const src = await importEditorImagePath(path, documentPath, document.id, markdown)
+          if (!isActive()) return []
+          const fileName = path.split(/[\\/]/).at(-1) ?? 'image'
+          images.push({ src, alt: fileName.replace(/\.[^.]+$/, '') || 'image', title: '' })
+        } catch (error) {
+          if (!isActive()) return []
+          commandError.value = error instanceof Error ? error.message : String(error)
+        }
+      }
+      return images
+    },
     onImageSelect: (view) => selectionControls.schedule(view),
     onViewUpdate(view) {
       if (!synchronizedDoc) {
@@ -282,10 +397,14 @@ onMounted(async () => {
       if (boundDocumentId) updateDocumentCursor(boundDocumentId, line, column)
     },
     resolveImageSource(src) {
+      const currentContent =
+        editor?.action((ctx) => ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc)) ??
+        content.value
       return resolveEditorImageSource(
         src,
         activeDocument.value?.path ?? null,
         activeDocument.value?.id ?? '',
+        currentContent,
       )
     },
   })
@@ -324,6 +443,7 @@ onMounted(async () => {
   window.addEventListener('resize', handleWindowResize)
   window.addEventListener('keydown', handleWindowKeydown)
   window.addEventListener('lume:image-drop', handleNativeImageDrop)
+  window.addEventListener('lume:image-error', handleImageError)
 })
 
 /** 打开文件或新建文档时，将外部 Markdown 更新到 Milkdown。 */
@@ -347,6 +467,17 @@ watch(content, (markdown) => {
   replaceEditorMarkdown(editor, markdown)
 })
 
+watch(
+  () => activeDocument.value?.path,
+  () => {
+    void nextTick(() =>
+      editor?.action((ctx) =>
+        ctx.get(editorViewCtx).dom.dispatchEvent(new Event('lume:image-refresh')),
+      ),
+    )
+  },
+)
+
 onBeforeUnmount(() => {
   // 模式或标签切换时，补齐 Milkdown 防抖回调尚未写入 Store 的编辑。
   flushPendingMarkdown()
@@ -359,6 +490,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('keydown', handleWindowKeydown)
   window.removeEventListener('lume:image-drop', handleNativeImageDrop)
+  window.removeEventListener('lume:image-error', handleImageError)
   void destroyWysiwygEditor(editor)
   editor = null
 })
@@ -569,16 +701,37 @@ onBeforeUnmount(() => {
   display: inline-block;
   box-sizing: border-box;
   max-width: 100%;
-  margin: 0 var(--lume-space-3);
+  margin: 0;
   line-height: 0;
   vertical-align: text-bottom;
 }
 
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer img) {
+  display: block;
+  max-width: 100%;
   width: 100%;
   height: auto;
   margin: 0;
   user-select: none;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-standalone[data-align='auto']) {
+  display: block;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-align='left']) {
+  display: block;
+  margin-right: auto;
+  margin-left: 0;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-error='true']) {
+  min-width: 64px;
+  min-height: 28px;
+  line-height: 1.5;
+  outline: 1px dashed var(--lume-border-strong);
 }
 
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-align='center']) {
@@ -591,6 +744,18 @@ onBeforeUnmount(() => {
   display: block;
   margin-right: 0;
   margin-left: auto;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-path-editor='true']) {
+  display: inline-block;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+.lume-wysiwyg-pane__content :deep(.lume-image-resizer[data-path-editor='true'] > img),
+.lume-wysiwyg-pane__content
+  :deep(.lume-image-resizer[data-path-editor='true'] > .lume-image-resizer__handle) {
+  display: none;
 }
 
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer.ProseMirror-selectednode) {
@@ -617,6 +782,7 @@ onBeforeUnmount(() => {
   background-color: var(--lume-accent-default);
   box-shadow: var(--lume-shadow-sm);
   cursor: nwse-resize;
+  touch-action: none;
   opacity: 0;
   pointer-events: none;
 }

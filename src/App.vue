@@ -4,6 +4,7 @@
       :theme="resolvedTheme"
       @open-settings="openSettings"
       @close-window="handleCloseWindow"
+      @image-command="imageCommands.execute"
     />
 
     <div class="lume-app__body">
@@ -102,13 +103,17 @@ import { useWorkspaceLifecycle } from '@/app/lifecycle/useWorkspaceLifecycle'
 import { useThemePreference } from '@/app/preferences/useThemePreference'
 import { useWritingPreference } from '@/app/preferences/useWritingPreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
+import {
+  useImageCommands,
+  type ImageCommandEditor,
+} from '@/features/images/editor/useImageCommands'
 
 /** 工作模式：所见即所得 | 分栏（源码+预览） */
 type ViewMode = 'wysiwyg' | 'split'
 
 const viewMode = ref<ViewMode>('wysiwyg')
-const wysiwygPaneRef = ref<{ flushPendingMarkdown: () => void } | null>(null)
-const sourceEditorRef = ref<{ focus: () => void } | null>(null)
+const wysiwygPaneRef = ref<ImageCommandEditor | null>(null)
+const sourceEditorRef = ref<(ImageCommandEditor & { focus: () => void }) | null>(null)
 const sidebarVisible = ref(false)
 const focusMode = ref(false)
 const splitScrollRatio = ref(0)
@@ -128,6 +133,7 @@ const commandPalette = useCommandPalette({
   },
   openSettings,
   closeActiveDocument,
+  onImageCommand: (id) => imageCommands.execute(id),
 })
 const commandPaletteOpen = commandPalette.isOpen
 const commandPaletteItems = commandPalette.items
@@ -147,6 +153,10 @@ const {
 const { themePreference, resolvedTheme } = useThemePreference()
 const { writingWidth, fontScale, githubAlerts } = useWritingPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
+const imageCommands = useImageCommands({
+  getEditor: () => (viewMode.value === 'wysiwyg' ? wysiwygPaneRef.value : sourceEditorRef.value),
+  onMessage: showMessage,
+})
 const { externalConflict, keepLocalChanges, reloadConflictedDocument } =
   useWorkspaceLifecycle(showMessage)
 const { flushDocumentSession } = useDocumentSessionPersistence(
@@ -176,7 +186,7 @@ function handleSplitScrollRatio(value: number) {
 
 /** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
 async function handleCloseWindow() {
-  wysiwygPaneRef.value?.flushPendingMarkdown()
+  wysiwygPaneRef.value?.flushPendingMarkdown?.()
   flushDocumentSession()
   requestCloseDocuments(
     documents.value
@@ -195,6 +205,7 @@ const { closeApplicationWindow } = useWindowPersistence(handleCloseWindow)
 
 async function saveCurrentFile(saveAs = false) {
   try {
+    wysiwygPaneRef.value?.flushPendingMarkdown?.()
     await saveFile(saveAs)
   } catch (error) {
     showMessage(`保存失败：${getErrorMessage(error)}`)

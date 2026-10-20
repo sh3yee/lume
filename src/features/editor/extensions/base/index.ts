@@ -2,6 +2,7 @@ import { type Editor } from '@milkdown/kit/core'
 import {
   commonmark,
   insertHrInputRule,
+  insertImageInputRule,
   remarkInlineLinkPlugin,
 } from '@milkdown/kit/preset/commonmark'
 import MarkdownIt from 'markdown-it'
@@ -15,7 +16,10 @@ export function useBaseWysiwygExtension(editor: Editor) {
   return editor
     .use(
       commonmark.filter(
-        (plugin) => plugin !== insertHrInputRule && !remarkInlineLinkPlugin.includes(plugin),
+        (plugin) =>
+          plugin !== insertHrInputRule &&
+          plugin !== insertImageInputRule &&
+          !remarkInlineLinkPlugin.includes(plugin),
       ),
     )
     .use(preservedReferences)

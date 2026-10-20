@@ -1,3 +1,4 @@
+import type { ImageInputAttributes } from '../wysiwyg/imageInput'
 import { type Editor } from '@milkdown/kit/core'
 import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
@@ -19,6 +20,8 @@ export function useWysiwygMarkdownExtensions(
   editor: Editor,
   options: {
     importImageFile: (file: File) => Promise<string | null>
+    importImageSource?: (src: string) => Promise<string>
+    selectImages?: () => Promise<ImageInputAttributes[]>
     isDocumentActive: () => boolean
     onImageSelect: (view: EditorView, selection: NodeSelection) => void
     resolveImageSource: (src: string) => string | Promise<string>
@@ -31,6 +34,8 @@ export function useWysiwygMarkdownExtensions(
   const baseEditor = useCalloutsWysiwygExtension(documentEditor)
   const imageEditor = useImagesWysiwygExtension(baseEditor, {
     importFile: options.importImageFile,
+    importImageSource: options.importImageSource,
+    selectImages: options.selectImages,
     isActive: options.isDocumentActive,
     onSelect: options.onImageSelect,
     resolveSource: options.resolveImageSource,

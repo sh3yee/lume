@@ -45,6 +45,7 @@ export const getSelectionToolbarModel = (
     title = '行内代码'
     ids = ['copy', 'inlineCode']
   } else if (objectSelected && context.target === 'image') {
+    if (!context.node?.node.attrs.src) return null
     title = '图片'
     placement = 'object'
     ids = ['editImage', 'imageLeft', 'imageCenter', 'imageRight', 'resetImageSize']

@@ -8,13 +8,11 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Copy, Minus, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
+import ImageMenu from '@/features/images/components/ImageMenu.vue'
+import type { ImageCommand } from '@/features/images/model/imageCommands'
 import lightLogoUrl from '@/assets/lume-logo-light.png'
 import darkLogoUrl from '@/assets/lume-logo-dark.png'
-import {
-  isWindowMaximized,
-  minimizeWindow,
-  toggleMaximizeWindow,
-} from '@/platform/tauri/window'
+import { isWindowMaximized, minimizeWindow, toggleMaximizeWindow } from '@/platform/tauri/window'
 
 type ResolvedTheme = 'light' | 'dark' | 'glass'
 
@@ -30,6 +28,7 @@ const contextMenuPosition = ref({ x: 0, y: 0 })
 const emit = defineEmits<{
   (e: 'open-settings'): void
   (e: 'close-window'): void
+  (e: 'image-command', id: ImageCommand): void
 }>()
 
 function closeContextMenu() {
@@ -114,10 +113,21 @@ onBeforeUnmount(() => {
 <template>
   <header class="lume-titlebar" data-tauri-drag-region @contextmenu.prevent="openContextMenu">
     <div class="lume-titlebar__left" data-tauri-drag-region>
-     <button class="lume-titlebar__logo" type="button" title="偏好设置" aria-label="打开偏好设置" data-tauri-drag-region="false"
-        @click="emit('open-settings')">
-        <img class="lume-titlebar__logo-image" :src="props.theme === 'dark' ? darkLogoUrl : lightLogoUrl" alt="" />
+      <button
+        class="lume-titlebar__logo"
+        type="button"
+        title="偏好设置"
+        aria-label="打开偏好设置"
+        data-tauri-drag-region="false"
+        @click="emit('open-settings')"
+      >
+        <img
+          class="lume-titlebar__logo-image"
+          :src="props.theme === 'dark' ? darkLogoUrl : lightLogoUrl"
+          alt=""
+        />
       </button>
+      <ImageMenu @command="emit('image-command', $event)" />
     </div>
 
     <div class="lume-titlebar__center" data-tauri-drag-region>
@@ -126,19 +136,34 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="lume-titlebar__right" data-tauri-drag-region="false">
-      <button class="lume-titlebar__window-control" type="button" title="最小化" aria-label="最小化窗口"
-        @click="runMinimize">
+      <button
+        class="lume-titlebar__window-control"
+        type="button"
+        title="最小化"
+        aria-label="最小化窗口"
+        @click="runMinimize"
+      >
         <Minus :size="16" :stroke-width="1.5" />
       </button>
 
-      <button class="lume-titlebar__window-control" type="button" :title="isMaximized ? '还原' : '最大化'"
-        :aria-label="isMaximized ? '还原窗口' : '最大化窗口'" @click="handleToggleMaximize">
+      <button
+        class="lume-titlebar__window-control"
+        type="button"
+        :title="isMaximized ? '还原' : '最大化'"
+        :aria-label="isMaximized ? '还原窗口' : '最大化窗口'"
+        @click="handleToggleMaximize"
+      >
         <Copy v-if="isMaximized" :size="14" :stroke-width="1.5" />
         <Square v-else :size="13" :stroke-width="1.5" />
       </button>
 
-      <button class="lume-titlebar__window-control lume-titlebar__window-control--close" type="button" title="关闭"
-        aria-label="关闭应用" @click="emit('close-window')">
+      <button
+        class="lume-titlebar__window-control lume-titlebar__window-control--close"
+        type="button"
+        title="关闭"
+        aria-label="关闭应用"
+        @click="emit('close-window')"
+      >
         <X :size="17" :stroke-width="1.5" />
       </button>
     </div>
@@ -256,7 +281,9 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--lume-text-secondary);
   cursor: default;
-  transition: background-color var(--lume-transition-fast), color var(--lume-transition-fast);
+  transition:
+    background-color var(--lume-transition-fast),
+    color var(--lume-transition-fast);
 }
 
 .lume-titlebar__window-control:hover {

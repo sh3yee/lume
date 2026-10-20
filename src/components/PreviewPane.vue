@@ -164,9 +164,10 @@ onMounted(() => void renderPreviewExtensions())
   background-color: var(--lume-border-strong);
 }
 
-/* Preview 图片保留只读排版所需的额外间距。 */
-.lume-preview-pane__content :deep(img) {
-  margin-inline: var(--lume-space-3);
+/* 仅独占一段的图片自动居中，行内图片跟随文字排版。 */
+.lume-preview-pane__content :deep(img.lume-image-standalone) {
+  display: block;
+  margin-inline: auto;
 }
 
 .lume-preview-pane__content :deep(img[style*='display: block']) {

@@ -1,6 +1,6 @@
 import { isTauri } from '@/platform/tauri/client'
 import { readDroppedMarkdownFile } from '@/platform/tauri/files'
-import { clearDocumentImageStaging, prepareDocumentImages } from '@/features/images/services/imageAssetService'
+import { prepareDocumentImages } from '@/features/images/services/imageAssetService'
 import { openBrowserDocument, saveBrowserDocument } from '@/platform/browser/files'
 import { openDocument, selectSavePath, writeDocument } from '@/platform/tauri/files'
 
@@ -40,12 +40,15 @@ export async function readDroppedDocuments(paths: string[]) {
   return { files, result }
 }
 
-export async function saveDocumentFile(document: {
-  content: string
-  id: string
-  name: string
-  path: string | null
-}, saveAs = false) {
+export async function saveDocumentFile(
+  document: {
+    content: string
+    id: string
+    name: string
+    path: string | null
+  },
+  saveAs = false,
+) {
   if (!isTauri()) {
     saveBrowserDocument(document.content, document.name)
     return { content: document.content, name: document.name, path: document.path }
@@ -55,6 +58,5 @@ export async function saveDocumentFile(document: {
   if (!path) return null
   const content = await prepareDocumentImages(document.content, path, document.id)
   await writeDocument(path, content)
-  await clearDocumentImageStaging(document.id)
   return { content, name: path.split(/[\\/]/).pop() || document.name, path }
 }

@@ -5,6 +5,7 @@
  * UI 组件只负责展示和输入，不直接持有业务状态。
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { IMAGE_COMMANDS, type ImageCommand } from '@/features/images/model/imageCommands'
 
 export interface CommandPaletteItem {
   id: string
@@ -23,6 +24,7 @@ export interface CommandPaletteActions {
   toggleViewMode: () => void
   openSettings: () => void
   closeActiveDocument: () => void
+  onImageCommand?: (id: ImageCommand) => unknown
 }
 
 export function useCommandPalette(actions: CommandPaletteActions) {
@@ -37,6 +39,14 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     { id: 'toggle-focus-mode', label: '切换专注模式', hint: '写作' },
     { id: 'toggle-settings', label: '偏好设置', hint: 'Ctrl+,' },
     { id: 'close-document', label: '关闭当前文档', hint: 'Ctrl+W' },
+    ...(actions.onImageCommand
+      ? IMAGE_COMMANDS.map((command) => ({
+          id: command.id,
+          label: command.label,
+          hint: 'hint' in command ? command.hint : undefined,
+          group: '图片',
+        }))
+      : []),
   ]
 
   function open() {
@@ -59,6 +69,9 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     if (id === 'toggle-focus-mode') actions.toggleFocusMode()
     if (id === 'toggle-settings') actions.openSettings()
     if (id === 'close-document') actions.closeActiveDocument()
+    if (IMAGE_COMMANDS.some((command) => command.id === id)) {
+      void actions.onImageCommand?.(id as ImageCommand)
+    }
   }
 
   function handleDocumentPointerDown(event: MouseEvent) {

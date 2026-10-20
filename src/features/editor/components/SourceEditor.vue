@@ -6,6 +6,7 @@
  */
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
+import { useSourceImages } from '@/features/images/editor/useSourceImages'
 
 const props = defineProps<{
   syncRatio?: number
@@ -18,7 +19,15 @@ const emit = defineEmits<{
 const { content, updateCursor } = useDocument()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 let isApplyingScrollSync = false
-defineExpose({ focus: () => textareaRef.value?.focus() })
+const images = useSourceImages(textareaRef, (element) => syncCursor(element))
+const { insertLocalImages, insertImage, replaceImageSources, setImageMetadata } = images
+defineExpose({
+  focus: () => textareaRef.value?.focus(),
+  insertLocalImages,
+  insertImage,
+  replaceImageSources,
+  setImageMetadata,
+})
 
 function syncCursor(element: HTMLTextAreaElement) {
   const lines = element.value.substring(0, element.selectionStart).split('\n')
@@ -39,6 +48,7 @@ function handleScroll(event: Event) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  images.handleKeydown(event)
   if (event.key !== 'Tab') return
   event.preventDefault()
   const element = event.target as HTMLTextAreaElement
@@ -86,6 +96,8 @@ onMounted(() => {
       @click="handleCursorChange"
       @keydown="handleKeydown"
       @scroll="handleScroll"
+      @paste="images.handlePaste"
+      @drop="images.handleDrop"
     ></textarea>
   </section>
 </template>

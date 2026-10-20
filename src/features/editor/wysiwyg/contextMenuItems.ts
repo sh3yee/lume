@@ -38,6 +38,16 @@ export const getContextMenuGroups = (
       item('editImage', '替换图片 / 编辑说明'),
       item('copyImageAddress', '复制图片地址'),
       item('copyImageMarkdown', '复制图片 Markdown'),
+      item('moveImageTo', '移动 / 重命名图片…'),
+      item('copyImageTo', '复制图片到…'),
+      item('uploadImage', '上传图片'),
+      {
+        id: 'imageSize',
+        label: '缩放图片',
+        children: [25, 33, 50, 67, 80, 100, 125, 150, 200].map((zoom) =>
+          item(`imageZoom${zoom}`, `${zoom}%`),
+        ),
+      },
       {
         id: 'imageAlign',
         label: '图片对齐',
@@ -48,7 +58,8 @@ export const getContextMenuGroups = (
         ],
       },
       item('resetImageSize', '恢复图片尺寸'),
-      item('deleteNode', '删除当前图片'),
+      item('deleteNode', '移除图片引用'),
+      item('deleteImageFile', '删除图片及原文件…'),
     ])
   if (context.target === 'math')
     groups.push([
@@ -143,7 +154,7 @@ export const getContextMenuGroups = (
           item('insertHr', '分割线'),
           item('insertCode', '代码块'),
           item('insertTable', '表格'),
-          item('insertImage', '图片'),
+          item('insertImageAfter', '图片'),
           item('insertFrontMatter', 'YAML 元数据（文首）'),
           item('insertToc', '目录'),
           {

@@ -1,3 +1,4 @@
+import type { ImageInputAttributes } from './imageInput'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx, serializerCtx } from '@milkdown/kit/core'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
@@ -25,6 +26,8 @@ export async function createWysiwygEditor(options: {
   initialMarkdown: string
   root: HTMLElement
   importImageFile: (file: File) => Promise<string | null>
+  importImageSource?: (src: string) => Promise<string>
+  selectImages?: () => Promise<ImageInputAttributes[]>
   isDocumentActive: () => boolean
   onImageSelect: (view: EditorView, selection: NodeSelection) => void
   onMarkdownChange: (markdown: string, view: EditorView | null) => void

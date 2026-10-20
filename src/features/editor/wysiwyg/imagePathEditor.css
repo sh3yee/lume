@@ -1,0 +1,88 @@
+.lume-image-path[hidden] {
+  display: none;
+}
+
+.lume-image-path {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  color: var(--lume-text-primary);
+  font-family: var(--lume-font-mono);
+  line-height: inherit;
+  white-space: nowrap;
+}
+
+.lume-image-path__input {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 var(--lume-space-3);
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-sm) 0 0 var(--lume-radius-sm);
+  outline: none;
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+  font-family: var(--lume-font-mono);
+  font-size: var(--lume-font-size-sm);
+  font-weight: var(--lume-font-weight-regular);
+  line-height: var(--lume-line-height-tight);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.lume-image-path__input::placeholder {
+  color: var(--lume-text-secondary);
+}
+
+.lume-image-path__input:focus {
+  border-color: var(--lume-accent-default);
+  box-shadow: 0 0 0 2px var(--lume-accent-subtle);
+}
+
+.lume-image-path__input[aria-invalid='true'] {
+  border-color: var(--lume-color-danger);
+}
+
+.lume-image-path__input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 2px var(--lume-color-danger-bg);
+}
+
+.lume-image-path__choose {
+  display: inline-flex;
+  box-sizing: border-box;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--lume-border-default);
+  border-left: 0;
+  border-radius: 0 var(--lume-radius-sm) var(--lume-radius-sm) 0;
+  background: var(--lume-bg-surface);
+  color: var(--lume-text-secondary);
+  cursor: pointer;
+}
+
+.lume-image-path__choose:not(:disabled):hover,
+.lume-image-path__choose:focus-visible {
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
+
+.lume-image-path__choose:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 1px;
+}
+
+.lume-image-path__choose svg {
+  width: 14px;
+  height: 14px;
+}
+
+.lume-image-path__choose:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

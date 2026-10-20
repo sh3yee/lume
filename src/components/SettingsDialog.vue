@@ -5,13 +5,14 @@
  * 使用原生 dialog 提供分类式的应用设置入口。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Columns2, Droplets, Monitor, Moon, Sparkles, Sun, Type, X } from 'lucide-vue-next'
+import { Columns2, Droplets, Image, Monitor, Moon, Sparkles, Sun, Type, X } from 'lucide-vue-next'
+import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
 
 type ViewMode = 'wysiwyg' | 'split'
 type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
 type FontScale = 'small' | 'medium' | 'large'
-type SettingsCategory = 'editor' | 'writing' | 'appearance'
+type SettingsCategory = 'editor' | 'writing' | 'appearance' | 'images'
 
 const props = defineProps<{
   open: boolean
@@ -38,6 +39,7 @@ const activeCategory = ref<SettingsCategory>('editor')
 const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }> = [
   { id: 'editor', label: '编辑', icon: Sparkles },
   { id: 'writing', label: '写作', icon: Type },
+  { id: 'images', label: '图片', icon: Image },
   { id: 'appearance', label: '外观', icon: Droplets },
 ]
 
@@ -83,16 +85,26 @@ onBeforeUnmount(() => dialogRef.value?.close())
           <h2 id="settings-title" class="lume-settings__title">偏好设置</h2>
           <p class="lume-settings__description">让写作空间更符合你的习惯。</p>
         </div>
-        <button class="lume-settings__close" type="button" aria-label="关闭设置" @click="emit('close')">
+        <button
+          class="lume-settings__close"
+          type="button"
+          aria-label="关闭设置"
+          @click="emit('close')"
+        >
           <X :size="17" :stroke-width="1.6" />
         </button>
       </header>
 
       <div class="lume-settings__body">
         <nav class="lume-settings__sidebar" aria-label="设置分类">
-          <button v-for="category in categoryMeta" :key="category.id" type="button" class="lume-settings__nav-item"
+          <button
+            v-for="category in categoryMeta"
+            :key="category.id"
+            type="button"
+            class="lume-settings__nav-item"
             :class="{ 'lume-settings__nav-item--active': activeCategory === category.id }"
-            @click="activeCategory = category.id">
+            @click="activeCategory = category.id"
+          >
             <component :is="category.icon" :size="16" :stroke-width="1.7" />
             <span>{{ category.label }}</span>
           </button>
@@ -106,9 +118,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
 
             <div class="lume-settings__options" role="radiogroup" aria-label="编辑模式">
-              <button class="lume-settings__option" :class="{ 'lume-settings__option--active': viewMode === 'wysiwyg' }"
-                type="button" role="radio" :aria-checked="viewMode === 'wysiwyg'"
-                @click="emit('update:view-mode', 'wysiwyg')">
+              <button
+                class="lume-settings__option"
+                :class="{ 'lume-settings__option--active': viewMode === 'wysiwyg' }"
+                type="button"
+                role="radio"
+                :aria-checked="viewMode === 'wysiwyg'"
+                @click="emit('update:view-mode', 'wysiwyg')"
+              >
                 <span class="lume-settings__option-icon">
                   <Sparkles :size="19" :stroke-width="1.6" />
                 </span>
@@ -119,9 +136,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 <span class="lume-settings__check"></span>
               </button>
 
-              <button class="lume-settings__option" :class="{ 'lume-settings__option--active': viewMode === 'split' }"
-                type="button" role="radio" :aria-checked="viewMode === 'split'"
-                @click="emit('update:view-mode', 'split')">
+              <button
+                class="lume-settings__option"
+                :class="{ 'lume-settings__option--active': viewMode === 'split' }"
+                type="button"
+                role="radio"
+                :aria-checked="viewMode === 'split'"
+                @click="emit('update:view-mode', 'split')"
+              >
                 <span class="lume-settings__option-icon">
                   <Columns2 :size="19" :stroke-width="1.6" />
                 </span>
@@ -134,15 +156,24 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
           </section>
 
-          <section v-if="activeCategory === 'editor'" class="lume-settings__section lume-settings__section--divided">
+          <section
+            v-if="activeCategory === 'editor'"
+            class="lume-settings__section lume-settings__section--divided"
+          >
             <div class="lume-settings__section-heading">
               <h3 class="lume-settings__label">写作模式</h3>
               <p class="lume-settings__hint">切换到更聚焦的界面，减少侧栏和多余信息的干扰。</p>
             </div>
 
             <div class="lume-settings__options" role="radiogroup" aria-label="写作模式">
-              <button class="lume-settings__option" :class="{ 'lume-settings__option--active': !focusMode }"
-                type="button" role="radio" :aria-checked="!focusMode" @click="emit('update:focus-mode', false)">
+              <button
+                class="lume-settings__option"
+                :class="{ 'lume-settings__option--active': !focusMode }"
+                type="button"
+                role="radio"
+                :aria-checked="!focusMode"
+                @click="emit('update:focus-mode', false)"
+              >
                 <span class="lume-settings__option-icon">
                   <Columns2 :size="19" :stroke-width="1.6" />
                 </span>
@@ -153,8 +184,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 <span class="lume-settings__check"></span>
               </button>
 
-              <button class="lume-settings__option" :class="{ 'lume-settings__option--active': focusMode }"
-                type="button" role="radio" :aria-checked="focusMode" @click="emit('update:focus-mode', true)">
+              <button
+                class="lume-settings__option"
+                :class="{ 'lume-settings__option--active': focusMode }"
+                type="button"
+                role="radio"
+                :aria-checked="focusMode"
+                @click="emit('update:focus-mode', true)"
+              >
                 <span class="lume-settings__option-icon">
                   <Sparkles :size="19" :stroke-width="1.6" />
                 </span>
@@ -167,14 +204,29 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
           </section>
 
-          <section v-if="activeCategory === 'editor'" class="lume-settings__section lume-settings__section--divided">
+          <section
+            v-if="activeCategory === 'editor'"
+            class="lume-settings__section lume-settings__section--divided"
+          >
             <div class="lume-settings__section-heading">
               <h3 class="lume-settings__label">GitHub Style Alerts</h3>
-              <p class="lume-settings__hint">将 Note、Tip、Important、Warning、Caution 显示为彩色提示块；关闭后显示引用样式与原始标记。</p>
+              <p class="lume-settings__hint">
+                将 Note、Tip、Important、Warning、Caution
+                显示为彩色提示块；关闭后显示引用样式与原始标记。
+              </p>
             </div>
-            <button type="button" class="lume-settings__option" role="switch" :aria-checked="githubAlerts"
-              :class="{ 'lume-settings__option--active': githubAlerts }" @click="emit('update:github-alerts', !githubAlerts)">
-              <span class="lume-settings__option-copy"><strong>GitHub 提示块样式</strong><small>{{ githubAlerts ? '已启用' : '已关闭' }}</small></span>
+            <button
+              type="button"
+              class="lume-settings__option"
+              role="switch"
+              :aria-checked="githubAlerts"
+              :class="{ 'lume-settings__option--active': githubAlerts }"
+              @click="emit('update:github-alerts', !githubAlerts)"
+            >
+              <span class="lume-settings__option-copy"
+                ><strong>GitHub 提示块样式</strong
+                ><small>{{ githubAlerts ? '已启用' : '已关闭' }}</small></span
+              >
               <span class="lume-settings__check"></span>
             </button>
           </section>
@@ -182,40 +234,83 @@ onBeforeUnmount(() => dialogRef.value?.close())
           <section v-if="activeCategory === 'writing'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
               <h3 class="lume-settings__label">阅读习惯</h3>
-              <p class="lume-settings__hint">调整正文宽度和字号，让长文在屏幕上更舒服地阅读和编辑。</p>
+              <p class="lume-settings__hint">
+                调整正文宽度和字号，让长文在屏幕上更舒服地阅读和编辑。
+              </p>
             </div>
 
             <div class="lume-settings__options lume-settings__options--stacked">
               <div class="lume-settings__inline-group">
                 <span class="lume-settings__inline-label">正文宽度</span>
                 <div class="lume-settings__mini-options" role="radiogroup" aria-label="正文宽度">
-                  <button class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': writingWidth === 'compact' }" type="button"
-                    role="radio" :aria-checked="writingWidth === 'compact'"
-                    @click="emit('update:writing-width', 'compact')">紧凑</button>
-                  <button class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': writingWidth === 'comfortable' }" type="button"
-                    role="radio" :aria-checked="writingWidth === 'comfortable'"
-                    @click="emit('update:writing-width', 'comfortable')">舒适</button>
-                  <button class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': writingWidth === 'wide' }" type="button"
-                    role="radio" :aria-checked="writingWidth === 'wide'"
-                    @click="emit('update:writing-width', 'wide')">宽屏</button>
+                  <button
+                    class="lume-settings__mini-option"
+                    :class="{ 'lume-settings__mini-option--active': writingWidth === 'compact' }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="writingWidth === 'compact'"
+                    @click="emit('update:writing-width', 'compact')"
+                  >
+                    紧凑
+                  </button>
+                  <button
+                    class="lume-settings__mini-option"
+                    :class="{
+                      'lume-settings__mini-option--active': writingWidth === 'comfortable',
+                    }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="writingWidth === 'comfortable'"
+                    @click="emit('update:writing-width', 'comfortable')"
+                  >
+                    舒适
+                  </button>
+                  <button
+                    class="lume-settings__mini-option"
+                    :class="{ 'lume-settings__mini-option--active': writingWidth === 'wide' }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="writingWidth === 'wide'"
+                    @click="emit('update:writing-width', 'wide')"
+                  >
+                    宽屏
+                  </button>
                 </div>
               </div>
 
               <div class="lume-settings__inline-group">
                 <span class="lume-settings__inline-label">正文字号</span>
                 <div class="lume-settings__mini-options" role="radiogroup" aria-label="正文字号">
-                  <button class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': fontScale === 'small' }" type="button" role="radio"
-                    :aria-checked="fontScale === 'small'" @click="emit('update:font-scale', 'small')">小</button>
-                  <button class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': fontScale === 'medium' }" type="button" role="radio"
-                    :aria-checked="fontScale === 'medium'" @click="emit('update:font-scale', 'medium')">中</button>
-                  <button class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': fontScale === 'large' }" type="button" role="radio"
-                    :aria-checked="fontScale === 'large'" @click="emit('update:font-scale', 'large')">大</button>
+                  <button
+                    class="lume-settings__mini-option"
+                    :class="{ 'lume-settings__mini-option--active': fontScale === 'small' }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="fontScale === 'small'"
+                    @click="emit('update:font-scale', 'small')"
+                  >
+                    小
+                  </button>
+                  <button
+                    class="lume-settings__mini-option"
+                    :class="{ 'lume-settings__mini-option--active': fontScale === 'medium' }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="fontScale === 'medium'"
+                    @click="emit('update:font-scale', 'medium')"
+                  >
+                    中
+                  </button>
+                  <button
+                    class="lume-settings__mini-option"
+                    :class="{ 'lume-settings__mini-option--active': fontScale === 'large' }"
+                    type="button"
+                    role="radio"
+                    :aria-checked="fontScale === 'large'"
+                    @click="emit('update:font-scale', 'large')"
+                  >
+                    大
+                  </button>
                 </div>
               </div>
             </div>
@@ -224,36 +319,60 @@ onBeforeUnmount(() => dialogRef.value?.close())
           <section v-if="activeCategory === 'appearance'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
               <h3 class="lume-settings__label">外观主题</h3>
-              <p class="lume-settings__hint">选择舒适的界面配色，毛玻璃主题会朦胧透出窗口后方内容。</p>
+              <p class="lume-settings__hint">
+                选择舒适的界面配色，毛玻璃主题会朦胧透出窗口后方内容。
+              </p>
             </div>
 
             <div class="lume-settings__theme-options" role="radiogroup" aria-label="外观主题">
-              <button class="lume-settings__theme-option"
-                :class="{ 'lume-settings__theme-option--active': theme === 'system' }" type="button" role="radio"
-                :aria-checked="theme === 'system'" @click="emit('update:theme', 'system')">
+              <button
+                class="lume-settings__theme-option"
+                :class="{ 'lume-settings__theme-option--active': theme === 'system' }"
+                type="button"
+                role="radio"
+                :aria-checked="theme === 'system'"
+                @click="emit('update:theme', 'system')"
+              >
                 <Monitor :size="17" :stroke-width="1.6" />
                 <span>跟随系统</span>
               </button>
-              <button class="lume-settings__theme-option"
-                :class="{ 'lume-settings__theme-option--active': theme === 'light' }" type="button" role="radio"
-                :aria-checked="theme === 'light'" @click="emit('update:theme', 'light')">
+              <button
+                class="lume-settings__theme-option"
+                :class="{ 'lume-settings__theme-option--active': theme === 'light' }"
+                type="button"
+                role="radio"
+                :aria-checked="theme === 'light'"
+                @click="emit('update:theme', 'light')"
+              >
                 <Sun :size="17" :stroke-width="1.6" />
                 <span>浅色</span>
               </button>
-              <button class="lume-settings__theme-option"
-                :class="{ 'lume-settings__theme-option--active': theme === 'dark' }" type="button" role="radio"
-                :aria-checked="theme === 'dark'" @click="emit('update:theme', 'dark')">
+              <button
+                class="lume-settings__theme-option"
+                :class="{ 'lume-settings__theme-option--active': theme === 'dark' }"
+                type="button"
+                role="radio"
+                :aria-checked="theme === 'dark'"
+                @click="emit('update:theme', 'dark')"
+              >
                 <Moon :size="17" :stroke-width="1.6" />
                 <span>深色</span>
               </button>
-              <button class="lume-settings__theme-option"
-                :class="{ 'lume-settings__theme-option--active': theme === 'glass' }" type="button" role="radio"
-                :aria-checked="theme === 'glass'" @click="emit('update:theme', 'glass')">
+              <button
+                class="lume-settings__theme-option"
+                :class="{ 'lume-settings__theme-option--active': theme === 'glass' }"
+                type="button"
+                role="radio"
+                :aria-checked="theme === 'glass'"
+                @click="emit('update:theme', 'glass')"
+              >
                 <Droplets :size="17" :stroke-width="1.6" />
                 <span>毛玻璃</span>
               </button>
             </div>
           </section>
+
+          <ImageSettingsPanel v-if="activeCategory === 'images'" />
 
           <footer class="lume-settings__footer">
             <span>快捷键</span>
@@ -290,8 +409,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
 .lume-settings__panel {
   display: flex;
-    flex-direction: column;
-    min-height: 0;
+  flex-direction: column;
+  min-height: 0;
   background-color: var(--lume-bg-surface);
 }
 
@@ -376,7 +495,10 @@ onBeforeUnmount(() => dialogRef.value?.close())
   color: var(--lume-text-secondary);
   cursor: pointer;
   text-align: left;
-  transition: background-color var(--lume-transition-fast), border-color var(--lume-transition-fast), color var(--lume-transition-fast);
+  transition:
+    background-color var(--lume-transition-fast),
+    border-color var(--lume-transition-fast),
+    color var(--lume-transition-fast);
 }
 
 .lume-settings__nav-item:hover {
@@ -391,7 +513,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 .lume-settings__content {
   flex: 1;
-    min-height: 0;
+  min-height: 0;
   padding: var(--lume-space-6) var(--lume-space-8) var(--lume-space-7);
   overflow-y: auto;
 }
@@ -456,7 +578,10 @@ onBeforeUnmount(() => dialogRef.value?.close())
   background: var(--lume-bg-surface-raised);
   color: var(--lume-text-secondary);
   cursor: pointer;
-  transition: border-color var(--lume-transition-fast), background-color var(--lume-transition-fast), color var(--lume-transition-fast);
+  transition:
+    border-color var(--lume-transition-fast),
+    background-color var(--lume-transition-fast),
+    color var(--lume-transition-fast);
 }
 
 .lume-settings__mini-option:hover {
@@ -484,8 +609,11 @@ onBeforeUnmount(() => dialogRef.value?.close())
   color: var(--lume-text-primary);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--lume-transition-fast), background-color var(--lume-transition-fast),
-    box-shadow var(--lume-transition-fast), transform var(--lume-transition-fast);
+  transition:
+    border-color var(--lume-transition-fast),
+    background-color var(--lume-transition-fast),
+    box-shadow var(--lume-transition-fast),
+    transform var(--lume-transition-fast);
 }
 
 .lume-settings__option:hover {
@@ -561,8 +689,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
 .lume-settings__theme-option {
   width: 100%;
-    min-width: 0;
-    min-height: 80px;
+  min-width: 0;
+  min-height: 80px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -575,7 +703,9 @@ onBeforeUnmount(() => dialogRef.value?.close())
   font-size: var(--lume-font-size-sm);
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color var(--lume-transition-fast), background-color var(--lume-transition-fast),
+  transition:
+    border-color var(--lume-transition-fast),
+    background-color var(--lume-transition-fast),
     color var(--lume-transition-fast);
 }
 

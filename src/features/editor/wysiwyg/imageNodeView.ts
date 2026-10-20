@@ -1,13 +1,24 @@
+import type { ImageInputAttributes } from './imageInput'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { NodeSelection } from '@milkdown/kit/prose/state'
+import { closeHistory } from '@milkdown/kit/prose/history'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { $view } from '@milkdown/kit/utils'
-import { MIN_IMAGE_ZOOM, clampImageZoom, type ImageAlign } from '@/utils/imageHtml'
+import {
+  MIN_IMAGE_ZOOM,
+  clampImageZoom,
+  normalizeImageDimension,
+  normalizeImageZoom,
+} from '@/utils/imageHtml'
 import { sizedImageSchema } from './imageSchema'
+import { createImagePathEditor } from './imagePathEditor'
+import './imagePathEditor.css'
 
 export function createImageNodeView(options: {
   onSelect: (view: EditorView, selection: NodeSelection) => void
   resolveImageSource: (src: string) => string | Promise<string>
+  importImageSource?: (src: string) => Promise<string>
+  selectImages?: () => Promise<ImageInputAttributes[]>
 }) {
   return $view(
     sizedImageSchema.node,
@@ -17,50 +28,110 @@ export function createImageNodeView(options: {
       const resizeHandle = document.createElement('span')
       let currentNode = node
       let currentZoom = 100
+      let resizeZoom: number | null = null
+      let currentSource: string | null = null
+      let destroyed = false
       let loadSequence = 0
       let resizeCleanup: (() => void) | null = null
       let animationFrame: number | null = null
+      let observedParent: HTMLElement | null = null
+      const pathEditor = createImagePathEditor({
+        view,
+        getPos,
+        importSource: options.importImageSource,
+        selectImages: options.selectImages,
+        onUpdate: () => updateImage(currentNode),
+      })
 
       dom.className = 'lume-image-resizer'
       dom.contentEditable = 'false'
+      imageElement.draggable = false
       resizeHandle.className = 'lume-image-resizer__handle'
       resizeHandle.title = '拖动调整图片大小'
-      dom.append(imageElement, resizeHandle)
+      dom.append(imageElement, resizeHandle, pathEditor.dom)
 
       const applyZoom = () => {
+        if (animationFrame !== null) cancelAnimationFrame(animationFrame)
         animationFrame = null
-        const parentWidth = dom.parentElement?.getBoundingClientRect().width ?? 0
-        const naturalWidth = imageElement.naturalWidth || parentWidth
-        if (parentWidth > 0 && naturalWidth > 0) {
-          const baseWidth = Math.min(parentWidth, naturalWidth)
-          dom.style.width = `${Math.min(parentWidth, (baseWidth * currentZoom) / 100)}px`
+        if (destroyed || dom.dataset.pathEditor === 'true') return
+        if (dom.parentElement && dom.parentElement !== observedParent) {
+          if (observedParent) resizeObserver.unobserve(observedParent)
+          observedParent = dom.parentElement
+          resizeObserver.observe(observedParent)
         }
+        const parentWidth = dom.parentElement?.getBoundingClientRect().width ?? 0
+        const width = normalizeImageDimension(currentNode.attrs.width)
+        const height = normalizeImageDimension(currentNode.attrs.height)
+        const hasWidth = Boolean(width && width !== 'auto')
+        const hasHeight = Boolean(height && height !== 'auto')
+        // 容器高度也会随拖拽变化；布局刷新必须沿用预览比例，不能回写尚未提交的旧比例。
+        const scale = (resizeZoom ?? currentZoom) / 100
+        dom.style.zoom = String(scale)
+        dom.style.maxWidth = `${100 / scale}%`
+        dom.style.width =
+          width.endsWith('%') && parentWidth
+            ? `${(parentWidth * Number.parseFloat(width)) / 100}px`
+            : hasWidth
+              ? width
+              : !hasHeight && imageElement.naturalWidth
+                ? `${imageElement.naturalWidth}px`
+                : ''
+        imageElement.style.width = !hasWidth && hasHeight ? 'auto' : '100%'
+        imageElement.style.height = height || 'auto'
       }
 
       const scheduleZoom = () => {
+        if (destroyed) return
         if (animationFrame !== null) cancelAnimationFrame(animationFrame)
         animationFrame = requestAnimationFrame(applyZoom)
       }
+      const resizeObserver = new ResizeObserver(scheduleZoom)
 
-      const updateImage = (updatedNode: ProseNode) => {
+      const updateImage = (updatedNode: ProseNode, force = false) => {
+        if (
+          resizeCleanup &&
+          ['src', 'width', 'height', 'zoom', 'align'].some(
+            (attribute) => updatedNode.attrs[attribute] !== currentNode.attrs[attribute],
+          )
+        )
+          resizeCleanup()
         currentNode = updatedNode
-        const sequence = ++loadSequence
-        const { src, alt, title, zoom, align } = updatedNode.attrs as {
-          src: string
-          alt: string
-          title: string
-          zoom: number
-          align: ImageAlign
-        }
-        const currentAlign = align === 'center' || align === 'right' ? align : 'left'
-        currentZoom = clampImageZoom(Number(zoom) || 100)
+        const { src, alt, title, zoom, align } = updatedNode.attrs
+        const currentAlign = ['left', 'center', 'right'].includes(align) ? align : 'auto'
+        currentZoom = normalizeImageZoom(zoom)
         dom.dataset.align = currentAlign
         imageElement.alt = alt || ''
         imageElement.title = title || ''
-        imageElement.classList.remove('lume-image--error')
+        if (pathEditor.update(updatedNode)) {
+          dom.dataset.pathEditor = 'true'
+          dom.style.width = ''
+          dom.style.maxWidth = '100%'
+          dom.style.zoom = '1'
+          delete dom.dataset.error
+          currentSource = null
+          loadSequence++
+          imageElement.removeAttribute('src')
+          return
+        }
+        delete dom.dataset.pathEditor
         scheduleZoom()
 
-        const source = options.resolveImageSource(src)
+        if (!force && src === currentSource) return
+        currentSource = src
+        const sequence = ++loadSequence
+        imageElement.classList.remove('lume-image--error')
+        delete dom.dataset.error
+
+        let source: string | Promise<string>
+        try {
+          source = options.resolveImageSource(src)
+        } catch (error) {
+          imageElement.removeAttribute('src')
+          imageElement.classList.add('lume-image--error')
+          dom.dataset.error = 'true'
+          console.warn(`无法加载本地图片 ${src}:`, error)
+          return
+        }
         if (typeof source === 'string') {
           imageElement.src = source
           return
@@ -69,60 +140,81 @@ export function createImageNodeView(options: {
         imageElement.removeAttribute('src')
         void source
           .then((resolvedSource) => {
-            if (sequence === loadSequence) imageElement.src = resolvedSource
+            if (!destroyed && sequence === loadSequence) imageElement.src = resolvedSource
           })
           .catch((error) => {
-            if (sequence === loadSequence) imageElement.classList.add('lume-image--error')
+            if (!destroyed && sequence === loadSequence) {
+              imageElement.classList.add('lume-image--error')
+              dom.dataset.error = 'true'
+            }
             console.warn(`无法加载本地图片 ${src}:`, error)
           })
       }
 
+      const handleImageRefresh = () => updateImage(currentNode, true)
+
       const handleResizeStart = (event: PointerEvent) => {
-        if (event.button !== 0 || !view.editable) return
+        if (event.button !== 0 || !view.editable || destroyed) return
         event.preventDefault()
         event.stopPropagation()
+        resizeCleanup?.()
+        applyZoom()
 
         const startX = event.clientX
         const startWidth = dom.getBoundingClientRect().width
-        const baseWidth = startWidth / (currentZoom / 100)
+        const previousMaxWidth = dom.style.maxWidth
+        dom.style.maxWidth = 'none'
+        const baseWidth = dom.getBoundingClientRect().width / (currentZoom / 100)
+        dom.style.maxWidth = previousMaxWidth
+        if (!baseWidth) return
         const parentWidth = dom.parentElement?.getBoundingClientRect().width ?? startWidth
         let nextZoom = currentZoom
+        resizeZoom = currentZoom
 
         const handlePointerMove = (moveEvent: PointerEvent) => {
+          if (moveEvent.pointerId !== event.pointerId) return
           const width = Math.min(
             parentWidth,
             Math.max((baseWidth * MIN_IMAGE_ZOOM) / 100, startWidth + moveEvent.clientX - startX),
           )
           nextZoom = clampImageZoom((width / baseWidth) * 100)
-          dom.style.width = `${Math.min(parentWidth, (baseWidth * nextZoom) / 100)}px`
+          resizeZoom = nextZoom
+          scheduleZoom()
         }
 
-        const finishResize = () => {
+        const finishResize = (finishEvent: PointerEvent) => {
+          if (finishEvent.pointerId !== event.pointerId) return
           resizeCleanup?.()
-          resizeCleanup = null
           const pos = getPos()
-          if (typeof pos !== 'number' || nextZoom === currentZoom || !view.editable) {
-            scheduleZoom()
+          if (
+            finishEvent.type === 'pointercancel' ||
+            typeof pos !== 'number' ||
+            nextZoom === currentZoom ||
+            !view.editable
+          ) {
+            applyZoom()
             return
           }
-          view.dispatch(
-            view.state.tr
-              .setNodeMarkup(pos, undefined, {
-                ...currentNode.attrs,
-                zoom: nextZoom,
-              })
-              .scrollIntoView(),
-          )
+          // 仅修改比例，保留图片对象选区；松手时不额外滚动页面。
+          view.dispatch(closeHistory(view.state.tr.setNodeAttribute(pos, 'zoom', nextZoom)))
         }
 
+        const cancelResize = () => {
+          resizeCleanup?.()
+          applyZoom()
+        }
         resizeCleanup = () => {
+          resizeZoom = null
+          resizeCleanup = null
           window.removeEventListener('pointermove', handlePointerMove)
           window.removeEventListener('pointerup', finishResize)
           window.removeEventListener('pointercancel', finishResize)
+          window.removeEventListener('blur', cancelResize)
         }
         window.addEventListener('pointermove', handlePointerMove)
         window.addEventListener('pointerup', finishResize)
         window.addEventListener('pointercancel', finishResize)
+        window.addEventListener('blur', cancelResize)
       }
 
       const getImagePos = () => {
@@ -131,6 +223,8 @@ export function createImageNodeView(options: {
       }
 
       const selectImage = (event: MouseEvent | PointerEvent) => {
+        if (pathEditor.contains(event.target)) return
+        if (event.target instanceof Node && resizeHandle.contains(event.target)) return
         if (event.button !== 0) return
         const pos = getImagePos()
         event.preventDefault()
@@ -145,21 +239,47 @@ export function createImageNodeView(options: {
 
       dom.addEventListener('pointerdown', selectImage)
       dom.addEventListener('mousedown', selectImage)
-      imageElement.addEventListener('load', scheduleZoom)
-      imageElement.addEventListener('error', () => imageElement.classList.add('lume-image--error'))
+      imageElement.addEventListener('load', () => {
+        if (dom.dataset.pathEditor === 'true') return
+        imageElement.classList.remove('lume-image--error')
+        delete dom.dataset.error
+        scheduleZoom()
+      })
+      imageElement.addEventListener('error', () => {
+        if (dom.dataset.pathEditor === 'true') return
+        imageElement.classList.add('lume-image--error')
+        dom.dataset.error = 'true'
+      })
       resizeHandle.addEventListener('pointerdown', handleResizeStart)
       window.addEventListener('resize', scheduleZoom)
+      view.dom.addEventListener('lume:image-refresh', handleImageRefresh)
       updateImage(node)
       return {
         dom,
         selectNode() {
           dom.classList.add('ProseMirror-selectednode')
+          if (!currentNode.attrs.src)
+            queueMicrotask(() => {
+              if (
+                !destroyed &&
+                view.state.selection instanceof NodeSelection &&
+                view.state.selection.from === getPos()
+              )
+                pathEditor.focus()
+            })
         },
         deselectNode() {
           dom.classList.remove('ProseMirror-selectednode')
         },
         stopEvent(event: Event) {
-          return event.type === 'mousedown' || event.type === 'pointerdown'
+          return (
+            pathEditor.contains(event.target) ||
+            event.type === 'mousedown' ||
+            event.type === 'pointerdown'
+          )
+        },
+        ignoreMutation(mutation: { type: string }) {
+          return dom.dataset.pathEditor === 'true' || mutation.type !== 'selection'
         },
         update(updatedNode: ProseNode) {
           if (updatedNode.type !== currentNode.type) return false
@@ -167,9 +287,14 @@ export function createImageNodeView(options: {
           return true
         },
         destroy() {
+          destroyed = true
+          loadSequence++
           resizeCleanup?.()
+          pathEditor.destroy()
+          resizeObserver.disconnect()
           if (animationFrame !== null) cancelAnimationFrame(animationFrame)
           window.removeEventListener('resize', scheduleZoom)
+          view.dom.removeEventListener('lume:image-refresh', handleImageRefresh)
         },
       }
     },
