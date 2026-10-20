@@ -8,6 +8,8 @@ HTML 扩展参考 [Typora 的 HTML 支持](https://support.typora.io/HTML/)，�
 
 Ctrl / Cmd + 点击行内 HTML 可展开源码，Ctrl / Cmd + Enter、Escape 或移出选区后收起。未补全的内容继续保留源码。空标签和 `display:none` 内容在编辑器中可见，预览保留原本的隐藏语义。
 
+Enter 新建段落，Shift + Enter 在段内换行。在行内 HTML 文字末尾按 Enter 时退出 HTML 样式，新段落不继承空标签；在文字中间按 Enter 时，两侧内容保留各自的标签与样式。嵌套标签遵循相同规则，列表和表格继续使用各自的 Enter 行为。
+
 ## HTML 块
 
 块级标签、SVG、视频、音频和 iframe 共用 HTML 对象的渲染与源码编辑。点击非交互区域、Ctrl / Cmd + 点击或通过键盘选中对象可编辑源码；点击“完成”或按 Ctrl / Cmd + Enter 退出。折叠标题和媒体控件保留自身交互。

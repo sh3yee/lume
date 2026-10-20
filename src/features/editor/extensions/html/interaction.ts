@@ -4,6 +4,7 @@ import { Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { parseHtmlTag } from './remark'
+import { prepareHtmlParagraphBreak } from './paragraphBreak'
 
 export const openHtmlSource = (
   view: EditorView,
@@ -57,6 +58,21 @@ export const htmlInteraction = $prose((ctx) => {
   return new Plugin({
     props: {
       handleDOMEvents: {
+        keydown(view, event) {
+          if (
+            view.editable &&
+            !view.composing &&
+            !event.isComposing &&
+            event.key === 'Enter' &&
+            !event.shiftKey &&
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.altKey
+          )
+            prepareHtmlParagraphBreak(view.state, view.dispatch)
+          // 继续执行已有换段规则，保留列表续项、表格退出等容器行为。
+          return false
+        },
         mousedown(view, event) {
           if (!view.editable || event.button !== 0 || (!event.ctrlKey && !event.metaKey))
             return false
