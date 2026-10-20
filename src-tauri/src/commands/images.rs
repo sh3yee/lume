@@ -58,15 +58,15 @@ pub async fn lume_store_clipboard_image(
 #[tauri::command]
 pub async fn lume_materialize_staged_images(
     app: AppHandle,
-    content: String,
+    sources: Vec<String>,
     document_path: String,
     document_id: String,
     options: Option<ImagePathOptions>,
-) -> LumeResult<String> {
+) -> LumeResult<Vec<ImageAsset>> {
     tauri::async_runtime::spawn_blocking(move || {
         image_assets::materialize_staged_images(
             &app,
-            content,
+            &sources,
             &document_path,
             &document_id,
             &options.unwrap_or_default(),
@@ -80,9 +80,9 @@ pub async fn lume_materialize_staged_images(
 pub fn lume_clear_staged_images(
     app: AppHandle,
     document_id: String,
-    content: Option<String>,
+    sources: Option<Vec<String>>,
 ) -> LumeResult<()> {
-    image_assets::clear_staged_images(&app, &document_id, content.as_deref())
+    image_assets::clear_staged_images(&app, &document_id, sources.as_deref())
 }
 
 #[tauri::command]

@@ -75,10 +75,6 @@ const getInitialSettings = (): ImageSettings => {
 
 export const imageSettings = reactive<ImageSettings>(getInitialSettings())
 
-export const updateImageSettings = (settings: Partial<ImageSettings>) => {
-  Object.assign(imageSettings, settings)
-}
-
 export const getDocumentImageOptions = (
   content: string,
   source?: 'local' | 'remote',

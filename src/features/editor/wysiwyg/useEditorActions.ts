@@ -11,13 +11,9 @@ import { insertBlock } from './blockCommands'
 import { pasteCodeClipboard, cutCodeSelection } from './codeClipboard'
 import { restoreEditorContext, type EditorContext } from './selectionContext'
 import type { createEditorCommands } from './editorCommands'
-import {
-  operateImageFile,
-  rebaseImageSource,
-  type ImageFileOperation,
-} from '@/features/images/services/imageFileOperations'
+import { isImageFileOperation } from '@/features/images/services/imageFileOperations'
+import { useImageFileOperations } from '@/features/images/editor/useImageFileOperations'
 import { useDocument } from '@/features/documents/model/useDocument'
-import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
 
 export const useEditorActions = (options: {
   getEditor: () => Editor | null
@@ -28,10 +24,17 @@ export const useEditorActions = (options: {
   onOpenLink: (href: string) => Promise<void>
   onEditSource?: () => void
   onAfterAction?: (view: EditorView) => void
+  replaceImageSources: (replacements: ReadonlyMap<string, string>) => void
 }) => {
   const propertyForm = shallowRef<PropertyForm | null>(null)
   let propertyTarget: EditorContext | null = null
   let propertyAction = ''
+  const { activeDocument } = useDocument()
+  const imageFiles = useImageFileOperations(() =>
+    options.isActive() && options.getEditor()
+      ? { replaceImageSources: options.replaceImageSources }
+      : null,
+  )
 
   const closeProperties = () => {
     const target = propertyTarget
@@ -112,58 +115,23 @@ export const useEditorActions = (options: {
       allowed =
         restore(view, target) &&
         !getActionState(view.state, target, id, view.editable !== false).disabled
-      if (allowed && ['copyImageTo', 'moveImageTo', 'uploadImage', 'deleteImageFile'].includes(id))
+      if (allowed && isImageFileOperation(id))
         targetMarkdown = ctx.get(serializerCtx)(view.state.doc)
     })
     if (!allowed) return
-    if (
-      ['copyImageTo', 'moveImageTo', 'uploadImage', 'deleteImageFile'].includes(id) &&
-      target.node
-    ) {
-      const { activeDocument, documents, updateDocumentContent, persistDocumentSession } =
-        useDocument()
+    if (isImageFileOperation(id) && target.node) {
       const document = activeDocument.value
       if (!document) return
-      const src = String(target.node.node.attrs.src ?? '')
       const snapshot = {
         id: document.id,
         path: document.path,
         content: targetMarkdown || document.content,
       }
-      void operateImageFile(id as ImageFileOperation, src, snapshot)
-        .then(async (replacement) => {
-          if (replacement === null) return
-          const current = documents.value.find((document) => document.id === snapshot.id)
-          if (current) replacement = await rebaseImageSource(replacement, snapshot, current)
-          if (!options.isActive() || !options.getEditor()) {
-            if (current) {
-              // 文件操作完成后即使切换了标签，也更新原文档的引用。
-              const next = replaceMarkdownImageSources(
-                current.content,
-                new Map([[src, replacement]]),
-              )
-              updateDocumentContent(snapshot.id, next)
-              persistDocumentSession()
-            }
-            return
-          }
-          options.getEditor()?.action((ctx) => {
-            const view = ctx.get(editorViewCtx)
-            if (!options.isActive() || view.isDestroyed) return
-            let tr = view.state.tr
-            const images: Array<{ pos: number; size: number }> = []
-            view.state.doc.descendants((node, pos) => {
-              if (node.type.name === 'image' && node.attrs.src === src)
-                images.push({ pos, size: node.nodeSize })
-            })
-            for (const image of images.reverse()) {
-              tr = replacement
-                ? tr.setNodeAttribute(image.pos, 'src', replacement)
-                : tr.delete(image.pos, image.pos + image.size)
-            }
-            if (tr.docChanged) view.dispatch(tr.scrollIntoView())
+      void imageFiles
+        .execute(id, [String(target.node.node.attrs.src ?? '')], snapshot)
+        .then((updated) => {
+          if (updated && options.isActive())
             options.onSuccess?.(id === 'deleteImageFile' ? '图片及原文件已删除' : '图片路径已更新')
-          })
         })
         .catch((error: unknown) =>
           options.onError(error instanceof Error ? error.message : String(error)),
@@ -349,7 +317,6 @@ export const useEditorActions = (options: {
     })
   }
   const submitProperties = (values: Record<string, string>) => {
-    if (propertyForm.value?.busy) return
     const target = propertyTarget
     const action = propertyAction
     options.getEditor()?.action((ctx) => {

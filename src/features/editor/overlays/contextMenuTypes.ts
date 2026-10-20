@@ -19,5 +19,4 @@ export interface PropertyForm {
   title: string
   fields: PropertyField[]
   error?: string
-  busy?: boolean
 }

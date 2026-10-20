@@ -33,7 +33,7 @@ import type { ImageInputAttributes } from '@/features/editor/wysiwyg/imageInput'
 import { resolveSelectionContext } from '@/features/editor/wysiwyg/selectionContext'
 import { chooseImageFiles } from '@/features/images/services/imageFileOperations'
 import { setDocumentImageMetadata } from '@/features/images/model/imageSettings'
-import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
+import { replaceEditorImageSources } from '@/features/editor/wysiwyg/imageReferences'
 import { useFindReplace } from '@/features/editor/wysiwyg/useFindReplace'
 import {
   importEditorImageFile,
@@ -116,6 +116,7 @@ const {
     emit('editSource')
   },
   onAfterAction: (view) => selectionControls.schedule(view),
+  replaceImageSources: (replacements) => replaceImageSources(replacements),
   onOpenLink: (href) =>
     openEditorLink(href, {
       documentPath: activeDocument.value?.path ?? null,
@@ -217,17 +218,7 @@ const insertImage = () =>
 const replaceImageSources = (replacements: ReadonlyMap<string, string>) =>
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    let tr = view.state.tr
-    view.state.doc.descendants((node, pos) => {
-      const replacement =
-        node.type.name === 'image' ? replacements.get(String(node.attrs.src)) : undefined
-      if (replacement !== undefined) tr = tr.setNodeAttribute(pos, 'src', replacement)
-      if (node.type.name === 'html' && typeof node.attrs.value === 'string') {
-        const next = replaceMarkdownImageSources(node.attrs.value, replacements)
-        if (next !== node.attrs.value) tr = tr.setNodeAttribute(pos, 'value', next)
-      }
-    })
-    if (tr.docChanged) view.dispatch(tr)
+    replaceEditorImageSources(view, replacements)
     flushPendingMarkdown()
   })
 

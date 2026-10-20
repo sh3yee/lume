@@ -8,10 +8,18 @@ import {
 } from '@/platform/tauri/images'
 import { getDocumentImageOptions } from '../model/imageSettings'
 
-export type ImageFileOperation = 'copyImageTo' | 'moveImageTo' | 'uploadImage' | 'deleteImageFile'
+const IMAGE_FILE_OPERATIONS = [
+  'copyImageTo',
+  'moveImageTo',
+  'uploadImage',
+  'deleteImageFile',
+] as const
+export type ImageFileOperation = (typeof IMAGE_FILE_OPERATIONS)[number]
+export const isImageFileOperation = (id: string): id is ImageFileOperation =>
+  IMAGE_FILE_OPERATIONS.some((operation) => operation === id)
 export const isLocalImage = (src: string) => !/^(?:https?:|data:|blob:|\/\/)/i.test(src)
 
-interface ImageDocument {
+export interface ImageDocument {
   path: string | null
   id: string
   content: string

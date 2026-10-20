@@ -17,6 +17,7 @@ export const useEditorContextMenu = (options: {
   onOpenLink: (href: string) => Promise<void>
   onEditSource?: () => void
   onAfterAction?: (view: EditorView) => void
+  replaceImageSources: (replacements: ReadonlyMap<string, string>) => void
 }) => {
   const context = shallowRef<EditorContext | null>(null)
   const groups = shallowRef<ContextMenuItem[][]>([])

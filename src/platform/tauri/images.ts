@@ -56,21 +56,21 @@ export function storeClipboardImage(
 }
 
 export function materializeStagedImages(
-  content: string,
+  sources: string[],
   documentPath: string,
   documentId: string,
   options?: ImagePathOptions,
 ) {
-  return invokeCommand<string>('lume_materialize_staged_images', {
-    content,
+  return invokeCommand<ImageAsset[]>('lume_materialize_staged_images', {
+    sources,
     documentPath,
     documentId,
     options,
   })
 }
 
-export function clearStagedImages(documentId: string, content?: string) {
-  return invokeCommand<void>('lume_clear_staged_images', { documentId, content })
+export function clearStagedImages(documentId: string, sources?: string[]) {
+  return invokeCommand<void>('lume_clear_staged_images', { documentId, sources })
 }
 
 export function resolveImagePath(

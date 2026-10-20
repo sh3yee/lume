@@ -3,21 +3,16 @@ import { useDocument } from '@/features/documents/model/useDocument'
 import {
   chooseImageFolder,
   groupImageSources,
-  operateImageFile,
-  rebaseImageSource,
   type ImageFileOperation,
 } from '../services/imageFileOperations'
-import {
-  collectMarkdownImageReferences,
-  replaceMarkdownImageSources,
-} from '../services/markdownImageReferences'
+import { collectMarkdownImageReferences } from '../services/markdownImageReferences'
 import { imageSettings, setDocumentImageMetadata } from '../model/imageSettings'
+import { useImageFileOperations, type ImageSourceEditor } from './useImageFileOperations'
 
-export interface ImageCommandEditor {
+export interface ImageCommandEditor extends ImageSourceEditor {
   flushPendingMarkdown?: () => void
   insertLocalImages: () => Promise<void>
   insertImage: () => void
-  replaceImageSources: (replacements: ReadonlyMap<string, string>) => void
   setImageMetadata: (key: 'typora-copy-images-to' | 'typora-root-url', value: string | null) => void
 }
 
@@ -27,6 +22,7 @@ export const useImageCommands = (options: {
 }) => {
   const { activeDocument, documents, updateDocumentContent, persistDocumentSession } = useDocument()
   const busy = ref(false)
+  const imageFiles = useImageFileOperations(options.getEditor)
   const updateMetadata = (
     id: string,
     key: 'typora-copy-images-to' | 'typora-root-url',
@@ -105,36 +101,19 @@ export const useImageCommands = (options: {
       let completed = 0
       const errors: string[] = []
       for (const aliases of groups) {
-        const src = aliases[0]!
         try {
           options.onMessage(`正在处理图片 ${completed + errors.length + 1} / ${groups.length}…`)
-          const replacement = await operateImageFile(
+          const updated = await imageFiles.execute(
             operation,
-            src,
+            aliases,
             snapshot,
             folder ? `${folder.replace(/[\\/]$/, '')}/` : undefined,
           )
-          if (replacement === null) continue
-          const current = documents.value.find((document) => document.id === snapshot.id)
-          const nextSource = current
-            ? await rebaseImageSource(replacement, snapshot, current)
-            : replacement
-          const replacements = new Map(aliases.map((alias) => [alias, nextSource]))
-          if (activeDocument.value?.id === snapshot.id && options.getEditor())
-            options.getEditor()!.replaceImageSources(replacements)
-          else {
-            if (current)
-              updateDocumentContent(
-                snapshot.id,
-                replaceMarkdownImageSources(current.content, replacements),
-              )
-          }
-          completed++
+          if (updated) completed++
         } catch (error) {
           errors.push(error instanceof Error ? error.message : String(error))
         }
       }
-      persistDocumentSession()
       options.onMessage(
         `已处理 ${completed} 张图片${errors.length ? `，${errors.length} 张失败：${errors[0]}` : ''}`,
       )
