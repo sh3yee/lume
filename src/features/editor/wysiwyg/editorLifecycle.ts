@@ -33,6 +33,7 @@ export async function createWysiwygEditor(options: {
   onMarkdownChange: (markdown: string, view: EditorView | null) => void
   onSelectionChange: (view: EditorView | null, line: number, column: number) => void
   resolveImageSource: (src: string) => string | Promise<string>
+  resolveHtmlSource?: (src: string) => string | Promise<string>
   onViewUpdate?: (view: EditorView) => void
   onAction?: (id: string, target: EditorContext) => void
 }) {

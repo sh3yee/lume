@@ -469,6 +469,47 @@ pub fn resolve_image_path(
     id: &str,
     options: &ImagePathOptions,
 ) -> LumeResult<String> {
+    let resolved = resolve_resource_path(app, markdown, document, id, options)?;
+    validate_image_path(&resolved)?;
+    Ok(resolved.to_string_lossy().into_owned())
+}
+
+pub fn resolve_html_resource_path(
+    app: &AppHandle,
+    markdown: &str,
+    document: Option<&str>,
+    id: &str,
+    options: &ImagePathOptions,
+) -> LumeResult<String> {
+    let resolved = resolve_resource_path(app, markdown, document, id, options)?;
+    let metadata = std::fs::symlink_metadata(&resolved)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(LumeError::InvalidPath("HTML 资源地址不是普通文件".to_string()));
+    }
+    let extension = resolved
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let media_extensions = [
+        "mp4", "webm", "ogg", "ogv", "mov", "m4v", "mp3", "wav", "oga", "opus", "flac", "aac",
+        "m4a", "vtt",
+    ];
+    if !IMAGE_EXTENSIONS.contains(&extension.as_str())
+        && !media_extensions.contains(&extension.as_str())
+    {
+        return Err(LumeError::InvalidPath("不支持的 HTML 资源格式".to_string()));
+    }
+    Ok(resolved.to_string_lossy().into_owned())
+}
+
+fn resolve_resource_path(
+    app: &AppHandle,
+    markdown: &str,
+    document: Option<&str>,
+    id: &str,
+    options: &ImagePathOptions,
+) -> LumeResult<PathBuf> {
     let prefix = format!("{STAGED_IMAGE_SCHEME}{id}/");
     let resolved = if let Some(file) = markdown.strip_prefix(&prefix) {
         let staging = staging_dir(app, id)?;
@@ -506,9 +547,7 @@ pub fn resolve_image_path(
             resolve(&percent_decode(markdown.split(['?', '#']).next().unwrap_or(markdown))?)?
         }
     };
-    let resolved = normalized_path(&resolved);
-    validate_image_path(&resolved)?;
-    Ok(resolved.to_string_lossy().into_owned())
+    Ok(normalized_path(&resolved))
 }
 
 fn copy_new(source: &Path, destination: &Path) -> LumeResult<()> {

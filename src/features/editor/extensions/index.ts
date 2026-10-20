@@ -14,6 +14,8 @@ import { useSearchWysiwygExtension } from './search'
 import { useFrontMatterPreviewExtension, useFrontMatterWysiwygExtension } from './front-matter'
 import { useTocPreviewExtension, useTocWysiwygExtension } from './toc'
 import { useCalloutsPreviewExtension, useCalloutsWysiwygExtension } from './callouts'
+import { useHtmlPreviewExtension, useHtmlWysiwygExtension } from './html'
+import { captureSelectionContext, type EditorContext } from '../wysiwyg/selectionContext'
 
 /** 按稳定顺序注册 WYSIWYG Markdown 扩展。 */
 export function useWysiwygMarkdownExtensions(
@@ -25,7 +27,9 @@ export function useWysiwygMarkdownExtensions(
     isDocumentActive: () => boolean
     onImageSelect: (view: EditorView, selection: NodeSelection) => void
     resolveImageSource: (src: string) => string | Promise<string>
+    resolveHtmlSource?: (src: string) => string | Promise<string>
     onViewUpdate?: (view: EditorView) => void
+    onAction?: (id: string, target: EditorContext) => void
   },
 ) {
   const documentEditor = useTocWysiwygExtension(
@@ -40,7 +44,21 @@ export function useWysiwygMarkdownExtensions(
     onSelect: options.onImageSelect,
     resolveSource: options.resolveImageSource,
   })
-  const mathEditor = useMathWysiwygExtension(imageEditor)
+  const mathEditor = useMathWysiwygExtension(
+    useHtmlWysiwygExtension(
+      imageEditor,
+      options.resolveHtmlSource ?? options.resolveImageSource,
+      (view, href) => {
+        const target = captureSelectionContext(view)
+        target.link = {
+          from: target.selection.from,
+          to: target.selection.to,
+          mark: view.state.schema.marks.link.create({ href }),
+        }
+        options.onAction?.('openLink', target)
+      },
+    ),
+  )
   const mermaidEditor = useMermaidWysiwygExtension(mathEditor)
   const footnotesEditor = useFootnotesWysiwygExtension(mermaidEditor)
   const codeBlockEditor = useCodeBlockWysiwygExtension(footnotesEditor, options.onViewUpdate)
@@ -52,7 +70,7 @@ export function createMarkdownPreview() {
   const documentMarkdown = useTocPreviewExtension(
     useFrontMatterPreviewExtension(useGfmPreviewExtension(createBasePreviewExtension())),
   )
-  const markdown = useCalloutsPreviewExtension(documentMarkdown)
+  const markdown = useHtmlPreviewExtension(useCalloutsPreviewExtension(documentMarkdown))
   const footnotesMarkdown = useFootnotesPreviewExtension(markdown)
   const mathMarkdown = useMathPreviewExtension(footnotesMarkdown)
   return useCodeBlockPreviewExtension(useMermaidPreviewExtension(mathMarkdown))

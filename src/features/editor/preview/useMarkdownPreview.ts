@@ -1,37 +1,40 @@
-/** markdown-it 预览渲染与本地图片 URL 解析。 */
+/** markdown-it 预览渲染与本地图片、HTML 媒体资源解析。 */
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { isTauri } from '@/platform/tauri/client'
-import { resolveImageUrl } from '@/platform/tauri/images'
+import { resolveHtmlResourceUrl } from '@/platform/tauri/resources'
 import { getDocumentImageOptions } from '@/features/images/model/imageSettings'
 import type { OpenDocument } from '../../documents/model/documentTypes.ts'
 import { createMarkdownPreview } from '../extensions'
 import { highlightCodeBlocks } from '../extensions/code-block'
 import { collectLocalImageSources, useImagesPreviewExtension } from '../extensions/images'
 import { renderMermaidDiagrams } from '../extensions/mermaid'
+import { collectHtmlResourceSources } from '../extensions/html'
 
 export function useMarkdownPreview(
   content: Ref<string>,
   activeDocument: ComputedRef<OpenDocument | undefined>,
 ) {
-  const localImageUrls = ref<Record<string, string>>({})
+  const localResourceUrls = ref<Record<string, string>>({})
   const markdown = createMarkdownPreview()
-  useImagesPreviewExtension(markdown, (src) => localImageUrls.value[src])
+  useImagesPreviewExtension(markdown, (src) => localResourceUrls.value[src])
 
-  let imageLoadSequence = 0
+  let resourceLoadSequence = 0
   watch(
     [content, () => activeDocument.value?.path, () => activeDocument.value?.id],
     async ([source, documentPath, documentId]) => {
-      const sequence = ++imageLoadSequence
+      const sequence = ++resourceLoadSequence
       if (!isTauri() || !documentId) {
-        localImageUrls.value = {}
+        localResourceUrls.value = {}
         return
       }
+      const tokens = markdown.parse(source ?? '', {})
+      const sources = collectHtmlResourceSources(tokens, collectLocalImageSources(tokens))
       const entries = await Promise.all(
-        Array.from(collectLocalImageSources(markdown.parse(source ?? '', {})), async (src) => {
+        Array.from(sources, async (src) => {
           try {
             return [
               src,
-              await resolveImageUrl(
+              await resolveHtmlResourceUrl(
                 src,
                 documentPath ?? null,
                 documentId,
@@ -43,8 +46,8 @@ export function useMarkdownPreview(
           }
         }),
       )
-      if (sequence === imageLoadSequence)
-        localImageUrls.value = Object.fromEntries(entries.filter((entry) => entry !== null))
+      if (sequence === resourceLoadSequence)
+        localResourceUrls.value = Object.fromEntries(entries.filter((entry) => entry !== null))
     },
     { immediate: true },
   )

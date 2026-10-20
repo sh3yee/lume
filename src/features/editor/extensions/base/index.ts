@@ -6,6 +6,7 @@ import {
   insertHrInputRule,
   insertImageInputRule,
   remarkInlineLinkPlugin,
+  remarkHtmlTransformer,
 } from '@milkdown/kit/preset/commonmark'
 import MarkdownIt from 'markdown-it'
 import { emphasisInputRule } from './emphasisInput'
@@ -24,6 +25,7 @@ export function useBaseWysiwygExtension(editor: Editor) {
           plugin !== insertImageInputRule &&
           plugin !== emphasisStarInputRule &&
           plugin !== emphasisUnderscoreInputRule &&
+          !remarkHtmlTransformer.includes(plugin) &&
           !remarkInlineLinkPlugin.includes(plugin),
       ),
     )

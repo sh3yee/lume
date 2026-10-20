@@ -28,3 +28,5 @@
 5. 验证空内容、嵌套内容、中文输入、撤销和重做等相关边界。
 
 KaTeX、Mermaid、脚注和代码语法高亮的测试内容、错误回退及性能清单参见 [`docs/markdown-extension-acceptance.md`](../../../../docs/markdown-extension-acceptance.md)。
+
+HTML 的统一渲染、行内编辑、块级源码和兼容范围参见 [`docs/html-support.md`](../../../../docs/html-support.md)。

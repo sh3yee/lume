@@ -32,7 +32,11 @@ import { insertNativeImagePaths } from '@/features/editor/extensions/images'
 import type { ImageInputAttributes } from '@/features/editor/wysiwyg/imageInput'
 import { resolveSelectionContext } from '@/features/editor/wysiwyg/selectionContext'
 import { chooseImageFiles } from '@/features/images/services/imageFileOperations'
-import { setDocumentImageMetadata } from '@/features/images/model/imageSettings'
+import {
+  getDocumentImageOptions,
+  setDocumentImageMetadata,
+} from '@/features/images/model/imageSettings'
+import { resolveHtmlResourceUrl } from '@/platform/tauri/resources'
 import { replaceEditorImageSources } from '@/features/editor/wysiwyg/imageReferences'
 import { useFindReplace } from '@/features/editor/wysiwyg/useFindReplace'
 import {
@@ -396,6 +400,17 @@ onMounted(async () => {
         activeDocument.value?.path ?? null,
         activeDocument.value?.id ?? '',
         currentContent,
+      )
+    },
+    resolveHtmlSource(src) {
+      const markdown =
+        editor?.action((ctx) => ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc)) ??
+        content.value
+      return resolveHtmlResourceUrl(
+        src,
+        activeDocument.value?.path ?? null,
+        activeDocument.value?.id ?? '',
+        getDocumentImageOptions(markdown),
       )
     },
   })

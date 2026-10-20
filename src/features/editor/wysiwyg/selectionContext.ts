@@ -134,7 +134,7 @@ export const resolveSelectionContext = (state: EditorState): EditorContext => {
               ? 'footnote'
               : name === 'link_definition'
                 ? 'linkDefinition'
-                : ['html', 'link_source'].includes(name)
+                : ['html', 'html_block', 'html_inline', 'html_source', 'link_source'].includes(name)
                   ? 'source'
                   : name === 'hr'
                     ? 'rule'

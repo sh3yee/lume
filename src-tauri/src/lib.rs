@@ -14,7 +14,8 @@ use commands::{
     files::lume_read_markdown_file,
     images::{
         lume_clear_staged_images, lume_delete_image_file, lume_import_image_file,
-        lume_materialize_staged_images, lume_read_clipboard_image_paths, lume_resolve_image_path,
+        lume_materialize_staged_images, lume_read_clipboard_image_paths,
+        lume_resolve_html_resource_path, lume_resolve_image_path,
         lume_store_clipboard_image, lume_transfer_image, lume_upload_image_files,
     },
     system::{lume_health_check, lume_open_web_url, lume_reveal_file, lume_startup_file_paths},
@@ -49,6 +50,7 @@ pub fn run() {
             lume_move_workspace_entry,
             lume_rename_workspace_entry,
             lume_resolve_image_path,
+            lume_resolve_html_resource_path,
             lume_startup_file_paths,
             lume_store_clipboard_image,
             lume_transfer_image,

@@ -103,6 +103,23 @@ pub fn lume_resolve_image_path(
 }
 
 #[tauri::command]
+pub fn lume_resolve_html_resource_path(
+    app: AppHandle,
+    markdown_path: String,
+    document_path: Option<String>,
+    document_id: String,
+    options: Option<ImagePathOptions>,
+) -> LumeResult<String> {
+    image_assets::resolve_html_resource_path(
+        &app,
+        &markdown_path,
+        document_path.as_deref(),
+        &document_id,
+        &options.unwrap_or_default(),
+    )
+}
+
+#[tauri::command]
 pub async fn lume_transfer_image(
     app: AppHandle,
     markdown_path: String,

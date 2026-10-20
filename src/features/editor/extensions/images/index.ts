@@ -3,12 +3,13 @@ import { type Editor } from '@milkdown/kit/core'
 import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import type MarkdownIt from 'markdown-it'
-import { parseSizedImageHtml, serializeSizedImageHtml } from '@/utils/imageHtml'
+import { parseSizedImageHtml } from '@/utils/imageHtml'
 import { parseMarkdownImageAt } from '@/utils/imageMarkdown'
 import { createImageInputPlugin, insertNativeImagePaths } from '../../wysiwyg/imageInput'
 import { createImageNodeView } from '../../wysiwyg/imageNodeView'
 import { sizedImageRemarkPlugin, sizedImageSchema } from '../../wysiwyg/imageSchema'
 import { imageHtmlInputRule, imageSourceInputRule } from '../../wysiwyg/imageInputRule'
+import { useHtmlPreviewExtension } from '../html/preview'
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 
@@ -45,7 +46,7 @@ export function useImagesWysiwygExtension(
     .use(imageInputPlugin)
 }
 
-/** 注册图片 HTML 安全渲染和本地图片 URL 替换。 */
+/** 配置 HTML 资源解析和 Markdown 图片的本地 URL 替换。 */
 export function useImagesPreviewExtension(
   markdown: MarkdownIt,
   resolveSource: (src: string) => string | undefined,
@@ -71,20 +72,7 @@ export function useImagesPreviewExtension(
     return true
   })
 
-  const renderSafeHtmlImage = (value: string, standalone: boolean) => {
-    const image = parseSizedImageHtml(value)
-    if (!image) return markdown.utils.escapeHtml(value)
-    const html = serializeSizedImageHtml(
-      { ...image, src: resolveSource(image.src) ?? image.src },
-      { forDisplay: true },
-    )
-    return standalone ? html.replace('<img ', '<img class="lume-image-standalone" ') : html
-  }
-
-  markdown.renderer.rules.html_inline = (tokens, index) =>
-    renderSafeHtmlImage(tokens[index].content, tokens.length === 1)
-  markdown.renderer.rules.html_block = (tokens, index) =>
-    renderSafeHtmlImage(tokens[index].content, true)
+  useHtmlPreviewExtension(markdown, { resolveSource })
   const defaultImageRenderer = markdown.renderer.rules.image!
   markdown.renderer.rules.image = (tokens, index, options, env, renderer) => {
     const token = tokens[index]

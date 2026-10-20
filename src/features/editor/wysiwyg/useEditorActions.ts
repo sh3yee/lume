@@ -14,6 +14,7 @@ import type { createEditorCommands } from './editorCommands'
 import { isImageFileOperation } from '@/features/images/services/imageFileOperations'
 import { useImageFileOperations } from '@/features/images/editor/useImageFileOperations'
 import { useDocument } from '@/features/documents/model/useDocument'
+import { openHtmlSource } from '../extensions/html/interaction'
 
 export const useEditorActions = (options: {
   getEditor: () => Editor | null
@@ -262,6 +263,14 @@ export const useEditorActions = (options: {
           ? view.state.schema.nodes.paragraph.create(null, node.node)
           : node.node
         void copyText(ctx.get(serializerCtx)(view.state.schema.nodes.doc.create(null, content)))
+      } else if (id === 'editSource' && node?.node.type.name === 'html_inline') {
+        openHtmlSource(view, node.pos, node.node, ctx.get(serializerCtx))
+      } else if (
+        id === 'editSource' &&
+        node &&
+        ['html', 'html_block'].includes(node.node.type.name)
+      ) {
+        view.nodeDOM(node.pos)?.dispatchEvent(new Event('lume-edit-html'))
       } else if (id === 'editSource') options.onEditSource?.()
       else if (id === 'gotoFootnote' && node) {
         if (

@@ -1,0 +1,49 @@
+.lume-html-block {
+  margin: var(--lume-space-3) 0;
+  position: relative;
+}
+.lume-html-preview {
+  overflow-wrap: anywhere;
+}
+.lume-html-preview :is(video, iframe, svg, img) {
+  max-width: 100%;
+}
+.lume-html-editing {
+  display: block;
+  padding: var(--lume-space-3);
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-sm);
+}
+.lume-html-editor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  padding: var(--lume-space-2);
+  color: var(--lume-text-primary);
+  background: var(--lume-code-bg);
+  border: 1px solid var(--lume-code-border);
+  font: inherit;
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+.lume-html-editing > button {
+  margin: var(--lume-space-2) 0;
+  color: var(--lume-text-primary);
+  background: var(--lume-bg-surface);
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+}
+.lume-html-source,
+.lume-html-invisible,
+.lume-html-placeholder {
+  color: var(--lume-text-secondary);
+  background: var(--lume-code-bg);
+  font-family: 'Cascadia Code', Consolas, monospace;
+  white-space: pre-wrap;
+}
+.lume-markdown-content [data-html-inline]:has([data-html-content]:empty)::after {
+  content: attr(data-html-open) attr(data-html-close);
+  color: var(--lume-text-secondary);
+  font-family: 'Cascadia Code', Consolas, monospace;
+}

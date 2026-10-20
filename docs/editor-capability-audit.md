@@ -19,7 +19,7 @@
 | 子菜单 | 显式展开状态与 aria-expanded；方向键、Home/End、Escape；只遍历当前菜单的可用按钮；按真实尺寸向左/右展开并限制窗口边界 | Vue 编译通过；键盘、滚动与屏幕边界待桌面验收 |
 | 保存保留策略 | 保留代码围栏 info 元数据和链接定义；引用式链接仍规范化为行内链接；不符合项目图片属性/样式约定的 HTML 保留源码，避免丢失 width/height 等信息 | 代码元数据和未引用定义在编辑后解析/序列化往返通过；图片 DOM 与完整样例待桌面验收 |
 
-当前支持边界：Mermaid 在所见即所得中仍是可编辑代码块；通用 HTML 及超出项目约定的 HTML 图片显示为源码。源码编辑和只读预览保留原生右键交互。所见即所得菜单的“打开链接”支持 HTTP(S)、当前文档锚点和桌面环境的 Markdown/文本文件，相对路径以已保存文档的目录为基准；其他协议禁用打开，复制、编辑与保存地址不受影响。本地文件链接携带的片段目前只用于打开对应文件，不自动定位新文件内的锚点。表格删除行保留 GFM 必需的表头及至少一行正文，删除整表有独立入口。
+当前支持边界：Mermaid 在所见即所得中仍是可编辑代码块；HTML 的当前支持范围参见 [HTML 兼容](html-support.md)。源码编辑和只读预览保留原生右键交互。所见即所得菜单的“打开链接”支持 HTTP(S)、当前文档锚点和桌面环境的 Markdown/文本文件，相对路径以已保存文档的目录为基准；其他协议禁用打开，复制、编辑与保存地址不受影响。本地文件链接携带的片段目前只用于打开对应文件，不自动定位新文件内的锚点。表格删除行保留 GFM 必需的表头及至少一行正文，删除整表有独立入口。
 
 验证命令：`npm run test:editor`。本次 10 项回归通过，并对修改涉及的 TypeScript 模块作定向检查，对 3 个 Vue 组件作脚本/模板编译检查。没有安装或升级依赖，没有启动应用、构建应用或执行完整 type-check。
 
@@ -55,9 +55,9 @@
 | 脚注 | GFM 包含引用和定义 schema | 编号、定义和回链输出探针通过 | 依赖层往返保留已引用和未引用定义；跳转及编辑体验仍需桌面验收 |
 | 数学公式 | 自定义原子节点、KaTeX 显示及输入转换 | 行内/块级 KaTeX 输出探针通过 | 未见公式源码编辑面板；已转为公式后修改源码缺少直接入口 |
 | Mermaid | 保留为 `mermaid` 代码块 | 输出占位并异步生成 SVG，失败保留代码 | 当前两种模式展示不同；本次仅验证占位，未验证最终 SVG 和交互 |
-| 通用 HTML | CommonMark HTML 节点保留为源码文本 | 图片扩展将不符合单个 `<img>` 约定的 HTML 转义显示 | 不是通用 HTML 渲染支持；如需支持 `<details>`、HTML 表格，应单独确定范围 |
+| 通用 HTML | 统一扩展支持行内 HTML、HTML 块、SVG 和媒体源码编辑 | 与编辑器共用 HTML 渲染策略，媒体资源沿用图片路径解析 | 当前实现与边界见 [HTML 兼容](html-support.md)，桌面端仍需人工验收 |
 
-主要入口：[`extensions/index.ts`](../src/features/editor/extensions/index.ts)、[`useMarkdownPreview.ts`](../src/features/editor/preview/useMarkdownPreview.ts)。任务列表缺口位于 [`gfm/index.ts`](../src/features/editor/extensions/gfm/index.ts)，HTML 策略位于 [`images/index.ts`](../src/features/editor/extensions/images/index.ts)。
+主要入口：[`extensions/index.ts`](../src/features/editor/extensions/index.ts)、[`useMarkdownPreview.ts`](../src/features/editor/preview/useMarkdownPreview.ts)。任务列表缺口位于 [`gfm/index.ts`](../src/features/editor/extensions/gfm/index.ts)，HTML 策略位于 [`html/index.ts`](../src/features/editor/extensions/html/index.ts)。
 
 ## 保存往返的已知边界
 

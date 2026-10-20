@@ -80,7 +80,10 @@ export const getContextMenuGroups = (
         ? [item('gotoFootnote', '跳转 / 编辑脚注定义')]
         : []),
       item('copySource', '复制节点 Markdown'),
-      item('editSource', '在源码模式编辑'),
+      item(
+        'editSource',
+        context.node?.node.type.name.startsWith('html') ? '编辑 HTML 源码' : '在源码模式编辑',
+      ),
     ])
   if (context.target === 'rule')
     groups.push([
