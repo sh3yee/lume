@@ -1,11 +1,14 @@
 import { type Editor } from '@milkdown/kit/core'
 import {
   commonmark,
+  emphasisStarInputRule,
+  emphasisUnderscoreInputRule,
   insertHrInputRule,
   insertImageInputRule,
   remarkInlineLinkPlugin,
 } from '@milkdown/kit/preset/commonmark'
 import MarkdownIt from 'markdown-it'
+import { emphasisInputRule } from './emphasisInput'
 import { linkDefinitionSchema, preservedReferences } from './linkDefinitions'
 import { inlineLinkInputRule, linkDefinitionInputRule, referenceLinkInputRule } from './linkInput'
 import { linkEditingPlugin, linkSourceSchema } from './linkEditing'
@@ -19,9 +22,12 @@ export function useBaseWysiwygExtension(editor: Editor) {
         (plugin) =>
           plugin !== insertHrInputRule &&
           plugin !== insertImageInputRule &&
+          plugin !== emphasisStarInputRule &&
+          plugin !== emphasisUnderscoreInputRule &&
           !remarkInlineLinkPlugin.includes(plugin),
       ),
     )
+    .use(emphasisInputRule)
     .use(preservedReferences)
     .use(referenceLinkSchema)
     .use(linkDefinitionSchema)
