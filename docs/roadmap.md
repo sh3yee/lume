@@ -1,161 +1,200 @@
-# Lume 产品与开发路线图
+# Lume Product and Development Roadmap
 
-本文档记录 Lume 的产品原则、技术方向、阶段目标和性能约束。开发环境、项目结构与常用命令参见 [开发说明](development.md)，架构重构任务与实时进度参见 [重构计划](refactoring-plan.md)。
+**English** | [简体中文](roadmap.zh-CN.md)
 
-## 产品原则
+This document covers Lume's product principles, technical direction, syntax plans, and development phases, based on the current **0.3.0** repository code. For setup, project structure, and commands, see the [Development Guide](development.md). Architecture refactoring tasks are tracked in the [Refactoring Plan (Chinese)](refactoring-plan.md).
 
-- **本地优先**：文档归用户所有，直接读写本地 Markdown 文件。
-- **Markdown 优先**：内容始终可保存为可移植、可版本管理的纯文本。
-- **写作优先**：键入、光标、选区、撤销和输入法体验优先于附加功能。
-- **双重编辑体验**：默认提供所见即所得，同时保留 Markdown 源码与预览分栏。
-- **渐进增强**：复杂能力按需引入，基础编辑体验保持稳定、轻量。
+In this roadmap, `[x]` means an implementation exists in the code, and `[ ]` means the feature remains to be implemented or improved.
 
-## 当前架构
+## Product Principles
 
-| 层级 | 技术选择 | 当前职责 |
-| --- | --- | --- |
-| 桌面容器 | Tauri 2 | 窗口生命周期、系统权限、原生对话框与应用打包 |
-| 原生层 | Rust | Tauri 启动、插件注册、命令边界与统一错误模型 |
-| 前端 | Vue 3 + TypeScript + Vite | 应用布局、交互状态、文件流程和界面组件 |
-| 所见即所得 | Milkdown / ProseMirror | Markdown-first 编辑、选区、输入规则、撤销与输入法 |
-| 分栏编辑 | 原生文本编辑区 + markdown-it | Markdown 源码输入与实时 HTML 预览 |
-| 文件能力 | Tauri Dialog / FS 插件 | 本地文件打开与保存 |
+- **Local first**: Documents belong to the user. Read and write local Markdown files directly.
+- **Markdown first**: Content remains portable plain text that can be tracked in version control.
+- **Writing first**: Typing, cursor movement, selection, undo, and input method support take priority over additional features.
+- **Two editing modes**: Offer WYSIWYG editing by default while keeping Markdown source and a split-view preview available.
+- **Progressive enhancement**: Introduce complex capabilities as needed while keeping basic editing stable and lightweight.
 
-编辑交互留在 WebView 内完成，避免把每次按键跨进程发送到 Rust。Rust 负责系统级能力，并将在工作区扫描、文件监听、索引和大规模搜索阶段承担更多后台任务。
+## Current Architecture
 
-## 路线图
+| Layer                    | Technology                                    | Current responsibilities                                                                                                 |
+| ------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Desktop container        | Tauri 2                                       | Window lifecycle, system permissions, native dialogs, and app packaging                                                  |
+| Native layer             | Rust                                          | Tauri startup, plugin registration, command boundaries, and a shared error model                                         |
+| Frontend                 | Vue 3 + TypeScript + Vite                     | App layout, interaction state, file workflows, and UI components                                                         |
+| WYSIWYG editor           | Milkdown / ProseMirror                        | Markdown editing, node and selection interactions, input rules, and undo / redo; CodeMirror 6 embedded in code blocks    |
+| Split-view editor        | Native textarea + markdown-it                 | Markdown source, live preview, and scrolling synchronized by scroll ratio; the source editor does not yet use CodeMirror |
+| Markdown extensions      | Paired Milkdown / markdown-it extensions      | GFM, links, footnotes, math, diagrams, YAML front matter, tables of contents, and alerts                                 |
+| Files and workspaces     | Tauri Dialog / FS plugins + Rust services     | File I/O, directory scanning, file management, snapshot polling, and change events                                       |
+| Image assets             | Frontend image services + Rust image services | Local assets, copying / moving / downloading, staging, and external uploader invocation                                  |
+| Sessions and preferences | Frontend state + localStorage                 | Tabs and unsaved content, last workspace path, window state, and writing / appearance / image preferences                |
 
-### 当前真实状态
+Editing interactions stay inside the WebView so individual keystrokes do not require a round trip to Rust. Rust already handles system capabilities such as workspace scanning, external change detection, and image assets. Full-text indexing and workspace search remain planned. App commands, lifecycle handling, documents, files, workspaces, editing, and images are organized by responsibility. Vue components access native capabilities through platform adapters.
 
-Lume 当前已从“基础桌面 Markdown 编辑器”进化到“可用的本地写作工作台”。
-代码中已具备多标签工作流、工作区文件树、外部文件冲突处理、富文本编辑能力、Markdown 扩展体系和 Tauri 级本地文件/监听能力；当前主要差距在于长文写作效率工具、全文检索和高级生产力功能，而不是基础编辑闭环。
+The complete file workflow targets the Tauri desktop environment. Browser mode supports frontend development and basic file opening and saving through downloads. Image uploads are optional and require an external uploader; local writing needs neither an account nor an upload service.
 
-### Phase 0：项目基础
+## Roadmap
 
-目标：建立可持续迭代的桌面应用骨架。
+### Current Status
 
-- [x] 初始化 Tauri 2、Rust、Vue 3、TypeScript 与 Vite。
-- [x] 建立 ESLint、Prettier、TypeScript 和目录约定。
-- [x] 定义颜色、排版、间距和布局设计 Token。
-- [x] 搭建自定义标题栏、编辑区和状态栏。
-- [x] 建立 Tauri 命令桥接、权限配置与统一错误模型。
-- [x] 接入原生窗口最小化、最大化和关闭控制。
+Lume implements the main workflows for local Markdown writing: two editing modes, multiple tabs, a workspace file tree, autosave, external conflict handling, session recovery, outline navigation, and a command palette.
 
-### Phase 1：单文档编辑闭环
+Recent changes add inline and reference link editing, footnote interactions, YAML front matter, `[toc]` tables of contents, and GitHub-style alerts, along with broader image insertion, path editing, and asset organization. Future work will continue covering the Markdown syntax in the Typora reference while improving editing and save consistency, source-mode find and replace, and workspace search.
 
-目标：可靠地创建、编辑、预览和保存 Markdown 文档。
+### Markdown Syntax Plans
 
-- [x] 使用 Milkdown 实现 Markdown-first 所见即所得编辑。
-- [x] 支持 Markdown 源码与实时预览分栏。
-- [x] 支持新建、打开和保存本地 Markdown 文件。
-- [x] 提供字数、字符数、阅读时长和光标位置状态。
-- [x] 支持标题、列表、引用、强调和代码块等基础 Markdown 语法。
-- [x] 支持关闭标签时检查未保存修改，并在放弃前进行确认。
-- [x] 支持新建、打开、保存、关闭标签等常用文件快捷键。
-- [x] 实现另存为与关闭应用时的未保存修改保护。
-- [x] 所见即所得编辑支持 GFM 表格、任务列表和删除线。
-- [x] 支持从编辑区右键菜单插入并编辑 GFM 表格。
-- [x] 具备分栏编辑器、选区工具栏、图片工具栏和右键菜单等交互层。
-- [ ] 完善跨编辑模式一致的撤销与重做体验。
-- [ ] 完善 GFM 任务列表在源码预览中的渲染与交互。
-- [ ] 建立编辑器核心交互的自动化测试。
+The block elements, inline elements, and HTML content in [Typora's Markdown reference (Chinese)](https://support.typora.io/zh/Markdown-Reference/) are part of Lume's planned syntax scope. Input, editing, preview, and save support will be expanded progressively. The statuses below reflect Lume's current code.
 
-验收标准：用户可以在所见即所得或分栏模式中完成普通 Markdown 文档的打开、编辑和保存，连续输入时无明显卡顿；大部分写作场景已在桌面端可用。
+#### Block Elements
 
-### Phase 2：工作区与文件体验
+- [x] Paragraphs and line breaks: ordinary paragraphs, soft breaks, and explicit line breaks.
+- [x] Headings: levels one through six.
+- [x] Blockquotes: ordinary and nested quotes.
+- [x] Lists: ordered, unordered, and nested lists.
+- [x] Task lists: incomplete and complete states, editable checkboxes in WYSIWYG mode, and read-only checkboxes in previews.
+- [x] Fenced code blocks: language selection, code editing, and syntax highlighting.
+- [x] Math blocks: LaTeX content wrapped in `$$`, rendered with KaTeX.
+- [x] Tables: GFM tables, row and column editing, and column alignment.
+- [x] Footnotes: references, definitions, and navigation.
+- [x] Horizontal rules: Markdown rule input and editing.
+- [x] YAML front matter: metadata blocks at the start of a document.
+- [x] Table of contents: automatically generated from headings using `[toc]`.
+- [x] Mermaid: editable code in WYSIWYG mode and rendered diagrams in split-view previews.
+- [ ] Support standalone Sequence / Flowchart diagram syntax.
 
-目标：将本地 Markdown 文件夹作为稳定工作区使用。
+#### Inline Elements
 
-- [x] 支持多文档标签的打开、切换、状态提示和关闭。
-- [x] 自动暂存并恢复上一次的标签、内容与活动文档。
-- [x] 支持拖拽 Tab 调整文档标签的位置。
-- [x] 打开文件夹并展示可折叠文件树。
-- [x] 新建、重命名、移动和删除文档。
-- [x] 使用 Rust 文件监听同步外部修改。
-- [x] 自动处理外部修改、重命名和删除导致的冲突，不静默覆盖 dirty 文档。
-- [x] 支持拖入或粘贴本地图片，并以相对路径存储和预览。
-- [x] 支持图片拖动缩放以及左对齐、居中和右对齐。
-- [x] 自动暂存并恢复未保存的标签内容，提供基础崩溃恢复能力。
-- [x] 增加源文件自动保存和外部冲突处理。
-- [ ] 记录最近打开的工作区和文件。
-- [ ] 支持链接和通用附件的相对路径插入。
-- [ ] 扩展图片工具条，支持缩放预设、恢复原始大小、编辑 alt/title、复制 Markdown、复制图片地址和在文件夹中显示。
-- [ ] 评估 SQLite 在设置和工作区元数据中的使用。
+- [x] Links: inline links, heading anchors, and reference links.
+- [x] URL and email links: angle-bracket links are supported, with automatic linking enabled in split-view previews.
+- [ ] Improve automatic URL and email link input and editing in WYSIWYG mode.
+- [x] Images: Markdown image syntax, alt text, and optional titles, with local and remote sources.
+- [x] Italic, bold, inline code, and strikethrough.
+- [x] Escaped characters: use backslashes to preserve syntax characters such as asterisks and underscores.
+- [x] Inline math: LaTeX content wrapped in `$...$`.
+- [ ] Underline: display and edit `<u>...</u>`.
+- [ ] Emoji: support shortcodes such as `:smile:` and completion; ordinary Unicode emoji can already be entered directly.
+- [ ] Subscript: support syntax such as `H~2~O`.
+- [ ] Superscript: support syntax such as `X^2^`, keeping it distinct from footnote references.
+- [ ] Highlight: support `==highlighted text==`.
+- [ ] Provide shared syntax preferences for optional extensions.
 
-验收标准：用户可以有效管理现有 Markdown 文件夹，外部修改和删除能被检测并安全处理，工作区行为稳定可用。
+#### HTML Content
 
-### Phase 3：高质量阅读与写作
+- [x] Support HTML images that follow the project's conventions; other HTML is currently preserved or escaped as source.
+- [ ] Support inline HTML styles and common tags, including text colors and `<br>` line breaks.
+- [ ] Support embedded content using `<iframe>`.
+- [ ] Support embedded video using `<video>`.
+- [ ] Gradually expand display, editing, and save support for other common HTML elements.
 
-目标：提升复杂文档的长期写作和阅读体验。
+#### Existing Lume Extensions
 
-- [x] 支持跟随系统、浅色、深色与毛玻璃主题。
-- [x] 支持 KaTeX 数学公式、Mermaid 图表和脚注。
-- [x] 引入高质量代码语法高亮。
-- [x] 支持所见即所得编辑区的文档内搜索、替换和匹配高亮。
-- [x] 支持图片、代码块和表格等常见写作内容的编辑交互。
-- [x] 支持前端写作偏好：正文宽度和字体大小调节。
-- [x] 支持编辑区与预览区分栏滚动同步。
-- [x] 支持专注模式和简洁写作界面。
-- [x] 支持按分类分组的设置面板（编辑、写作、外观）。
-- [ ] 支持文档大纲与目录导航。
-- [ ] 支持源码编辑区搜索替换和全局命令面板。
-- [ ] 支持导出 HTML 与 PDF。
+- [x] GitHub-style alerts: NOTE, TIP, IMPORTANT, WARNING, and CAUTION.
+- [x] Image handling metadata: document-specific image roots, copy destinations, and upload rules.
 
-验收标准：复杂文档在阅读与编辑模式下排版一致，扩展内容不会明显影响正常输入，写作场景已覆盖多种 Markdown 结构。
+### Phase 0: Project Foundation
 
-### Phase 4：搜索、索引与效率工具
+Goal: establish a desktop app foundation that can support continued development.
 
-目标：提升多文档场景下的信息检索效率。
+- [x] Initialize Tauri 2, Rust, Vue 3, TypeScript, and Vite.
+- [x] Establish ESLint, Prettier, TypeScript, and directory conventions.
+- [x] Define design tokens for colors, typography, spacing, and layout.
+- [x] Build a custom title bar, editor area, and status bar.
+- [x] Establish Tauri command bridges, permissions, and a shared error model.
+- [x] Connect native minimize, maximize, and close controls.
+- [x] Separate app, feature, service, and platform adapter responsibilities.
+- [x] Configure GitHub Actions to build and publish Windows, macOS, and Linux packages from version tags.
 
-- [ ] 在 Rust 后台构建工作区全文索引。
-- [ ] 实现全局搜索，支持按文件名、正文、标题和标签查找内容。
-- [ ] 提供快速打开、最近文件和反向链接。
-- [ ] 支持标签、收藏与文档大纲。
-- [ ] 评估 Git 状态、差异预览和版本历史。
-- [ ] 为超大文件引入分块解析和预览虚拟化。
+### Phase 1: Single-Document Editing
 
-验收标准：中等规模工作区能够快速返回结果，搜索和索引不阻塞编辑操作，长文档工作流更顺畅。
+Goal: reliably create, edit, preview, and save Markdown documents.
 
-### Phase 5：同步与扩展
+- [x] Implement Markdown-first WYSIWYG editing with Milkdown.
+- [x] Provide Markdown source with a live split-view preview.
+- [x] Create, open, and save local Markdown files.
+- [x] Show word count, character count, reading time, and cursor position.
+- [x] Support basic Markdown such as headings, lists, quotes, emphasis, and code blocks.
+- [x] Check for unsaved changes when closing tabs and confirm before discarding them.
+- [x] Provide common keyboard shortcuts for creating, opening, saving, and closing documents.
+- [x] Implement Save As and protect unsaved changes when closing the app.
+- [x] Support GFM tables, task lists, and strikethrough in WYSIWYG mode.
+- [x] Insert and edit GFM tables through editor context menus.
+- [x] Provide split-view editing, selection and image toolbars, and context menus.
+- [x] Offer context-specific actions for text, images, math, code, and tables, with command availability checks.
+- [x] Toggle task checkboxes in WYSIWYG mode and show read-only checkboxes in split-view previews.
+- [x] Provide the `npm run test:editor` regression entry point, covering structural conversions, serialization, selections, menus, clipboard operations, and some mode-switching behavior.
+- [ ] Improve undo and redo consistency across editing modes.
+- [ ] Improve desktop interactions involving input methods, keyboards, pointers, floating controls, and the system clipboard.
+- [ ] Continue checking complex Markdown through editing, mode switches, saving, and reopening, with clear rules for formatting normalization and content preservation.
 
-目标：在不牺牲本地优先原则的前提下扩展能力。
+### Phase 2: Workspaces and Files
 
-- [ ] 设计可选同步接口，默认不上传用户内容。
-- [ ] 评估 WebDAV、Git 和自托管同步方案。
-- [ ] 定义受控插件 API 和权限边界。
-- [ ] 支持自定义主题、模板和快捷键。
-- [ ] 建立性能基准、错误收集和隐私透明机制。
+Goal: make local Markdown folders reliable workspaces.
 
-## 当前优先级
+- [x] Open, switch, identify, and close multiple document tabs.
+- [x] Save and restore tabs, contents, and the active document, including content not yet saved to a file.
+- [x] Reorder document tabs by dragging.
+- [x] Open folders and show a collapsible file tree.
+- [x] Create, rename, move, and delete workspace documents and directories.
+- [x] Remember and restore the last workspace path.
+- [x] Detect external workspace changes with Rust background snapshot polling and notify the frontend in batches.
+- [x] Handle conflicts caused by external edits, renames, and deletions without silently overwriting documents with unsaved changes.
+- [x] Insert images from local selection, pasted screenshots, multiple dropped files, image URLs, and Markdown input, with inline path editing.
+- [x] Resolve and preview relative local image paths, keeping original files or copying them to a chosen folder according to preferences.
+- [x] Resize images by dragging and align them left, center, or right.
+- [x] Provide image scale presets, size reset, source / alt / title editing, and Markdown / address copying.
+- [x] Copy or move images in batches, download remote images, and upload local images through an external uploader.
+- [x] Support image path preferences, document-specific image roots, and YAML image handling rules.
+- [x] Schedule autosave for documents with a file path and check disk contents before saving; pause autosave for conflicting documents and start conflict resolution.
+- [ ] Provide recent file and workspace history beyond restoring the last session.
+- [ ] Add a Reveal in Folder action for local images; a platform command exists but is not yet used by the image menu.
+- [ ] Support general attachments and relative-path insertion, and improve local document link insertion.
+- [ ] Evaluate SQLite for settings and workspace metadata.
 
-1. 补齐长文写作与导航能力：大纲、目录、滚动同步、专注模式。
-2. 完善源码编辑能力：搜索替换、命令面板、快捷操作。
-3. 实现工作区级效率工具：全文搜索、快速打开、最近打开和标签管理。
-4. 在基础体验稳定后，再推进导出和同步能力。
+### Phase 3: Reading and Writing Experience
 
-## 非目标
+Goal: improve long-term writing and reading of complex documents.
 
-以下能力不进入早期版本范围：
+- [x] Support system, light, dark, and frosted glass themes.
+- [x] Integrate the implemented math, footnote, link, metadata, table of contents, alert, and code highlighting capabilities listed above.
+- [x] Provide document-level find, replace, and match highlighting in WYSIWYG mode.
+- [x] Provide editing interactions for images, code blocks, and tables.
+- [x] Offer frontend writing preferences for text width and font size.
+- [x] Synchronize scrolling between the source editor and preview.
+- [x] Provide a focus mode and a minimal writing interface.
+- [x] Organize settings into categories for editing, writing, appearance, and images.
+- [x] Provide a sidebar document outline with heading navigation.
+- [x] Provide an app command palette for file, view, writing preference, and image commands.
+- [ ] Add document-level find, replace, and match highlighting to the source editor.
+- [ ] Improve outline extraction, table of contents navigation, and split-view scroll accuracy for complex documents.
+- [ ] Add underline, emoji shortcodes, subscript, superscript, highlighting, and related syntax preferences.
+- [ ] Add Sequence / Flowchart diagrams, HTML, embedded content, and video support.
+- [ ] Support HTML and PDF export.
 
-- 实时多人协作。
-- 云端账号体系和强制在线服务。
-- 使用私有格式替代 Markdown 源文件。
-- 在需求尚未验证时引入复杂插件生态。
+### Phase 4: Search, Indexing, and Productivity
 
-## 性能目标
+Goal: make information easier to find across documents.
 
-| 场景 | 目标 |
-| --- | --- |
-| 应用启动 | 尽快进入可编辑状态，非关键能力延迟加载 |
-| 普通键入 | 不因完整预览解析或原生 IPC 阻塞输入 |
-| 文档同步 | 编辑器状态与 Markdown 源文本保持一致 |
-| 大文档 | 分块处理并限制单次 DOM 更新范围 |
-| 工作区搜索 | 在 Rust 后台执行并增量返回结果 |
+- [ ] Build a workspace full-text index in the Rust backend.
+- [ ] Implement workspace search by file name, body text, headings, and tags.
+- [ ] Provide quick open by file name and backlinks.
+- [ ] Support tags and favorites.
+- [ ] Evaluate Git status, diff previews, and version history.
+- [ ] Introduce chunked parsing and preview virtualization for very large files.
 
-## 近期优先级
+### Phase 5: Sync and Extensibility
 
-1. 完成单文档编辑闭环中的撤销重做和自动化测试。
-2. 以真实 Markdown 文档验证 Milkdown 输入行为和 Markdown 往返一致性。
-3. 在桌面端完成工作区文件树、外部监听与会话恢复的手动验收。
-4. 实现全局搜索与 Rust 全文索引。
-5. 在基础体验稳定后再推进公式、图表、导出和滚动同步等阅读写作能力。
+Goal: expand capabilities while preserving local-first principles.
+
+- [ ] Design optional sync interfaces that do not upload user content by default.
+- [ ] Evaluate WebDAV, Git, and self-hosted sync options.
+- [ ] Define a controlled plugin API and permission boundaries.
+- [ ] Support custom themes, templates, and keyboard shortcuts.
+- [ ] Design optional error reporting with transparent privacy practices.
+
+## Current Priorities
+
+1. **Stabilize editing and saving**: prioritize image, link, footnote, table, math, and document block input, selections, undo / redo, mode switching, and save round trips. Continue checking core behavior through the existing regression entry point.
+2. **Expand Markdown syntax**: first improve automatic URL links, underline, emoji shortcodes, subscript, superscript, and highlighting, then expand standalone diagram syntax and HTML content.
+3. **Improve source mode**: implement find and replace with match navigation, and improve consistency with WYSIWYG operations.
+4. **Improve local file reliability**: cover autosave, external edits / renames / deletions, session recovery, and image asset organization in desktop workflows.
+5. **Build workspace search**: develop recent history, quick open by file name, and Rust full-text indexing and search in that order.
+6. **Improve long-document workflows**: refine outline and table of contents navigation and scroll synchronization, then work toward HTML / PDF export. Sync and plugins remain later plans.

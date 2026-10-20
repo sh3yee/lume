@@ -1,103 +1,150 @@
-![Lume 图标](docs/assets/logo.png)
+![Lume icon](docs/assets/logo.png)
 
 # Lume
 
-**一款安静、轻盈、专注于本地写作的 Markdown 编辑器。**
+**English** | [简体中文](README.zh-CN.md)
 
-让文字留在自己的设备里，让写作回归内容本身。
+**A calm, lightweight Markdown editor for local writing.**
 
-![项目状态：早期开发](https://img.shields.io/badge/状态-早期开发-d98b2b?style=flat-square)
-![本地优先](https://img.shields.io/badge/文档-本地优先-4f7f6f?style=flat-square)
-![Markdown](https://img.shields.io/badge/格式-Markdown-5d6673?style=flat-square)
+Keep your words on your own device. Bring your attention back to writing.
 
-[界面预览](#界面预览) · [体验亮点](#体验亮点) · [项目进度](#项目进度) · [参与项目](#参与项目)
+![Status: early development](https://img.shields.io/badge/status-early_development-d98b2b?style=flat-square)
+![Local first](https://img.shields.io/badge/documents-local_first-4f7f6f?style=flat-square)
+![Markdown](https://img.shields.io/badge/format-Markdown-5d6673?style=flat-square)
 
----
-
-## 关于 Lume
-
-Lume 是为个人写作与本地知识整理打造的桌面编辑器。
-
-它直接使用普通的 Markdown 文件，不要求登录账号，不把内容锁进专有格式，也不会改变你原有的文档管理方式。无论是随手记录、学习笔记，还是长期文章，都可以在一个简洁、舒适的空间里完成。
-
-> 你的文字属于你。随时打开，随时迁移，长期可读。
-
-## 界面预览
-
-Lume 提供明亮、沉静与朦胧三种不同氛围，让写作空间适应你的环境与心情。
-
-| 浅色主题 | 深色主题 | 毛玻璃主题 |
-| --- | --- | --- |
-| ![Lume 浅色主题界面](docs/assets/lume-light.png) | ![Lume 深色主题界面](docs/assets/lume-dark.png) | ![Lume 毛玻璃主题界面](docs/assets/lume-glass.png) |
-
-## 体验亮点
-
-| 体验 | 说明 |
-| --- | --- |
-| ✍️ **专注写作** | 克制的界面与舒适的正文宽度，让注意力始终停留在文字上 |
-| 📄 **本地优先** | 直接打开和保存本地 Markdown 文件，不依赖账号与在线服务 |
-| ✨ **两种编辑方式** | 在所见即所得与源码分栏之间自由切换，兼顾流畅输入与精细控制 |
-| 🗂️ **多文档工作** | 使用标签页同时处理多篇内容，快速切换并清楚识别未保存状态 |
-| 🛟 **会话暂存** | 自动暂存当前标签与编辑内容，关闭应用后再次打开仍可继续写作 |
-| 🌗 **舒适外观** | 提供浅色、深色、跟随系统与毛玻璃外观，适应不同环境与偏好 |
-| 📊 **写作状态** | 实时显示字数、字符数、阅读时长与光标位置，掌握当前写作进度 |
-
-## 适合用来做什么
-
-- 记录灵感、日记与日常随笔
-- 整理课程、阅读和技术学习笔记
-- 撰写博客、文章与长篇内容
-- 管理可以长期保存和迁移的 Markdown 文档
-- 在不连接云服务的情况下安静写作
-
-## 设计原则
-
-| 原则 | 含义 |
-| --- | --- |
-| **本地优先** | 内容保存在自己的设备中，由自己掌控 |
-| **Markdown 优先** | 文件保持开放、可读、可迁移 |
-| **写作优先** | 输入体验与内容表达高于功能堆叠 |
-| **简单可靠** | 用清晰的交互完成常用工作 |
-| **渐进增强** | 在稳定基础体验之上谨慎增加能力 |
-
-## 项目进度
-
-Lume 目前处于早期开发阶段，已经可以完成本地 Markdown 文档的新建、打开、编辑与保存，并支持多标签、未保存提醒、会话恢复、主题切换和基础写作统计。
-
-接下来将继续完善：
-
-- 工作区与文件树
-- 自动保存与外部修改提醒
-- 文档搜索、替换与大纲
-- 表格、任务列表等扩展内容
-- 图片与附件管理
-- HTML 与 PDF 导出
-
-详细计划请查看 [产品与开发路线图](docs/roadmap.md)。
-
-## 参与项目
-
-欢迎提交问题、分享使用感受或参与改进。无论是一个交互建议、一处文案修正，还是一个新的使用场景，都能帮助 Lume 变得更好。
-
-- 开始参与前，请阅读 [开发说明](docs/development.md)
-- 想了解后续方向，请查看 [产品与开发路线图](docs/roadmap.md)
-- 发现问题时，请尽量附上复现步骤、系统环境与相关截图
-
-## 当前说明
-
-> Lume 尚未发布稳定版本，界面、功能和文档仍可能调整。重要文档请保留独立备份。
-
-## 许可证
-
-本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE.md)。
-
-- 允许个人学习、研究、实验、业余项目及其他非商业用途
-- 允许在非商业目的下修改和分发，但必须保留许可证及相关声明
-- **禁止将本项目或其衍生作品用于商业用途**
-- 商业授权需求请联系项目作者另行取得许可
-
-> 由于许可证限制商业用途，本项目属于源码可见项目，不属于 OSI 定义的开源软件。
+[Screenshots](#screenshots) · [Highlights](#highlights) · [Markdown Support](#markdown-support) · [Images and Assets](#images-and-assets) · [Project Status](#project-status) · [Contributing](#contributing)
 
 ---
 
-**Lume · 为文字留一束安静的光。**
+## About Lume
+
+Lume is a desktop editor for personal writing and organizing local knowledge.
+
+It works directly with ordinary Markdown files. No account is required, your content stays in an open format, and you can keep organizing your documents the way you already do. From quick notes and study materials to long articles, Lume gives you a simple, comfortable place to write.
+
+> Your words belong to you. Open them anywhere, move them freely, and keep them readable for years.
+
+## Screenshots
+
+Choose a light, dark, or frosted glass theme to suit your surroundings and mood.
+
+| Light                                           | Dark                                          | Frosted Glass                                           |
+| ----------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| ![Lume light theme](docs/assets/lume-light.png) | ![Lume dark theme](docs/assets/lume-dark.png) | ![Lume frosted glass theme](docs/assets/lume-glass.png) |
+
+## Highlights
+
+| Feature                       | Description                                                                                                                                    |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✍️ **Focused writing**        | Focus mode hides the sidebar and document tabs. Adjust text width and font size to your preference.                                            |
+| 📄 **Local first**            | Open and save local Markdown files directly, without an account or online service.                                                             |
+| ✨ **Two editing modes**      | Switch between WYSIWYG editing and Markdown source with a live preview, with synchronized scrolling in split view.                             |
+| 🗂️ **Workspaces and tabs**    | Open local folders and manage documents in a file tree. Reorder tabs by dragging and see unsaved changes at a glance.                          |
+| 💾 **Autosave and conflicts** | Documents with a file path are saved automatically. External edits, renames, and deletions are detected, with choices for resolving conflicts. |
+| 🛟 **Session recovery**       | Open tabs and their contents are saved locally so you can continue writing when you reopen the app.                                            |
+| 🔎 **Find and navigate**      | Find, replace, and highlight matches in WYSIWYG mode. Jump to headings through the sidebar outline or an in-document table of contents.        |
+| ⌨️ **Command palette**        | Quickly create, open, and save documents, switch editing modes, and run image commands.                                                        |
+| 🌗 **Comfortable themes**     | Choose light, dark, system, or frosted glass appearance.                                                                                       |
+| 📊 **Writing statistics**     | Track word count, character count, estimated reading time, and cursor position.                                                                |
+
+## Markdown Support
+
+| Content                 | Current support                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Basic formatting**    | Headings, paragraphs, bold, italic, blockquotes, ordered and unordered lists, horizontal rules, and inline code |
+| **GFM extensions**      | Tables, task lists, and strikethrough; table insertion and row and column editing in WYSIWYG mode               |
+| **Links and footnotes** | Inline links, reference links, and footnotes, with editing in the document                                      |
+| **Code blocks**         | Language selection and syntax highlighting                                                                      |
+| **Math**                | Inline and block equations rendered with KaTeX                                                                  |
+| **Diagrams**            | Mermaid diagram editing and rendering                                                                           |
+| **Document metadata**   | YAML front matter at the start of a document, editable in WYSIWYG mode                                          |
+| **Table of contents**   | A standalone `[toc]` marker generates a clickable list of document headings                                     |
+| **Alerts**              | GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` blocks                                        |
+
+WYSIWYG mode provides a selection toolbar and context menus for common formatting, block conversion, and content insertion. Source mode lets you edit Markdown directly while the preview renders supported extensions.
+
+## Images and Assets
+
+- **Flexible insertion**: Select local images, paste screenshots, drag and drop files, or use image URLs and Markdown syntax. Edit image paths inline.
+- **Image editing**: Change the source, alt text, and title; drag to resize, choose a scale preset, restore the original size, or set alignment.
+- **Asset organization**: Keep images in their original location or copy them to a chosen folder. Use relative paths, path escaping, and document-specific image roots. Copy or move images in batches, or download remote images.
+- **Optional uploads**: Configure an external uploader to upload local images. Use YAML metadata to choose image handling rules for individual documents.
+
+Configure insertion rules, path formatting, and uploaders under Preferences → Images. Local writing does not require an uploader.
+
+## Keyboard Shortcuts
+
+| Action                                     | Windows / Linux           |
+| ------------------------------------------ | ------------------------- |
+| New document                               | `Ctrl+N` / `Ctrl+T`       |
+| Open file                                  | `Ctrl+O`                  |
+| Save / Save As                             | `Ctrl+S` / `Ctrl+Shift+S` |
+| Close current document                     | `Ctrl+W`                  |
+| Command palette                            | `Ctrl+P`                  |
+| Preferences                                | `Ctrl+,`                  |
+| Find and replace in the document (WYSIWYG) | `Ctrl+F`                  |
+| Insert image                               | `Ctrl+Shift+I`            |
+
+On macOS, use `Command` instead of `Ctrl`.
+
+## What You Can Use It For
+
+- Capture ideas, journals, and everyday notes
+- Organize course notes, reading notes, and technical learning materials
+- Write blog posts, articles, and longer pieces
+- Manage Markdown documents that remain portable and readable over time
+- Write quietly without connecting to a cloud service
+
+## Design Principles
+
+| Principle                   | Meaning                                                                  |
+| --------------------------- | ------------------------------------------------------------------------ |
+| **Local first**             | Your content stays on your own device, under your control.               |
+| **Markdown first**          | Files stay open, readable, and portable.                                 |
+| **Writing first**           | The writing experience and clear expression come before adding features. |
+| **Simple and reliable**     | Clear interactions for everyday work.                                    |
+| **Progressive enhancement** | Add capabilities carefully on top of a stable foundation.                |
+
+## Project Status
+
+Lume is in early development. The current repository version is **0.3.0**. Local document editing, workspace file management, autosave, external conflict handling, and session recovery are implemented. Markdown extensions and image workflows continue to improve.
+
+The desktop app uses Tauri 2, Rust, Vue 3, and TypeScript. WYSIWYG editing is powered by Milkdown / ProseMirror, and split-view previews use markdown-it. Workspace management, automatic saves to source files, and local image asset handling require the desktop environment. Browser mode is intended for frontend development and a preview of the basic experience.
+
+Planned improvements include:
+
+- Find and replace in the source editor
+- Workspace search, full-text indexing, and quick open
+- Recent files and workspace history
+- General attachment management and relative-path insertion
+- Large-document performance and consistent interactions across editing modes
+- HTML and PDF export
+
+See the [Product and Development Roadmap](docs/roadmap.md) for details.
+
+## Contributing
+
+Issues, feedback, and contributions are welcome. Interaction suggestions, wording improvements, and new use cases all help shape Lume.
+
+- Read the [Development Guide](docs/development.md) before contributing.
+- See the [Product and Development Roadmap](docs/roadmap.md) for future plans.
+- When reporting a problem, include reproduction steps, your system environment, and relevant screenshots where possible.
+
+## Current Notice
+
+> Lume has not reached a stable release. Its interface, features, and documentation may change. Keep independent backups of important documents.
+
+## License
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+
+- Personal learning, research, experimentation, hobby projects, and other noncommercial uses are permitted.
+- Modification and redistribution for noncommercial purposes are permitted, provided the license and required notices are retained.
+- **Commercial use of this project or derivative works is prohibited.**
+- Contact the project author for a separate commercial license.
+
+> Because the license restricts commercial use, this is a source-available project, not open-source software under the OSI definition.
+
+---
+
+**Lume · A quiet light for your words.**

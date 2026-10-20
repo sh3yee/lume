@@ -1,60 +1,64 @@
-# Lume 开发说明
+# Lume Development Guide
 
-本文档描述 Lume 项目的开发环境配置、目录结构和常用命令。
+**English** | [简体中文](development.zh-CN.md)
 
-## 环境要求
+This document describes the development environment, project structure, and common commands for Lume.
 
-| 工具 | 最低版本 | 用途 |
-| --- | --- | --- |
-| Node.js | 20.0+ | 前端构建与开发服务器 |
-| npm | 10.0+ | 依赖管理 |
-| Rust | 1.77+ | Tauri 后端编译 |
-| Cargo | 随 Rust 安装 | Rust 包管理 |
+## Requirements
 
-### 安装 Rust（如尚未安装）
+| Tool    | Minimum version    | Purpose                                |
+| ------- | ------------------ | -------------------------------------- |
+| Node.js | 20.0+              | Frontend builds and development server |
+| npm     | 10.0+              | Dependency management                  |
+| Rust    | 1.77+              | Tauri backend compilation              |
+| Cargo   | Included with Rust | Rust package management                |
 
-Windows 环境下，推荐通过 scoop 安装 rustup（MSVC 工具链）：
+### Install Rust (If Needed)
+
+On Windows, install rustup with the MSVC toolchain using Scoop:
 
 ```powershell
-# 通过 scoop 安装（推荐）
+# Install with Scoop (recommended)
 scoop install rustup-msvc
 
-# 或通过 rustup 官方安装器
-# 访问 https://rustup.rs/ 下载安装器
+# Alternatively, use the official rustup installer
+# Download it from https://rustup.rs/
 ```
 
-> **国内加速**：如果下载速度很慢，设置环境变量使用国内镜像：
+> **Optional mirror for users in China**: If downloads are slow, configure the following environment variables to use a regional mirror:
+>
 > ```powershell
 > $env:RUSTUP_DIST_SERVER = "https://rsproxy.cn"
 > $env:RUSTUP_UPDATE_ROOT = "https://rsproxy.cn/rustup"
 > scoop install rustup-msvc
 > ```
 
-安装完成后重启终端，验证：
+Restart your terminal after installation and verify:
 
 ```powershell
 rustc --version
 cargo --version
 ```
 
-### 安装 MSVC 构建工具（必需）
+### Install MSVC Build Tools (Required on Windows)
 
-Rust 在 Windows 上默认使用 MSVC 工具链，需要 Visual Studio Build Tools 提供 `link.exe` 和 Windows SDK：
+Rust's default Windows MSVC toolchain requires Visual Studio Build Tools to provide `link.exe` and the Windows SDK:
 
 ```powershell
-# 通过 winget 安装（推荐）
+# Install with winget (recommended)
 winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget `
   --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" `
   --accept-package-agreements --accept-source-agreements
 ```
 
-或手动下载安装：访问 <https://visualstudio.microsoft.com/visual-cpp-build-tools/>，安装时勾选：
+Alternatively, download the installer from <https://visualstudio.microsoft.com/visual-cpp-build-tools/> and select:
+
 - **MSVC - VS C++ x64/x86 build tools**
 - **Windows SDK**
 
-### 配置 Cargo 国内镜像（可选）
+### Configure a Cargo Mirror (Optional)
 
-在 `~/.cargo/config.toml` 中配置 rsproxy 镜像，加速 crate 下载：
+To speed up crate downloads in China, configure the rsproxy mirror in `~/.cargo/config.toml`:
 
 ```toml
 [source.crates-io]
@@ -67,151 +71,151 @@ registry = "sparse+https://rsproxy.cn/index/"
 git-fetch-with-cli = true
 ```
 
-## 快速开始
+## Quick Start
 
-```bash
-# 安装前端依赖
+```powershell
+# Install frontend dependencies
 npm install
 
-# 仅前端开发（无需 Rust 环境）
+# Frontend development only (no Rust environment required)
 npm run dev
 
-# Tauri 桌面应用开发（需要 Rust 环境）
+# Tauri desktop development (requires a Rust environment)
 npm run tauri:dev
 
-# 构建桌面应用安装包
+# Build desktop installation packages
 npm run tauri:build
 ```
 
-## 常用命令
+## Common Commands
 
-| 命令 | 说明 |
-| --- | --- |
-| `npm run dev` | 启动 Vite 前端开发服务器（端口 1420） |
-| `npm run build` | 类型检查 + 前端生产构建 |
-| `npm run type-check` | 仅运行 TypeScript 类型检查 |
-| `npm run lint` | ESLint 检查并自动修复 |
-| `npm run format` | Prettier 格式化源码 |
-| `npm run tauri:dev` | 启动 Tauri 桌面应用开发模式 |
-| `npm run tauri:build` | 构建桌面应用安装包 |
+| Command               | Description                                             |
+| --------------------- | ------------------------------------------------------- |
+| `npm run dev`         | Start the Vite frontend development server on port 1420 |
+| `npm run build`       | Run type checking and build the frontend for production |
+| `npm run type-check`  | Run TypeScript type checking only                       |
+| `npm run lint`        | Run ESLint with automatic fixes                         |
+| `npm run format`      | Format source files with Prettier                       |
+| `npm run tauri:dev`   | Start the Tauri desktop app in development mode         |
+| `npm run tauri:build` | Build desktop installation packages                     |
 
-## 发布 GitHub Release
+## Publishing a GitHub Release
 
-仓库通过 `.github/workflows/release.yml` 自动构建 Windows、macOS 和 Linux 安装包。发布前请确保 `package.json`、`src-tauri/Cargo.toml` 与 `src-tauri/tauri.conf.json` 中的版本号保持一致。
+The repository uses `.github/workflows/release.yml` to build Windows, macOS, and Linux packages automatically. Before releasing, keep the version numbers in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` in sync.
 
-提交版本变更后，创建并推送以 `v` 开头的标签：
+After committing the version changes, create and push a tag starting with `v`:
 
 ```powershell
-git tag -a v0.3.0 -m "发布 v0.3.0"
+git tag -a v0.3.0 -m "Release v0.3.0"
 git push --atomic origin main v0.3.0
 ```
 
-推送标签后，工作流会在 GitHub Releases 中直接发布正式版本，并自动附加各平台安装包。Windows 会同时提供两种安装程序：
+Pushing the tag triggers the workflow to publish a release directly on GitHub Releases and attach platform installation packages. Windows provides two installer formats:
 
-- `.exe`：NSIS 安装程序，适合大多数用户直接下载安装
-- `.msi`：Windows Installer 安装包，适合系统管理和批量部署
+- `.exe`: an NSIS installer suitable for most users.
+- `.msi`: a Windows Installer package suitable for system administration and bulk deployment.
 
-发布后请检查 Actions 中各平台构建均已成功，并确认发布说明和安装包附件无误。
+After publishing, confirm that all platform builds succeeded in Actions and check the release notes and attached packages.
 
-也可以在 GitHub 仓库的 **Actions → Release → Run workflow** 中手动运行，填写 `v0.1.0` 形式的版本标签。正式发布仍建议直接推送版本标签，以确保 Release 标签和项目版本号一致。
+You can also run the workflow manually from **Actions → Release → Run workflow** in the GitHub repository, supplying a version tag such as `v0.1.0`. For normal releases, pushing a version tag is recommended to keep the release tag aligned with the project version.
 
-## 目录结构
+## Project Structure
 
 ```text
 lume/
-├── src/                        # 前端源码
-│   ├── components/             # Vue 组件
-│   │   ├── TitleBar.vue        # 标题栏
-│   │   ├── SideBar.vue         # 侧栏
-│   │   ├── EditorPane.vue      # 编辑区
-│   │   ├── PreviewPane.vue     # 预览区
-│   │   └── StatusBar.vue       # 状态栏
-│   ├── styles/                 # 全局样式
-│   │   ├── tokens.css          # 设计 Token（颜色、排版、间距等）
-│   │   ├── reset.css           # 基础重置
-│   │   └── index.css           # 样式入口
-│   ├── platform/               # 平台能力适配层
-│   │   ├── browser/            # 浏览器文件选择与下载降级
-│   │   └── tauri/              # 按领域拆分的 Tauri 客户端
-│   ├── App.vue                 # 应用根组件
-│   ├── main.ts                 # 前端入口
-│   └── env.d.ts                # 环境类型声明
-├── src-tauri/                  # Tauri / Rust 后端
+├── src/                        # Frontend source
+│   ├── components/             # Vue components
+│   │   ├── TitleBar.vue        # Title bar
+│   │   ├── SideBar.vue         # Sidebar
+│   │   ├── EditorPane.vue      # Editor area
+│   │   ├── PreviewPane.vue     # Preview area
+│   │   └── StatusBar.vue       # Status bar
+│   ├── styles/                 # Global styles
+│   │   ├── tokens.css          # Design tokens (colors, typography, spacing, etc.)
+│   │   ├── reset.css           # Base reset
+│   │   └── index.css           # Style entry point
+│   ├── platform/               # Platform adapters
+│   │   ├── browser/            # Browser file picker and download fallbacks
+│   │   └── tauri/              # Tauri clients organized by domain
+│   ├── App.vue                 # Root component
+│   ├── main.ts                 # Frontend entry point
+│   └── env.d.ts                # Environment type declarations
+├── src-tauri/                  # Tauri / Rust backend
 │   ├── src/
-│   │   ├── lib.rs              # 应用入口与插件注册
-│   │   ├── main.rs             # 二进制入口
-│   │   ├── commands/           # files/images/workspace/system 命令入口
-│   │   ├── services/           # 图片资源与工作区扫描领域服务
-│   │   └── error.rs            # 统一错误处理
-│   ├── capabilities/           # 权限配置
-│   ├── Cargo.toml              # Rust 依赖
-│   ├── build.rs                # 构建脚本
-│   └── tauri.conf.json         # Tauri 配置
-├── docs/                       # 项目文档
-├── index.html                  # HTML 入口
-├── package.json                # 前端依赖与脚本
-├── tsconfig.json               # TypeScript 配置
-├── vite.config.ts              # Vite 配置
-├── .eslintrc.cjs               # ESLint 配置
-├── .prettierrc.json            # Prettier 配置
-└── .editorconfig               # 编辑器格式约定
+│   │   ├── lib.rs              # App initialization and plugin registration
+│   │   ├── main.rs             # Binary entry point
+│   │   ├── commands/           # File, image, workspace, and system commands
+│   │   ├── services/           # Image asset and workspace scanning services
+│   │   └── error.rs            # Shared error handling
+│   ├── capabilities/           # Permission configuration
+│   ├── Cargo.toml              # Rust dependencies
+│   ├── build.rs                # Build script
+│   └── tauri.conf.json         # Tauri configuration
+├── docs/                       # Project documentation
+├── index.html                  # HTML entry point
+├── package.json                # Frontend dependencies and scripts
+├── tsconfig.json               # TypeScript configuration
+├── vite.config.ts              # Vite configuration
+├── .eslintrc.cjs               # ESLint configuration
+├── .prettierrc.json            # Prettier configuration
+└── .editorconfig               # Editor formatting conventions
 ```
 
-## 设计 Token
+## Design Tokens
 
-设计 Token 定义在 `src/styles/tokens.css` 中，通过 CSS 自定义属性实现主题切换。
+Design tokens are defined in `src/styles/tokens.css`. Themes are applied through CSS custom properties.
 
-- 所有 Token 以 `--lume-` 前缀命名。
-- 亮色主题为默认，暗色主题通过 `:root[data-theme='dark']` 覆盖。
-- 组件中直接引用 Token 变量，禁止硬编码颜色值。
+- All tokens use the `--lume-` prefix.
+- The light theme is the default; the dark theme overrides it through `:root[data-theme='dark']`.
+- Components must reference token variables instead of hardcoding color values.
 
-### 主要分类
+### Main Categories
 
-| 分类 | 示例 | 说明 |
-| --- | --- | --- |
-| 颜色 | `--lume-bg-base`、`--lume-text-primary` | 背景与文字 |
-| 品牌色 | `--lume-accent-default` | 强调与交互 |
-| 语义色 | `--lume-color-success`、`--lume-color-danger` | 状态反馈 |
-| 排版 | `--lume-font-size-base`、`--lume-line-height-normal` | 字体与行高 |
-| 间距 | `--lume-space-1` ~ `--lume-space-12` | 布局间距 |
-| 圆角 | `--lume-radius-sm` ~ `--lume-radius-xl` | 边角圆角 |
-| 阴影 | `--lume-shadow-sm` ~ `--lume-shadow-xl` | 层级投影 |
-| 布局 | `--lume-titlebar-height`、`--lume-sidebar-width` | 应用壳尺寸 |
+| Category        | Examples                                             | Purpose                     |
+| --------------- | ---------------------------------------------------- | --------------------------- |
+| Colors          | `--lume-bg-base`, `--lume-text-primary`              | Backgrounds and text        |
+| Brand color     | `--lume-accent-default`                              | Accents and interactions    |
+| Semantic colors | `--lume-color-success`, `--lume-color-danger`        | Status feedback             |
+| Typography      | `--lume-font-size-base`, `--lume-line-height-normal` | Font sizes and line heights |
+| Spacing         | `--lume-space-1` through `--lume-space-12`           | Layout spacing              |
+| Border radius   | `--lume-radius-sm` through `--lume-radius-xl`        | Rounded corners             |
+| Shadows         | `--lume-shadow-sm` through `--lume-shadow-xl`        | Visual depth                |
+| Layout          | `--lume-titlebar-height`, `--lume-sidebar-width`     | App shell dimensions        |
 
-## Tauri 命令边界
+## Tauri Command Boundaries
 
-### 命名规范
+### Naming
 
-- 所有 Lume 自定义命令以 `lume_` 前缀命名，避免与插件命令冲突。
-- 命令名使用下划线分隔的小写形式（如 `lume_health_check`）。
+- Prefix all custom Lume commands with `lume_` to avoid conflicts with plugin commands.
+- Use lowercase names separated by underscores, such as `lume_health_check`.
 
-### 错误处理
+### Error Handling
 
-- Rust 端所有命令返回 `LumeResult<T>`（即 `Result<T, LumeError>`）。
-- `LumeError` 使用 `thiserror` 派生，通过 `serde` 序列化为 `{ kind, message }` 结构。
-- 前端通过 `src/platform/tauri/client.ts` 统一调用命令，并将 Rust 序列化错误转换为标准 `Error`。
-- 文件、图片、工作区、窗口和系统能力分别位于 `src/platform/tauri` 的同名领域模块。
-- 前端组件不直接调用 `invoke`，必须通过桥接模块访问原生能力。
+- All Rust commands return `LumeResult<T>`, an alias for `Result<T, LumeError>`.
+- `LumeError` uses `thiserror` and is serialized by `serde` as `{ kind, message }`.
+- The frontend invokes commands through `src/platform/tauri/client.ts`, which converts serialized Rust errors into standard `Error` instances.
+- File, image, workspace, window, and system capabilities live in their respective domain modules under `src/platform/tauri`.
+- Frontend components must use bridge modules to access native capabilities instead of calling `invoke` directly.
 
-### 添加新命令
+### Adding a Command
 
-1. 在 `src-tauri/src/commands/{domain}.rs` 中添加轻量命令函数和 `#[tauri::command]` 宏。
-2. 具体图片或工作区业务逻辑放入 `src-tauri/src/services`，命令只负责参数边界和调用 Service。
-3. 在 `src-tauri/src/lib.rs` 的 `invoke_handler` 中注册命令。
-4. 在 `src/platform/tauri/{domain}.ts` 中添加类型化封装；禁止 Vue 组件直接调用 Tauri API。
-5. 如需新权限，在 `src-tauri/capabilities/default.json` 中声明。
+1. Add a lightweight command function with `#[tauri::command]` in `src-tauri/src/commands/{domain}.rs`.
+2. Put image or workspace business logic in `src-tauri/src/services`. Commands handle parameter boundaries and delegate to services.
+3. Register the command in `invoke_handler` in `src-tauri/src/lib.rs`.
+4. Add a typed wrapper in `src/platform/tauri/{domain}.ts`. Vue components must not call Tauri APIs directly.
+5. Declare any new permissions in `src-tauri/capabilities/default.json`.
 
-### 工作区监听约定
+### Workspace Watching Conventions
 
-- 文件管理命令必须校验源路径和目标路径都位于当前工作区内。
-- 工作区监听由 `services/workspace_watcher.rs` 的后台线程执行，统一发送 `lume://workspace-change` 批量事件。
-- 前端只在 `app/lifecycle/useWorkspaceLifecycle.ts` 订阅事件，侧栏显示状态不影响监听生命周期。
-- clean 文档可安全刷新；dirty 文档必须进入冲突流程，禁止静默覆盖。
-- 调整扫描上限或监听间隔后，需要同步更新 `workspace-performance.md` 并重新执行性能基线。
+- File management commands must verify that both source and destination paths are inside the current workspace.
+- Workspace watching runs in a background thread in `services/workspace_watcher.rs` and sends batched `lume://workspace-change` events.
+- The frontend subscribes only in `app/lifecycle/useWorkspaceLifecycle.ts`. Sidebar visibility does not affect the watcher lifecycle.
+- Documents without unsaved changes can be refreshed safely. Documents with unsaved changes must enter conflict resolution and must never be silently overwritten.
+- When changing scanning limits or polling intervals, update `workspace-performance.md` and rerun the performance baseline.
 
-## 提交规范
+## Commit Conventions
 
-项目遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
+The project follows [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```text
 <type>(<scope>): <subject>
@@ -220,4 +224,4 @@ lume/
 <footer>
 ```
 
-可用类型：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`、`revert`。
+Supported types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`.
