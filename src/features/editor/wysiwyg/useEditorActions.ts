@@ -189,8 +189,7 @@ export const useEditorActions = (options: {
         tr.setSelection(NodeSelection.create(tr.doc, pos))
         view.dispatch(closeHistory(tr).scrollIntoView())
         const dom = view.nodeDOM(pos)
-        if (dom instanceof HTMLElement)
-          dom.querySelector<HTMLInputElement>('.lume-image-path__input')?.focus()
+        if (dom instanceof HTMLElement) dom.dispatchEvent(new Event('lume-edit-image'))
         options.onAfterAction?.(view)
         return
       }

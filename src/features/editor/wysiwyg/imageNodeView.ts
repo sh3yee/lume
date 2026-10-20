@@ -152,6 +152,7 @@ export function createImageNodeView(options: {
       }
 
       const handleImageRefresh = () => updateImage(currentNode, true)
+      const handleEditImage = () => pathEditor.focus()
 
       const handleResizeStart = (event: PointerEvent) => {
         if (event.button !== 0 || !view.editable || destroyed) return
@@ -253,20 +254,22 @@ export function createImageNodeView(options: {
       resizeHandle.addEventListener('pointerdown', handleResizeStart)
       window.addEventListener('resize', scheduleZoom)
       view.dom.addEventListener('lume:image-refresh', handleImageRefresh)
+      dom.addEventListener('lume-edit-image', handleEditImage)
       updateImage(node)
+      // 仅创建占位节点时自动进入路径，后续文字选区不再被对象选择抢走。
+      if (!node.attrs.src)
+        queueMicrotask(() => {
+          if (
+            !destroyed &&
+            view.state.selection instanceof NodeSelection &&
+            view.state.selection.from === getPos()
+          )
+            pathEditor.focus()
+        })
       return {
         dom,
         selectNode() {
           dom.classList.add('ProseMirror-selectednode')
-          if (!currentNode.attrs.src)
-            queueMicrotask(() => {
-              if (
-                !destroyed &&
-                view.state.selection instanceof NodeSelection &&
-                view.state.selection.from === getPos()
-              )
-                pathEditor.focus()
-            })
         },
         deselectNode() {
           dom.classList.remove('ProseMirror-selectednode')
@@ -295,6 +298,7 @@ export function createImageNodeView(options: {
           if (animationFrame !== null) cancelAnimationFrame(animationFrame)
           window.removeEventListener('resize', scheduleZoom)
           view.dom.removeEventListener('lume:image-refresh', handleImageRefresh)
+          dom.removeEventListener('lume-edit-image', handleEditImage)
         },
       }
     },
