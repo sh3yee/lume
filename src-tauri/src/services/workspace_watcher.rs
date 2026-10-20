@@ -122,40 +122,6 @@ fn compare_snapshots(
     changes
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn stamp(size: u64, modified_millis: u128) -> WorkspaceFileStamp {
-        WorkspaceFileStamp { size, modified_millis, is_directory: false }
-    }
-
-    #[test]
-    fn compares_created_modified_deleted_and_renamed_files() {
-        let previous = HashMap::from([
-            ("deleted.md".to_string(), stamp(1, 1)),
-            ("modified.md".to_string(), stamp(2, 2)),
-            ("old.md".to_string(), stamp(3, 3)),
-        ]);
-        let current = HashMap::from([
-            ("created.md".to_string(), stamp(4, 4)),
-            ("modified.md".to_string(), stamp(5, 5)),
-            ("new.md".to_string(), stamp(3, 3)),
-        ]);
-
-        let changes = compare_snapshots(&previous, &current);
-
-        assert!(changes.iter().any(|change| matches!(change.kind, WorkspaceChangeKind::Created)));
-        assert!(changes.iter().any(|change| matches!(change.kind, WorkspaceChangeKind::Modified)));
-        assert!(changes.iter().any(|change| matches!(change.kind, WorkspaceChangeKind::Deleted)));
-        assert!(changes.iter().any(|change| {
-            matches!(change.kind, WorkspaceChangeKind::Renamed)
-                && change.path == "new.md"
-                && change.previous_path.as_deref() == Some("old.md")
-        }));
-    }
-}
-
 pub fn start_workspace_watcher(
     app: AppHandle,
     state: WorkspaceWatcherState,

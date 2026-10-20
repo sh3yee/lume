@@ -120,7 +120,6 @@ Goal: reliably create, edit, preview, and save Markdown documents.
 - [x] Provide split-view editing, selection and image toolbars, and context menus.
 - [x] Offer context-specific actions for text, images, math, code, and tables, with command availability checks.
 - [x] Toggle task checkboxes in WYSIWYG mode and show read-only checkboxes in split-view previews.
-- [x] Provide the `npm run test:editor` regression entry point, covering structural conversions, serialization, selections, menus, clipboard operations, and some mode-switching behavior.
 - [ ] Improve undo and redo consistency across editing modes.
 - [ ] Improve desktop interactions involving input methods, keyboards, pointers, floating controls, and the system clipboard.
 - [ ] Continue checking complex Markdown through editing, mode switches, saving, and reopening, with clear rules for formatting normalization and content preservation.
