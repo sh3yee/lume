@@ -77,6 +77,13 @@ export const resolveSelectionContext = (state: EditorState): EditorContext => {
   if (!node && selection.$from.sameParent(selection.$to) && selection.$from.parent.type.spec.code) {
     node = { pos: selection.$from.before(), node: selection.$from.parent }
   }
+  if (!node && selection.empty) {
+    for (let depth = selection.$from.depth; depth > 0; depth--) {
+      if (selection.$from.node(depth).type.name !== 'html_inline') continue
+      node = { pos: selection.$from.before(depth), node: selection.$from.node(depth) }
+      break
+    }
+  }
   const parts = new Set<string>()
   const blocks = new Set<string>()
   let characters = 0

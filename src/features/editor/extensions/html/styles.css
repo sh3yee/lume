@@ -1,6 +1,51 @@
 .lume-html-block {
-  margin: var(--lume-space-3) 0;
   position: relative;
+  margin: var(--lume-space-4) 0;
+  padding-top: 24px;
+  border-radius: var(--lume-radius-sm);
+}
+.lume-html-atom {
+  position: relative;
+}
+.lume-html-tools {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.lume-html-atom > .lume-html-tools {
+  top: -24px;
+}
+:is(.lume-html-block, .lume-html-atom):is(
+    :hover,
+    :focus-within,
+    .ProseMirror-selectednode,
+    .lume-html-editing,
+    .lume-html-embedded
+  )
+  > .lume-html-tools {
+  opacity: 1;
+}
+.lume-markdown-content .lume-html-source-toggle {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--lume-radius-sm);
+  background: var(--lume-code-bg);
+  color: var(--lume-text-tertiary);
+  font: 12px/20px var(--lume-font-sans);
+  cursor: pointer;
+}
+.lume-markdown-content .lume-html-source-toggle:is(:hover, [aria-expanded='true']) {
+  color: var(--lume-text-primary);
+}
+.lume-html-source-toggle:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 2px;
 }
 .lume-html-preview {
   overflow-wrap: anywhere;
@@ -8,42 +53,70 @@
 .lume-html-preview :is(video, iframe, svg, img) {
   max-width: 100%;
 }
+/* 修饰键在父文档中按下时，让点击落到 HTML 容器而非 iframe 子文档。 */
+.lume-link-navigation .lume-html-preview iframe {
+  pointer-events: none;
+}
 .lume-html-editing {
   display: block;
-  padding: var(--lume-space-3);
-  border: 1px solid var(--lume-border-subtle);
-  border-radius: var(--lume-radius-sm);
+  padding-top: 24px;
+}
+.lume-html-editing > .lume-html-tools {
+  top: 0;
 }
 .lume-html-editor {
   display: block;
-  box-sizing: border-box;
-  width: 100%;
-  resize: vertical;
-  padding: var(--lume-space-2);
-  color: var(--lume-text-primary);
-  background: var(--lume-code-bg);
-  border: 1px solid var(--lume-code-border);
-  font: inherit;
-  font-family: 'Cascadia Code', Consolas, monospace;
-}
-.lume-html-editing > button {
-  margin: var(--lume-space-2) 0;
-  color: var(--lume-text-primary);
-  background: var(--lume-bg-surface);
-  border: 1px solid var(--lume-border-subtle);
+  margin-bottom: var(--lume-space-2);
   border-radius: var(--lume-radius-sm);
-  cursor: pointer;
+  background: var(--lume-code-bg);
+  color: var(--lume-text-primary);
 }
-.lume-html-source,
+.lume-html-editor[hidden],
+.lume-html-preview[hidden] {
+  display: none;
+}
+.lume-html-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.lume-html-editor .cm-scroller {
+  font-family: var(--lume-font-mono);
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+.lume-html-editor .cm-content {
+  min-height: 48px;
+  padding: 10px 12px;
+  caret-color: var(--lume-text-primary);
+}
+.lume-html-editor .cm-line {
+  padding: 0;
+}
+.lume-html-editor .cm-cursor {
+  border-left-color: var(--lume-text-primary);
+}
+.lume-html-editor .cm-selectionBackground {
+  background: var(--lume-accent-subtle) !important;
+}
+.lume-html-source {
+  color: var(--lume-text-primary);
+  font-family: var(--lume-font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.lume-html-syntax {
+  color: var(--lume-text-secondary);
+}
 .lume-html-invisible,
 .lume-html-placeholder {
   color: var(--lume-text-secondary);
-  background: var(--lume-code-bg);
-  font-family: 'Cascadia Code', Consolas, monospace;
+  font-family: var(--lume-font-mono);
   white-space: pre-wrap;
+}
+.lume-markdown-content [data-html-inline] {
+  cursor: text;
 }
 .lume-markdown-content [data-html-inline]:has([data-html-content]:empty)::after {
   content: attr(data-html-open) attr(data-html-close);
   color: var(--lume-text-secondary);
-  font-family: 'Cascadia Code', Consolas, monospace;
+  font-family: var(--lume-font-mono);
 }

@@ -2,10 +2,11 @@ import type { Node } from '@milkdown/kit/prose/model'
 import { NodeSelection, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view'
 import { getHtmlResources, isInvisibleHtml, renderHtml } from './policy'
+import { createHtmlSourceEditor } from './sourceEditor'
 
 const interactiveSelector = 'a, summary, video, audio, iframe, button, input, select, textarea'
 
-/** HTML 源码存于文档节点中，编辑时的每次输入都参与保存与撤销。 */
+/** 源码与预览使用独立容器，避免切换编辑状态时重载 iframe。 */
 export const createHtmlNodeView = (
   node: Node,
   view: EditorView,
@@ -17,52 +18,84 @@ export const createHtmlNodeView = (
   const dom = document.createElement(block ? 'div' : 'span')
   dom.className = block ? 'lume-html-block' : 'lume-html-atom'
   dom.contentEditable = 'false'
+  dom.tabIndex = 0
+  dom.setAttribute('aria-label', 'HTML，按 Enter 编辑源码')
+  const tools = document.createElement('span')
+  tools.className = 'lume-html-tools'
+  const toggle = document.createElement('button')
+  toggle.type = 'button'
+  toggle.textContent = 'HTML'
+  toggle.className = 'lume-html-source-toggle'
+  const sourceHost = document.createElement(block ? 'div' : 'span')
+  sourceHost.className = 'lume-html-editor'
+  sourceHost.hidden = true
+  const preview = document.createElement(block ? 'div' : 'span')
+  preview.className = 'lume-html-preview'
+  tools.append(toggle)
+  dom.append(tools, sourceHost, preview)
   let currentNode = node
-  let source: HTMLTextAreaElement | null = null
-  let preview: HTMLElement | null = null
+  let source: ReturnType<typeof createHtmlSourceEditor> | null = null
   let editing = false
   let destroyed = false
   let revision = 0
+  let rendered = ''
+  let renderTimer: ReturnType<typeof setTimeout> | undefined
+  let blurTimer: ReturnType<typeof setTimeout> | undefined
+  let focusFrame = 0
   const urls = new Map<string, string>()
 
-  const renderPreview = (target: HTMLElement) => {
+  const updateControls = () => {
+    toggle.disabled = !view.editable
+    toggle.title = editing ? '收起 HTML 源码（Ctrl / Cmd + Enter）' : '编辑 HTML 源码'
+    toggle.setAttribute('aria-label', toggle.title)
+    toggle.setAttribute('aria-expanded', String(editing))
+    dom.classList.toggle('lume-html-editing', editing)
+    sourceHost.hidden = !editing
+  }
+  const renderPreview = () => {
     const raw = String(currentNode.attrs.value)
-    target.hidden = false
-    if (isInvisibleHtml(raw)) {
-      if (editing) {
-        target.replaceChildren()
-        target.hidden = true
-        return
-      }
+    const invisible = isInvisibleHtml(raw)
+    preview.hidden = invisible && editing
+    preview.classList.toggle('lume-html-invisible', invisible)
+    const key = invisible
+      ? raw
+      : renderHtml(raw, {
+          editing: true,
+          resolveSource: (source) => urls.get(source),
+        })
+    // 展开和收起源码时保留预览节点，避免中断媒体和嵌入页面。
+    if (rendered === key && preview.childNodes.length) return
+    rendered = key
+    if (invisible) {
+      dom.classList.remove('lume-html-embedded')
       const code = document.createElement('code')
       code.textContent = raw
-      target.replaceChildren(code)
-      target.classList.add('lume-html-invisible')
+      preview.replaceChildren(code)
       return
     }
-    target.classList.remove('lume-html-invisible')
-    target.innerHTML = renderHtml(raw, {
-      editing: true,
-      resolveSource: (source) => urls.get(source),
-    })
+    preview.innerHTML = key
     if (
-      !target.childNodes.length ||
-      (!target.textContent?.trim() &&
-        !target.querySelector('img, video, audio, iframe, svg, hr, br'))
+      !preview.textContent?.trim() &&
+      !preview.querySelector('img, video, audio, iframe, svg, hr, br')
     ) {
       const placeholder = document.createElement('span')
       placeholder.className = 'lume-html-placeholder'
       placeholder.textContent = raw
-      target.append(placeholder)
+      preview.append(placeholder)
     }
+    dom.classList.toggle(
+      'lume-html-embedded',
+      Boolean(preview.querySelector('iframe, video, audio')),
+    )
   }
   const loadResources = () => {
     const sequence = ++revision
-    const raw = String(currentNode.attrs.value)
+    const resources = Array.from(getHtmlResources(String(currentNode.attrs.value)))
+    if (!resources.length) return
     void Promise.all(
-      Array.from(getHtmlResources(raw), async (source) => {
+      resources.map(async (resource) => {
         try {
-          return [source, await resolveSource(source)] as const
+          return [resource, await resolveSource(resource)] as const
         } catch {
           return null
         }
@@ -70,15 +103,12 @@ export const createHtmlNodeView = (
     ).then((entries) => {
       if (destroyed || sequence !== revision) return
       for (const entry of entries) if (entry) urls.set(...entry)
-      if (preview) renderPreview(preview)
+      renderPreview()
     })
   }
-  const render = () => {
-    preview = document.createElement(block ? 'div' : 'span')
-    preview.className = 'lume-html-preview'
-    renderPreview(preview)
-    dom.replaceChildren(preview)
-    dom.classList.remove('lume-html-editing')
+  const refreshPreview = () => {
+    clearTimeout(renderTimer)
+    renderPreview()
     loadResources()
   }
   const leave = (direction: number) => {
@@ -102,103 +132,89 @@ export const createHtmlNodeView = (
   const finish = (direction?: number) => {
     if (!editing) return
     editing = false
+    cancelAnimationFrame(focusFrame)
+    source?.destroy()
     source = null
-    render()
+    sourceHost.replaceChildren()
+    updateControls()
+    refreshPreview()
     if (direction) leave(direction)
-  }
-  const resize = () => {
-    if (!source) return
-    source.style.height = 'auto'
-    source.style.height = `${Math.max(source.scrollHeight, 40)}px`
   }
   const start = () => {
     if (editing || !view.editable || destroyed) return
     editing = true
-    source = document.createElement('textarea')
-    source.className = 'lume-html-editor'
-    source.setAttribute('aria-label', 'HTML 源码')
-    source.spellcheck = false
-    source.value = String(currentNode.attrs.value)
-    source.rows = block ? 3 : 1
-    source.addEventListener('input', () => {
-      if (!source || !view.editable) return
-      const pos = getPos()
-      if (pos == null || view.isDestroyed) return
-      view.dispatch(view.state.tr.setNodeAttribute(pos, 'value', source.value))
-      resize()
-    })
-    source.addEventListener('keydown', (event) => {
-      if (event.isComposing || !source) return
-      if (event.key === 'Escape' || (event.key === 'Enter' && (event.ctrlKey || event.metaKey))) {
-        event.preventDefault()
-        finish(1)
-      } else if (
-        ((event.key === 'ArrowUp' && source.selectionStart === 0) ||
-          (event.key === 'ArrowDown' && source.selectionEnd === source.value.length)) &&
-        !event.shiftKey &&
-        !event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey
-      ) {
-        event.preventDefault()
-        finish(event.key === 'ArrowUp' ? -1 : 1)
-      } else if (event.key === 'Tab') {
-        event.preventDefault()
-        source.setRangeText('  ', source.selectionStart, source.selectionEnd, 'end')
-        source.dispatchEvent(new Event('input'))
-      }
-    })
-    source.addEventListener('blur', () => finish())
-    const done = document.createElement('button')
-    done.type = 'button'
-    done.textContent = '完成'
-    done.title = 'Ctrl/⌘ + Enter'
-    done.addEventListener('mousedown', (event) => event.preventDefault())
-    done.addEventListener('click', () => finish(1))
-    preview = document.createElement(block ? 'div' : 'span')
-    preview.className = 'lume-html-preview'
-    renderPreview(preview)
-    dom.replaceChildren(source, done, preview)
-    dom.classList.add('lume-html-editing')
-    requestAnimationFrame(() => {
-      if (!destroyed) {
-        resize()
-        source?.focus()
-      }
+    updateControls()
+    renderPreview()
+    source = createHtmlSourceEditor(
+      sourceHost,
+      String(currentNode.attrs.value),
+      view,
+      (value) => {
+        const pos = getPos()
+        if (pos == null || view.isDestroyed || !view.editable) return
+        view.dispatch(view.state.tr.setNodeAttribute(pos, 'value', value))
+      },
+      finish,
+    )
+    focusFrame = requestAnimationFrame(() => {
+      if (!destroyed && editing) source?.editor.focus()
     })
   }
-  dom.addEventListener('lume-edit-html', start)
+  const selectAndStart = () => {
+    const pos = getPos()
+    if (pos == null || !view.editable) return
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)))
+    start()
+  }
+  toggle.addEventListener('mousedown', (event) => event.preventDefault())
+  toggle.addEventListener('click', (event) => {
+    event.stopPropagation()
+    if (editing) finish(1)
+    else selectAndStart()
+  })
+  dom.addEventListener('lume-edit-html', selectAndStart)
+  dom.addEventListener('focus', (event) => {
+    if (event.target === dom) selectAndStart()
+  })
+  dom.addEventListener('focusout', () => {
+    clearTimeout(blurTimer)
+    blurTimer = setTimeout(() => {
+      if (!destroyed && !dom.contains(dom.ownerDocument.activeElement)) finish()
+    }, 0)
+  })
+  dom.addEventListener('keydown', (event) => {
+    if (!(event instanceof KeyboardEvent)) return
+    if (event.target !== dom || event.isComposing || event.key !== 'Enter') return
+    event.preventDefault()
+    selectAndStart()
+  })
   dom.addEventListener('click', (event) => {
     if (!(event instanceof MouseEvent)) return
-    if (editing) return
-    const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null
+    if (editing || !(event.target instanceof Element)) return
+    const anchor = event.target.closest('a[href]')
     if (anchor && !event.ctrlKey && !event.metaKey) {
       event.preventDefault()
       onOpenLink?.(view, anchor.getAttribute('href') ?? '')
       return
     }
-    const interactive = event.target instanceof Element && event.target.closest(interactiveSelector)
-    if (interactive && !event.ctrlKey && !event.metaKey) return
+    if (event.target.closest(interactiveSelector) && !event.ctrlKey && !event.metaKey) return
     event.preventDefault()
-    const pos = getPos()
-    if (pos == null) return
-    start()
-    if (view.editable)
-      view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)))
+    selectAndStart()
   })
-  render()
+  updateControls()
+  refreshPreview()
   return {
     dom,
     update(updated) {
       if (updated.type !== node.type) return false
       const changed = currentNode.attrs.value !== updated.attrs.value
       currentNode = updated
+      updateControls()
       if (!changed) return true
-      if (editing && source) {
-        if (source.value !== updated.attrs.value) source.value = String(updated.attrs.value)
-        if (preview) renderPreview(preview)
-        loadResources()
-      } else render()
+      source?.update(String(updated.attrs.value))
+      clearTimeout(renderTimer)
+      if (editing) renderTimer = setTimeout(refreshPreview, 200)
+      else refreshPreview()
       return true
     },
     selectNode() {
@@ -207,16 +223,20 @@ export const createHtmlNodeView = (
     },
     deselectNode() {
       dom.classList.remove('ProseMirror-selectednode')
+      if (!dom.contains(dom.ownerDocument.activeElement)) finish()
     },
     stopEvent: (event) =>
-      (event.target instanceof Element && Boolean(event.target.closest('textarea, button'))) ||
-      (event.type !== 'keydown' &&
-        event.target instanceof Element &&
-        Boolean(event.target.closest(interactiveSelector))),
+      event.target instanceof Element &&
+      (Boolean(event.target.closest('.lume-html-editor, .lume-html-tools')) ||
+        (event.type !== 'keydown' && Boolean(event.target.closest(interactiveSelector)))),
     ignoreMutation: () => true,
     destroy() {
       destroyed = true
       revision++
+      clearTimeout(renderTimer)
+      clearTimeout(blurTimer)
+      cancelAnimationFrame(focusFrame)
+      source?.destroy()
     },
   }
 }

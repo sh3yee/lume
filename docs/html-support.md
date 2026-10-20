@@ -6,13 +6,17 @@ HTML 扩展参考 [Typora 的 HTML 支持](https://support.typora.io/HTML/)，�
 
 `<u>`、`<span style="color:red">`、`<sup>`、`<sub>`、`<kbd>`、`<ruby>` 等共用行内容器，闭合标签后显示效果。行内可以嵌套 Markdown 格式，也可以直接修改其中的文字。HTML 实体由 Markdown 解析器转换为对应字符。
 
-Ctrl / Cmd + 点击行内 HTML 可展开源码，Ctrl / Cmd + Enter、Escape 或移出选区后收起。未补全的内容继续保留源码。空标签和 `display:none` 内容在编辑器中可见，预览保留原本的隐藏语义。
+点击行内 HTML，或用方向键将光标移入其中，即可在原位置展开源码。标签使用弱化的等宽文字，保留正文的光标位置；Ctrl / Cmd + 点击也可展开。Ctrl / Cmd + Enter、Escape、移出选区或编辑器失焦后收起。未补全的内容继续保留源码。空标签和 `display:none` 内容在编辑器中可见，预览保留原本的隐藏语义。
 
 Enter 新建段落，Shift + Enter 在段内换行。在行内 HTML 文字末尾按 Enter 时退出 HTML 样式，新段落不继承空标签；在文字中间按 Enter 时，两侧内容保留各自的标签与样式。嵌套标签遵循相同规则，列表和表格继续使用各自的 Enter 行为。
 
 ## HTML 块
 
-块级标签、SVG、视频、音频和 iframe 共用 HTML 对象的渲染与源码编辑。点击非交互区域、Ctrl / Cmd + 点击或通过键盘选中对象可编辑源码；点击“完成”或按 Ctrl / Cmd + Enter 退出。折叠标题和媒体控件保留自身交互。
+块级标签、SVG、视频、音频和 iframe 共用 HTML 对象的渲染与源码编辑。点击非交互区域、Ctrl / Cmd + 点击或通过键盘选中对象可编辑源码。预览右上方提供独立的 `HTML` 按钮；iframe、视频和音频的按钮保持可见，避免嵌入内容占满区域后无法进入源码。
+
+源码区以 Typora 默认 GitHub 主题的简洁风格为参考，使用浅灰背景、等宽字体和 HTML 语法高亮，并适配应用的深色主题。源码展开时保留下面的预览；仅展开或收起不会重载 iframe。修改源码实时写回文档，与正文共用撤销和重做。
+
+再次点击 `HTML`、按 Ctrl / Cmd + Enter 或 Escape、点击对象外部可收起源码。源码开头按上方向键、末尾按下方向键可返回正文。折叠标题和媒体控件保留自身交互；Ctrl / Cmd 在父文档中按下时也可点击 iframe 区域进入源码，焦点位于 iframe 内时使用外侧的 `HTML` 按钮。
 
 HTML 块内不解析 Markdown；块的划分遵循 CommonMark。注释以及 `script`、`style`、`meta` 等不可见内容在编辑器中显示源码，在预览中不产生可见内容。
 

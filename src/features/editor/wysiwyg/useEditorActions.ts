@@ -265,6 +265,11 @@ export const useEditorActions = (options: {
         void copyText(ctx.get(serializerCtx)(view.state.schema.nodes.doc.create(null, content)))
       } else if (id === 'editSource' && node?.node.type.name === 'html_inline') {
         openHtmlSource(view, node.pos, node.node, ctx.get(serializerCtx))
+      } else if (id === 'editSource' && node?.node.type.name === 'html_source') {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, node.pos + 1)),
+        )
+        view.focus()
       } else if (
         id === 'editSource' &&
         node &&

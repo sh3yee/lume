@@ -112,6 +112,7 @@ export const htmlSourceSchema = $nodeSchema('html_source', () => ({
   marks: '',
   code: true,
   isolating: true,
+  attrs: { original: { default: '', validate: 'string' } },
   toDOM: () => [
     'span',
     { 'data-html-source': '', class: 'lume-html-source', spellcheck: 'false' },
