@@ -5,6 +5,7 @@ import { Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { normalizeIdentifier, type ReferenceNode } from './linkDefinitions'
+import { isLinkEnabled } from './autoLinks'
 
 export const getLinkDefinitionSource = (doc: Node) => {
   const definitions: string[] = []
@@ -25,26 +26,35 @@ export const referenceLinkSchema = linkSchema.extendSchema((previous) => (ctx) =
       referenceId: { default: '' },
       referenceLabel: { default: '' },
       referenceType: { default: 'full' },
+      autoLink: { default: false, validate: 'boolean' },
     },
     parseDOM: [
       {
-        tag: 'a[href]',
+        tag: 'a[href], a[data-auto-link]',
         getAttrs: (dom: HTMLElement) => ({
-          href: dom.getAttribute('href'),
+          href: dom.getAttribute('href') ?? dom.dataset.autoHref ?? '',
           title: dom.getAttribute('title'),
           referenceId: dom.dataset.referenceId ?? '',
           referenceLabel: dom.dataset.referenceLabel ?? '',
           referenceType: dom.dataset.referenceType ?? 'full',
+          autoLink: dom.dataset.autoLink === 'true',
         }),
       },
     ],
     toDOM: (mark) => {
       const dom = schema.toDOM!(mark, false) as [string, Record<string, unknown>]
-      const { referenceId, referenceLabel, referenceType, ...attrs } = dom[1]
+      const { referenceId, referenceLabel, referenceType, autoLink, ...attrs } = dom[1]
       return [
         dom[0],
         {
           ...attrs,
+          ...(autoLink
+            ? {
+                'data-auto-link': 'true',
+                'data-auto-href': attrs.href,
+                href: isLinkEnabled(mark) ? attrs.href : null,
+              }
+            : {}),
           ...(referenceId
             ? {
                 'data-reference-id': referenceId,
@@ -65,6 +75,7 @@ export const referenceLinkSchema = linkSchema.extendSchema((previous) => (ctx) =
           referenceId: reference ? normalizeIdentifier(reference.identifier) : '',
           referenceLabel: reference?.label ?? '',
           referenceType: reference?.referenceType ?? 'full',
+          autoLink: (node as { data?: { autoLink?: boolean } }).data?.autoLink === true,
         })
         state.next(node.children)
         state.closeMark(type)
@@ -73,6 +84,10 @@ export const referenceLinkSchema = linkSchema.extendSchema((previous) => (ctx) =
     toMarkdown: {
       match: (mark) => mark.type.name === 'link',
       runner: (state, mark, node) => {
+        if (mark.attrs.autoLink) {
+          state.withMark(mark, 'lumeAutoLink')
+          return
+        }
         if (!mark.attrs.referenceId) return schema.toMarkdown.runner(state, mark, node)
         state.withMark(mark, 'linkReference', undefined, {
           identifier: mark.attrs.referenceId,

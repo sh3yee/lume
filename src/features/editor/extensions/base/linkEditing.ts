@@ -245,7 +245,7 @@ export const linkEditingPlugin = $prose((ctx) => {
         )
           return false
         const link = findLinkAt(view.state, pos)
-        if (!link) return false
+        if (!link || link.mark.attrs.autoLink) return false
         view.dispatch(
           view.state.tr
             .setSelection(TextSelection.create(view.state.doc, pos))
@@ -285,7 +285,7 @@ export const linkEditingPlugin = $prose((ctx) => {
         }
         const paragraph =
           parseLinkSource(source, ctx.get(parserCtx), getLinkDefinitionSource(tr.doc)) ??
-          (!/[\[\]()<>]/.test(source)
+          (!/[[\]()<>]/.test(source)
             ? state.schema.nodes.paragraph.create(null, state.schema.text(source))
             : null)
         if (!paragraph) continue
@@ -307,7 +307,7 @@ export const linkEditingPlugin = $prose((ctx) => {
         (open || (moved && !changed))
       ) {
         const link = findLinkAt(tr, selection.from)
-        if (link && (open || link.from < selection.from)) {
+        if (link && !link.mark.attrs.autoLink && (open || link.from < selection.from)) {
           const mapFrom = tr.steps.length
           const source = openLinkSource(tr, link.from, link.to, ctx.get(serializerCtx))
           const position = tr.mapping.slice(mapFrom).map(selection.from, 1)

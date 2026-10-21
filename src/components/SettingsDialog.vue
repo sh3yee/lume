@@ -17,7 +17,10 @@ import {
   Type,
   X,
 } from 'lucide-vue-next'
-import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
+import {
+  markdownPreferences,
+  type MarkdownExtension,
+} from '@/app/preferences/useMarkdownPreference'
 import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
 
 type ViewMode = 'wysiwyg' | 'split'
@@ -25,6 +28,63 @@ type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
 type FontScale = 'small' | 'medium' | 'large'
 type SettingsCategory = 'editor' | 'markdown' | 'writing' | 'appearance' | 'images'
+interface MarkdownSettingsGroup {
+  id: string
+  label: string
+  hint: string
+  extensions: Array<{ id: MarkdownExtension; label: string; description: string }>
+}
+
+const markdownSettingsGroups: MarkdownSettingsGroup[] = [
+  {
+    id: 'syntax',
+    label: '语法支持',
+    hint: '启用后，将对应的 Markdown 标记显示为格式化内容。',
+    extensions: [
+      { id: 'highlight', label: '高亮', description: '使用 ==重点== 标记高亮文字。' },
+      { id: 'subscript', label: '下标', description: '使用 H~2~O 显示下标。' },
+      { id: 'superscript', label: '上标', description: '使用 X^2^ 显示上标。' },
+    ],
+  },
+  {
+    id: 'math-diagrams',
+    label: '公式和图表',
+    hint: '行内公式可嵌入正文；Mermaid 图表在分栏预览中显示。',
+    extensions: [
+      { id: 'inlineMath', label: '行内公式', description: '使用 $x^2$ 在文字中插入公式。' },
+      {
+        id: 'mermaid',
+        label: 'Mermaid 图表',
+        description: '在预览中将 mermaid 代码块渲染为流程图、时序图等图表。',
+      },
+    ],
+  },
+  {
+    id: 'links',
+    label: '链接',
+    hint: '控制直接输入网址时的显示方式。',
+    extensions: [
+      {
+        id: 'autoLink',
+        label: '自动识别网址',
+        description: '将 https://example.com 等裸网址显示为可点击的链接。',
+      },
+    ],
+  },
+  {
+    id: 'emoji-alerts',
+    label: '表情和提示块',
+    hint: '补充常用的表情短代码与 GitHub 风格提示块。',
+    extensions: [
+      { id: 'emoji', label: '表情符号', description: '将 :smile: 等短代码显示为表情符号。' },
+      {
+        id: 'githubAlerts',
+        label: 'GitHub 提示块样式',
+        description: '将 > [!NOTE] 等引用显示为彩色提示块。',
+      },
+    ],
+  },
+]
 
 const props = defineProps<{
   open: boolean
@@ -48,7 +108,7 @@ const dialogRef = ref<HTMLDialogElement | null>(null)
 const activeCategory = ref<SettingsCategory>('editor')
 const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }> = [
   { id: 'editor', label: '编辑', icon: Sparkles },
-  { id: 'markdown', label: 'Markdown 扩展语法', icon: Braces },
+  { id: 'markdown', label: 'Markdown', icon: Braces },
   { id: 'writing', label: '写作', icon: Type },
   { id: 'images', label: '图片', icon: Image },
   { id: 'appearance', label: '外观', icon: Droplets },
@@ -167,51 +227,76 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
           </section>
 
-          <section v-if="activeCategory === 'markdown'" class="lume-settings__section">
-            <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">表情符号</h3>
-              <p class="lume-settings__hint">
-                将 :smile: 等短代码显示为表情符号。输入冒号和名称后按 Esc 可手动触发补全，用 ↑ / ↓
-                选择，按 Enter 或 Tab 确认。
-              </p>
-            </div>
-            <div class="lume-settings__options lume-settings__options--stacked">
-              <button
-                type="button"
-                class="lume-settings__option lume-settings__option--toggle"
-                role="switch"
-                :aria-checked="markdownPreferences.enabled.emoji"
-                :class="{ 'lume-settings__option--active': markdownPreferences.enabled.emoji }"
-                @click="markdownPreferences.enabled.emoji = !markdownPreferences.enabled.emoji"
-              >
-                <span class="lume-settings__option-copy">
-                  <strong>表情符号</strong>
-                  <small>{{ markdownPreferences.enabled.emoji ? '已启用' : '已关闭' }}</small>
-                </span>
-                <span class="lume-settings__check"></span>
-              </button>
-              <button
-                type="button"
-                class="lume-settings__option lume-settings__option--toggle"
-                role="switch"
-                :aria-checked="markdownPreferences.emojiCompletion === 'auto'"
-                :disabled="!markdownPreferences.enabled.emoji"
-                :class="{
-                  'lume-settings__option--active': markdownPreferences.emojiCompletion === 'auto',
-                }"
-                @click="
-                  markdownPreferences.emojiCompletion =
-                    markdownPreferences.emojiCompletion === 'auto' ? 'manual' : 'auto'
-                "
-              >
-                <span class="lume-settings__option-copy">
-                  <strong>自动触发表情符号补全</strong>
-                  <small>输入冒号和名称时自动显示建议</small>
-                </span>
-                <span class="lume-settings__check"></span>
-              </button>
-            </div>
-          </section>
+          <template v-if="activeCategory === 'markdown'">
+            <section
+              v-for="(group, index) in markdownSettingsGroups"
+              :key="group.id"
+              class="lume-settings__section"
+              :class="{ 'lume-settings__section--divided': index > 0 }"
+              :aria-labelledby="`markdown-settings-${group.id}`"
+            >
+              <div class="lume-settings__section-heading">
+                <h3 :id="`markdown-settings-${group.id}`" class="lume-settings__label">
+                  {{ group.label }}
+                </h3>
+                <p class="lume-settings__hint">{{ group.hint }}</p>
+              </div>
+              <div class="lume-settings__options lume-settings__options--stacked">
+                <template v-for="extension in group.extensions" :key="extension.id">
+                  <button
+                    type="button"
+                    class="lume-settings__option lume-settings__option--toggle"
+                    role="switch"
+                    :aria-checked="markdownPreferences.enabled[extension.id]"
+                    :aria-label="extension.label"
+                    :aria-describedby="`markdown-description-${extension.id}`"
+                    :class="{
+                      'lume-settings__option--active': markdownPreferences.enabled[extension.id],
+                    }"
+                    @click="
+                      markdownPreferences.enabled[extension.id] =
+                        !markdownPreferences.enabled[extension.id]
+                    "
+                  >
+                    <span class="lume-settings__option-copy">
+                      <strong>{{ extension.label }}</strong>
+                      <small :id="`markdown-description-${extension.id}`">
+                        {{ extension.description }}
+                      </small>
+                    </span>
+                    <span class="lume-settings__check" aria-hidden="true"></span>
+                  </button>
+                  <button
+                    v-if="extension.id === 'emoji'"
+                    type="button"
+                    class="lume-settings__option lume-settings__option--toggle"
+                    role="switch"
+                    aria-label="自动触发表情符号补全"
+                    aria-describedby="markdown-emoji-completion-description"
+                    :aria-checked="markdownPreferences.emojiCompletion === 'auto'"
+                    :disabled="!markdownPreferences.enabled.emoji"
+                    :class="{
+                      'lume-settings__option--active':
+                        markdownPreferences.emojiCompletion === 'auto',
+                    }"
+                    @click="
+                      markdownPreferences.emojiCompletion =
+                        markdownPreferences.emojiCompletion === 'auto' ? 'manual' : 'auto'
+                    "
+                  >
+                    <span class="lume-settings__option-copy">
+                      <strong>自动触发表情符号补全</strong>
+                      <small id="markdown-emoji-completion-description">
+                        输入冒号和名称时自动显示建议；关闭后按 Esc 手动触发，用 ↑ / ↓ 选择，按 Enter
+                        或 Tab 确认。需先启用表情符号。
+                      </small>
+                    </span>
+                    <span class="lume-settings__check" aria-hidden="true"></span>
+                  </button>
+                </template>
+              </div>
+            </section>
+          </template>
 
           <section
             v-if="activeCategory === 'editor'"
@@ -259,37 +344,6 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 <span class="lume-settings__check"></span>
               </button>
             </div>
-          </section>
-
-          <section
-            v-if="activeCategory === 'markdown'"
-            class="lume-settings__section lume-settings__section--divided"
-          >
-            <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">GitHub Style Alerts</h3>
-              <p class="lume-settings__hint">
-                将 Note、Tip、Important、Warning、Caution
-                显示为彩色提示块；关闭后显示引用样式与原始标记。
-              </p>
-            </div>
-            <button
-              type="button"
-              class="lume-settings__option lume-settings__option--toggle"
-              role="switch"
-              :aria-checked="markdownPreferences.enabled.githubAlerts"
-              :class="{ 'lume-settings__option--active': markdownPreferences.enabled.githubAlerts }"
-              @click="
-                markdownPreferences.enabled.githubAlerts = !markdownPreferences.enabled.githubAlerts
-              "
-            >
-              <span class="lume-settings__option-copy"
-                ><strong>GitHub 提示块样式</strong
-                ><small>{{
-                  markdownPreferences.enabled.githubAlerts ? '已启用' : '已关闭'
-                }}</small></span
-              >
-              <span class="lume-settings__check"></span>
-            </button>
           </section>
 
           <section v-if="activeCategory === 'writing'" class="lume-settings__section">

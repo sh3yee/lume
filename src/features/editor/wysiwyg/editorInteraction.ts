@@ -7,9 +7,12 @@ import { captureSelectionContext, findLinkAt, type EditorContext } from './selec
 import { parseLinkSource } from '../extensions/base/linkEditing'
 import { handleHorizontalRuleKeyDown } from '../extensions/base/horizontalRule'
 import { handleDocumentBlockKeyDown } from '../extensions/blockInput'
+import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 
 const getLinkElement = (view: EditorView, target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest('a, [data-link-source]') : null
+  if (element?.getAttribute('data-auto-link') === 'true' && !markdownPreferences.enabled.autoLink)
+    return null
   return element && view.dom.contains(element) ? element : null
 }
 

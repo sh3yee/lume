@@ -16,6 +16,10 @@ import { useTocPreviewExtension, useTocWysiwygExtension } from './toc'
 import { useCalloutsPreviewExtension, useCalloutsWysiwygExtension } from './callouts'
 import { useHtmlPreviewExtension, useHtmlWysiwygExtension } from './html'
 import { useEmojiPreviewExtension, useEmojiWysiwygExtension } from './emoji'
+import {
+  useInlineFormattingPreviewExtension,
+  useInlineFormattingWysiwygExtension,
+} from './inline-formatting'
 import { captureSelectionContext, type EditorContext } from '../wysiwyg/selectionContext'
 
 export { useSourceEmojiCompletion } from './emoji/useSourceEmojiCompletion'
@@ -38,7 +42,9 @@ export function useWysiwygMarkdownExtensions(
   const documentEditor = useTocWysiwygExtension(
     useFrontMatterWysiwygExtension(useGfmWysiwygExtension(useBaseWysiwygExtension(editor))),
   )
-  const baseEditor = useEmojiWysiwygExtension(useCalloutsWysiwygExtension(documentEditor))
+  const baseEditor = useInlineFormattingWysiwygExtension(
+    useEmojiWysiwygExtension(useCalloutsWysiwygExtension(documentEditor)),
+  )
   const imageEditor = useImagesWysiwygExtension(baseEditor, {
     importFile: options.importImageFile,
     importImageSource: options.importImageSource,
@@ -73,8 +79,10 @@ export function createMarkdownPreview() {
   const documentMarkdown = useTocPreviewExtension(
     useFrontMatterPreviewExtension(useGfmPreviewExtension(createBasePreviewExtension())),
   )
-  const markdown = useEmojiPreviewExtension(
-    useHtmlPreviewExtension(useCalloutsPreviewExtension(documentMarkdown)),
+  const markdown = useInlineFormattingPreviewExtension(
+    useEmojiPreviewExtension(
+      useHtmlPreviewExtension(useCalloutsPreviewExtension(documentMarkdown)),
+    ),
   )
   const footnotesMarkdown = useFootnotesPreviewExtension(markdown)
   const mathMarkdown = useMathPreviewExtension(footnotesMarkdown)

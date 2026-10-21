@@ -9,6 +9,7 @@ import { CellSelection } from '@milkdown/kit/prose/tables'
 import { EditorView as CodeMirrorView } from '@codemirror/view'
 import type { EditorState as CodeState } from '@codemirror/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
+import { isLinkEnabled } from '../extensions/base/autoLinks'
 
 export type FormatState = 'off' | 'on' | 'mixed'
 export interface EditorContext {
@@ -41,7 +42,7 @@ export const findLinkAt = (state: Pick<EditorState, 'doc'>, pos: number) => {
   const $pos = state.doc.resolve(pos)
   const ranges: { from: number; to: number; mark: Mark }[] = []
   $pos.parent.forEach((node, offset) => {
-    const mark = node.marks.find((item) => item.type.name === 'link')
+    const mark = node.marks.find((item) => item.type.name === 'link' && isLinkEnabled(item))
     if (!mark) return
     const from = $pos.start() + offset
     const previous = ranges.at(-1)

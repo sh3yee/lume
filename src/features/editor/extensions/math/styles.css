@@ -10,6 +10,13 @@
   vertical-align: middle;
 }
 
+.lume-markdown-content .lume-math--source {
+  display: inline;
+  padding: 0;
+  vertical-align: baseline;
+  white-space: pre-wrap;
+}
+
 .lume-markdown-content .lume-math--block,
 .lume-markdown-content .katex-display {
   margin: var(--lume-space-5) 0;

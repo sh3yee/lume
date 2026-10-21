@@ -1,5 +1,10 @@
 import { type Editor } from '@milkdown/kit/core'
-import { extendListItemSchemaForTask, gfm, wrapInTaskListInputRule } from '@milkdown/preset-gfm'
+import {
+  extendListItemSchemaForTask,
+  gfm,
+  remarkGFMPlugin,
+  wrapInTaskListInputRule,
+} from '@milkdown/preset-gfm'
 import { bulletListSchema, orderedListSchema } from '@milkdown/kit/preset/commonmark'
 import type MarkdownIt from 'markdown-it'
 import { InputRule } from '@milkdown/kit/prose/inputrules'
@@ -147,6 +152,7 @@ const taskCheckboxes = $prose(
 /** 注册表格、任务列表和删除线等 GFM 编辑能力。 */
 export function useGfmWysiwygExtension(editor: Editor) {
   return editor
+    .config((ctx) => ctx.set(remarkGFMPlugin.options.key, { singleTilde: false }))
     .use(gfm.map((plugin) => (plugin === wrapInTaskListInputRule ? taskListInputRule : plugin)))
     .use(preservedBulletListSchema)
     .use(preservedOrderedListSchema)

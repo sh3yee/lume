@@ -14,6 +14,8 @@ import { linkDefinitionSchema, preservedReferences } from './linkDefinitions'
 import { inlineLinkInputRule, linkDefinitionInputRule, referenceLinkInputRule } from './linkInput'
 import { linkEditingPlugin, linkSourceSchema } from './linkEditing'
 import { linkDefinitionPlugin, referenceLinkSchema } from './referenceLinks'
+import { autoLinksPlugin, autoLinksRemark } from './autoLinks'
+import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 
 /** 注册 CommonMark 基础语法。 */
 export function useBaseWysiwygExtension(editor: Editor) {
@@ -31,6 +33,7 @@ export function useBaseWysiwygExtension(editor: Editor) {
     )
     .use(emphasisInputRule)
     .use(preservedReferences)
+    .use(autoLinksRemark)
     .use(referenceLinkSchema)
     .use(linkDefinitionSchema)
     .use(linkDefinitionPlugin)
@@ -39,9 +42,14 @@ export function useBaseWysiwygExtension(editor: Editor) {
     .use(linkDefinitionInputRule)
     .use(linkSourceSchema)
     .use(linkEditingPlugin)
+    .use(autoLinksPlugin)
 }
 
 /** 创建 Preview 共用的基础 Markdown 渲染器。 */
 export function createBasePreviewExtension() {
-  return new MarkdownIt({ html: true, linkify: true, typographer: true, breaks: false })
+  const markdown = new MarkdownIt({ html: true, linkify: true, typographer: true, breaks: false })
+  markdown.core.ruler.before('inline', 'lume-auto-links', (state) => {
+    state.md.options.linkify = markdownPreferences.enabled.autoLink
+  })
+  return markdown
 }

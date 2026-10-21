@@ -8,6 +8,8 @@ import markdownItKatex from '@vscode/markdown-it-katex'
 import katex from 'katex'
 import type MarkdownIt from 'markdown-it'
 import remarkMath from 'remark-math'
+import { watch } from 'vue'
+import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 import { deleteMathBlock } from './commands'
 
 const mathRemarkPlugin = $remark('lumeMath', () => remarkMath)
@@ -253,13 +255,19 @@ export const inlineMathSchema = $nodeSchema('math_inline', () => ({
   atom: true,
   selectable: true,
   attrs: { value: { default: '', validate: 'string' } },
+  leafText: (node) => `$${String(node.attrs.value ?? '')}$`,
   parseDOM: [
     {
       tag: 'span[data-math]',
       getAttrs: (dom) => ({ value: dom instanceof HTMLElement ? (dom.dataset.math ?? '') : '' }),
     },
   ],
-  toDOM: (node) => renderMath(String(node.attrs.value ?? ''), false),
+  toDOM: (node) => {
+    const value = String(node.attrs.value ?? '')
+    return markdownPreferences.enabled.inlineMath
+      ? renderMath(value, false)
+      : ['span', { 'data-math': value, class: 'lume-math lume-math--source' }, `$${value}$`]
+  },
   parseMarkdown: {
     match: (node) => node.type === 'inlineMath',
     runner: (state, node, type) => state.addNode(type, { value: String(node.value ?? '') }),
@@ -269,6 +277,39 @@ export const inlineMathSchema = $nodeSchema('math_inline', () => ({
     runner: (state, node) => state.addNode('inlineMath', undefined, String(node.attrs.value ?? '')),
   },
 }))
+
+const createInlineMathNodeView = (node: ProseMirrorNode): NodeView => {
+  const dom = document.createElement('span')
+  dom.className = 'lume-math lume-math--inline'
+  dom.contentEditable = 'false'
+  let currentNode = node
+  const render = () => {
+    const value = String(currentNode.attrs.value ?? '')
+    dom.dataset.math = value
+    dom.classList.toggle('lume-math--source', !markdownPreferences.enabled.inlineMath)
+    if (markdownPreferences.enabled.inlineMath)
+      dom.replaceChildren(...renderMath(value, false).childNodes)
+    else {
+      dom.textContent = `$${value}$`
+    }
+  }
+  // 设置只改变公式的显示方式，保留原有文档、光标和撤销记录。
+  const stop = watch(() => markdownPreferences.enabled.inlineMath, render, {
+    immediate: true,
+    flush: 'sync',
+  })
+  return {
+    dom,
+    update(updated) {
+      if (updated.type !== node.type) return false
+      currentNode = updated
+      render()
+      return true
+    },
+    ignoreMutation: () => true,
+    destroy: stop,
+  }
+}
 
 export const blockMathSchema = $nodeSchema('math_block', () => ({
   group: 'block',
@@ -391,15 +432,31 @@ export function useMathWysiwygExtension(editor: Editor) {
     .use(inlineMathSchema)
     .use(blockMathSchema)
     .use(
-      $prose(() => new Plugin({ props: { nodeViews: { math_block: createBlockMathNodeView } } })),
+      $prose(
+        () =>
+          new Plugin({
+            props: {
+              nodeViews: {
+                math_block: createBlockMathNodeView,
+                math_inline: createInlineMathNodeView,
+              },
+            },
+          }),
+      ),
     )
     .use(mathInputPlugin)
 }
 
 /** 注册与 WYSIWYG 相同分隔符规则的 KaTeX Preview 渲染。 */
 export function useMathPreviewExtension(markdown: MarkdownIt) {
-  return markdown.use(markdownItKatex, {
+  markdown.use(markdownItKatex, {
     katex,
     throwOnError: false,
   })
+  const renderInlineMath = markdown.renderer.rules.math_inline!
+  markdown.renderer.rules.math_inline = (tokens, index, options, env, renderer) =>
+    markdownPreferences.enabled.inlineMath
+      ? renderInlineMath(tokens, index, options, env, renderer)
+      : markdown.utils.escapeHtml(`$${tokens[index].content}$`)
+  return markdown
 }

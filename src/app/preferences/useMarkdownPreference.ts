@@ -1,6 +1,17 @@
 import { reactive, watch } from 'vue'
 
-export type MarkdownExtension = 'emoji' | 'githubAlerts'
+export const MARKDOWN_EXTENSION_DEFAULTS = {
+  highlight: false,
+  subscript: false,
+  superscript: false,
+  inlineMath: true,
+  mermaid: true,
+  autoLink: true,
+  emoji: true,
+  githubAlerts: true,
+}
+
+export type MarkdownExtension = keyof typeof MARKDOWN_EXTENSION_DEFAULTS
 export type EmojiCompletion = 'manual' | 'auto'
 export interface MarkdownPreferences {
   enabled: Record<MarkdownExtension, boolean>
@@ -12,7 +23,7 @@ const LEGACY_GITHUB_ALERTS_KEY = 'lume-github-alerts'
 
 const getInitialPreferences = (): MarkdownPreferences => {
   const preferences: MarkdownPreferences = {
-    enabled: { emoji: true, githubAlerts: true },
+    enabled: { ...MARKDOWN_EXTENSION_DEFAULTS },
     emojiCompletion: 'manual',
   }
 

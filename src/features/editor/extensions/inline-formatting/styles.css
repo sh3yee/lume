@@ -1,0 +1,18 @@
+.milkdown [data-lume-inline='highlight'],
+.lume-markdown-content mark {
+  color: inherit;
+  background: color-mix(in srgb, #f5ca45 40%, transparent);
+  border-radius: 2px;
+}
+
+.ProseMirror[data-highlight='false'] [data-lume-inline='highlight'] {
+  background: none;
+}
+
+.ProseMirror[data-subscript='false'] [data-lume-inline='subscript'],
+.ProseMirror[data-superscript='false'] [data-lume-inline='superscript'] {
+  font-size: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  position: static;
+}

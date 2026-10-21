@@ -1,0 +1,6 @@
+.lume-markdown-content .ProseMirror a.lume-auto-link--disabled,
+.lume-markdown-content .lume-link-navigation a.lume-auto-link--disabled {
+  color: inherit;
+  text-decoration: none;
+  cursor: text;
+}

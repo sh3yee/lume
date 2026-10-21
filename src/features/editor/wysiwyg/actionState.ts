@@ -4,6 +4,7 @@ import { getEditorCommand } from './editorCommands'
 import { canOpenEditorLink } from './editorLinks'
 import { hasSelectedContent, resolveSelectionContext, type EditorContext } from './selectionContext'
 import { selectedRect } from '@milkdown/kit/prose/tables'
+import { isLinkEnabled } from '../extensions/base/autoLinks'
 
 const markNames: Record<string, string> = {
   bold: 'strong',
@@ -38,7 +39,7 @@ export const getActionState = (
   else if (['copy', 'cut'].includes(id)) enabled = hasSelectedContent(context)
   else if (id === 'setLink') enabled = context.target === 'text'
   else if (['editLink', 'removeLink', 'copyLink', 'openLink'].includes(id))
-    enabled = Boolean(context.link)
+    enabled = Boolean(context.link && isLinkEnabled(context.link.mark))
   else if (
     [
       'editImage',
@@ -72,7 +73,7 @@ export const getActionState = (
     enabled = ['block', 'text'].includes(context.target)
   else if (!['paste', 'selectAll'].includes(id)) enabled = false
   if (id === 'openLink' && context.link)
-    enabled = canOpenEditorLink(String(context.link.mark.attrs.href))
+    enabled = enabled && canOpenEditorLink(String(context.link.mark.attrs.href))
   if (id === 'deleteImageFile' && context.node)
     enabled =
       enabled && !/^(?:https?:|data:|blob:|\/\/)/i.test(String(context.node.node.attrs.src ?? ''))

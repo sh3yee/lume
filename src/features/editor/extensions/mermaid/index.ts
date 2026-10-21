@@ -1,5 +1,6 @@
 import { type Editor } from '@milkdown/kit/core'
 import type MarkdownIt from 'markdown-it'
+import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 
 let renderSequence = 0
 
@@ -13,7 +14,10 @@ export function useMermaidPreviewExtension(markdown: MarkdownIt) {
   const defaultFenceRenderer = markdown.renderer.rules.fence!
   markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
     const token = tokens[index]
-    if (token.info.trim().split(/\s+/)[0]?.toLowerCase() !== 'mermaid') {
+    if (
+      !markdownPreferences.enabled.mermaid ||
+      token.info.trim().split(/\s+/)[0]?.toLowerCase() !== 'mermaid'
+    ) {
       return defaultFenceRenderer(tokens, index, options, env, renderer)
     }
 
@@ -26,6 +30,7 @@ export function useMermaidPreviewExtension(markdown: MarkdownIt) {
 
 /** 按需加载 Mermaid，并增强当前 Preview 中尚未渲染的图表。 */
 export async function renderMermaidDiagrams(container: HTMLElement) {
+  if (!markdownPreferences.enabled.mermaid) return
   const diagrams = Array.from(
     container.querySelectorAll<HTMLElement>('.lume-mermaid[data-mermaid-source]'),
   )
@@ -41,7 +46,8 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
   })
 
   for (const [index, diagram] of diagrams.entries()) {
-    if (sequence !== renderSequence || !diagram.isConnected) return
+    if (!markdownPreferences.enabled.mermaid || sequence !== renderSequence || !diagram.isConnected)
+      return
     const encodedSource = diagram.dataset.mermaidSource
     if (!encodedSource) continue
 
@@ -51,7 +57,12 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
         `lume-mermaid-${sequence}-${index}`,
         source,
       )
-      if (sequence !== renderSequence || !diagram.isConnected) return
+      if (
+        !markdownPreferences.enabled.mermaid ||
+        sequence !== renderSequence ||
+        !diagram.isConnected
+      )
+        return
       diagram.innerHTML = svg
       diagram.classList.remove('lume-mermaid--error')
       diagram.dataset.copySource = encodedSource
