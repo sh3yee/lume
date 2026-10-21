@@ -117,10 +117,13 @@ onMounted(() => void renderPreviewExtensions())
   position: relative;
   flex: 1;
   display: flex;
-  background-color: var(--lume-bg-surface-raised);
-  border-left: 1px solid var(--lume-border-subtle);
+  background-color: var(--lume-pane-bg);
+  border: 1px solid var(--lume-panel-border);
+  border-radius: var(--lume-radius-lg);
+  box-shadow: var(--lume-shadow-xs);
   overflow: hidden;
   min-width: 0;
+  min-height: 0;
 }
 .lume-preview-pane__error {
   position: absolute;
@@ -136,18 +139,20 @@ onMounted(() => void renderPreviewExtensions())
 }
 .lume-preview-pane__content {
   flex: 1;
+  min-width: 0;
   max-width: var(--lume-preview-max-width);
   margin: 0 auto;
-  padding: var(--lume-space-8) var(--lume-space-10);
+  padding: var(--lume-space-7) clamp(24px, 2.6vw, 40px);
   overflow-y: auto;
   color: var(--lume-text-primary);
+  font-family: var(--lume-font-serif);
   font-size: var(--lume-font-size-md);
-  line-height: 1.8;
+  line-height: 1.65;
 }
 
 /* 滚动条 */
 .lume-preview-pane__content::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .lume-preview-pane__content::-webkit-scrollbar-track {
@@ -157,7 +162,8 @@ onMounted(() => void renderPreviewExtensions())
 .lume-preview-pane__content::-webkit-scrollbar-thumb {
   background-color: var(--lume-border-default);
   border-radius: var(--lume-radius-full);
-  border: 2px solid var(--lume-bg-surface-raised);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .lume-preview-pane__content::-webkit-scrollbar-thumb:hover {

@@ -1,36 +1,54 @@
 <template>
   <div class="lume-app" :class="{ 'lume-app--focus': focusMode }">
     <TitleBar
-      :theme="resolvedTheme"
+      :view-mode="viewMode"
+      :sidebar-visible="sidebarVisible && !focusMode"
+      :inspector-visible="inspectorVisible && !focusMode"
+      @update:view-mode="handleViewModeChange"
+      @toggle-sidebar="toggleSidebar"
+      @toggle-inspector="handleToggleInspector"
+      @open-command-palette="commandPalette.open"
+      @save-file="saveCurrentFile()"
       @open-settings="openSettings"
       @close-window="handleCloseWindow"
     />
 
     <div class="lume-app__body">
-      <SideBar v-if="sidebarVisible && !focusMode" />
+      <SideBar v-if="sidebarVisible && !focusMode" @open-command-palette="commandPalette.open" />
 
       <div class="lume-app__workspace">
-        <DocumentTabs v-if="!focusMode" :file-drop-paths="fileDragPaths" />
-        <main class="lume-app__main">
-          <WysiwygPane
-            v-if="viewMode === 'wysiwyg'"
-            ref="wysiwygPaneRef"
-            :key="activeDocumentId"
-            @edit-source="handleEditSource"
-          />
-          <div v-else class="lume-app__split-view">
-            <SourceEditor
-              ref="sourceEditorRef"
-              :sync-ratio="splitScrollRatio"
-              @scroll-ratio="handleSplitScrollRatio"
+        <div class="lume-app__content">
+          <div class="lume-app__editor-card">
+            <DocumentTabs
+              v-if="!focusMode && documents.length > 1"
+              :file-drop-paths="fileDragPaths"
             />
-            <PreviewPane :sync-ratio="splitScrollRatio" @scroll-ratio="handleSplitScrollRatio" />
+            <main class="lume-app__main">
+              <WysiwygPane
+                v-if="viewMode === 'wysiwyg'"
+                ref="wysiwygPaneRef"
+                :key="activeDocumentId"
+                @edit-source="handleEditSource"
+              />
+              <div v-else class="lume-app__split-view">
+                <SourceEditor
+                  ref="sourceEditorRef"
+                  :sync-ratio="splitScrollRatio"
+                  @scroll-ratio="handleSplitScrollRatio"
+                />
+                <PreviewPane
+                  :sync-ratio="splitScrollRatio"
+                  @scroll-ratio="handleSplitScrollRatio"
+                />
+              </div>
+            </main>
           </div>
-        </main>
+          <DocumentInspector v-if="inspectorVisible && !focusMode" />
+        </div>
       </div>
     </div>
 
-    <StatusBar :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
+    <StatusBar :sidebar-visible="sidebarVisible && !focusMode" @toggle-sidebar="toggleSidebar" />
     <CommandPalette
       :open="commandPaletteOpen"
       :items="commandPaletteItems"
@@ -45,7 +63,7 @@
       :writing-width="writingWidth"
       :font-scale="fontScale"
       @close="settingsOpen = false"
-      @update:view-mode="viewMode = $event"
+      @update:view-mode="handleViewModeChange"
       @update:theme="themePreference = $event"
       @update:focus-mode="focusMode = $event"
       @update:writing-width="writingWidth = $event"
@@ -72,11 +90,12 @@
 /**
  * App.vue - 应用根组件
  *
- * 组合应用壳的五大区域：标题栏、侧栏、编辑区、状态栏。
+ * 组合标题栏、文件栏、编辑区、文档信息栏和状态栏。
  * 默认采用所见即所得（WYSIWYG）模式，用户直接在渲染结果上编辑。
  */
 import TitleBar from '@components/TitleBar.vue'
 import DocumentTabs from '@components/DocumentTabs.vue'
+import DocumentInspector from '@components/DocumentInspector.vue'
 import SideBar from '@components/SideBar.vue'
 import SourceEditor from '@/features/editor/components/SourceEditor.vue'
 import PreviewPane from '@components/PreviewPane.vue'
@@ -111,7 +130,8 @@ type ViewMode = 'wysiwyg' | 'split'
 const viewMode = ref<ViewMode>('wysiwyg')
 const wysiwygPaneRef = ref<ImageCommandEditor | null>(null)
 const sourceEditorRef = ref<(ImageCommandEditor & { focus: () => void }) | null>(null)
-const sidebarVisible = ref(false)
+const sidebarVisible = ref(window.matchMedia('(min-width: 900px)').matches)
+const inspectorVisible = ref(window.matchMedia('(min-width: 1180px)').matches)
 const focusMode = ref(false)
 const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
@@ -126,7 +146,7 @@ const commandPalette = useCommandPalette({
     focusMode.value = !focusMode.value
   },
   toggleViewMode: () => {
-    viewMode.value = viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'
+    handleViewModeChange(viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg')
   },
   openSettings,
   closeActiveDocument,
@@ -147,7 +167,7 @@ const {
   requestCloseDocument,
   requestCloseDocuments,
 } = useDocument()
-const { themePreference, resolvedTheme } = useThemePreference()
+const { themePreference } = useThemePreference()
 const { writingWidth, fontScale } = useWritingPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
 const imageCommands = useImageCommands({
@@ -164,9 +184,23 @@ const { flushDocumentSession } = useDocumentSessionPersistence(
 const { fileDragPaths } = useFileDrop(viewMode, openFilesFromPaths, showMessage, dismissMessage)
 
 const handleEditSource = async () => {
-  viewMode.value = 'split'
+  handleViewModeChange('split')
   await nextTick()
   sourceEditorRef.value?.focus()
+}
+
+const handleViewModeChange = (mode: ViewMode) => {
+  wysiwygPaneRef.value?.flushPendingMarkdown?.()
+  viewMode.value = mode
+}
+
+const handleToggleInspector = () => {
+  if (focusMode.value) {
+    focusMode.value = false
+    inspectorVisible.value = true
+    return
+  }
+  inspectorVisible.value = !inspectorVisible.value
 }
 
 function openSettings() {
@@ -174,6 +208,11 @@ function openSettings() {
 }
 
 function toggleSidebar() {
+  if (focusMode.value) {
+    focusMode.value = false
+    sidebarVisible.value = true
+    return
+  }
   sidebarVisible.value = !sidebarVisible.value
 }
 
@@ -237,9 +276,15 @@ useAppShortcuts({
   width: 100vw;
   overflow: hidden;
   background: var(--lume-app-background, var(--lume-bg-base));
+  background-image: radial-gradient(
+    ellipse at top right,
+    var(--lume-accent-subtle),
+    transparent 55%
+  );
 }
 
 .lume-app__body {
+  position: relative;
   flex: 1;
   display: flex;
   overflow: hidden;
@@ -255,11 +300,50 @@ useAppShortcuts({
   min-height: 0;
 }
 
+.lume-app__content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+}
+
+.lume-app__editor-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--lume-pane-bg);
+  box-shadow: none;
+}
+
 .lume-app__main {
   flex: 1;
   display: flex;
   overflow: hidden;
   min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+/* 外框由编辑面板统一绘制，标签和正文之间不再叠加卡片。 */
+.lume-app__main :deep(.lume-wysiwyg-pane),
+.lume-app__main :deep(.lume-source-editor),
+.lume-app__main :deep(.lume-preview-pane) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lume-app__split-view :deep(.lume-source-editor) {
+  border-right: 1px solid var(--lume-border-subtle);
 }
 
 .lume-app__split-view {
@@ -267,6 +351,7 @@ useAppShortcuts({
   flex: 1;
   min-width: 0;
   min-height: 0;
+  gap: 0;
 }
 
 .lume-app--focus .lume-app__body {
@@ -279,7 +364,45 @@ useAppShortcuts({
   margin: 0 auto;
 }
 
-.lume-app--focus .lume-app__main {
-  padding: 0 12px 12px;
+.lume-app--focus .lume-app__content {
+  gap: 0;
+  padding: 0;
+}
+
+.lume-app--focus .lume-app__editor-card {
+  margin: 0;
+}
+
+@media (max-width: 1179px) {
+  .lume-app__content > :deep(.lume-document-inspector) {
+    position: absolute;
+    z-index: var(--lume-z-raised);
+    top: 0;
+    right: 10px;
+    bottom: 10px;
+    background: var(--lume-chrome-bg, var(--lume-bg-surface));
+    box-shadow: var(--lume-shadow-lg);
+  }
+}
+
+@media (max-width: 899px) {
+  .lume-app__body > :deep(.lume-sidebar) {
+    position: absolute;
+    z-index: var(--lume-z-sticky);
+    inset: 0 auto 0 0;
+    box-shadow: var(--lume-shadow-lg);
+    background: var(--lume-bg-surface);
+  }
+}
+
+@media (max-width: 639px) {
+  .lume-app__split-view {
+    flex-direction: column;
+  }
+
+  .lume-app__split-view :deep(.lume-source-editor) {
+    border-right: 0;
+    border-bottom: 1px solid var(--lume-border-subtle);
+  }
 }
 </style>

@@ -610,7 +610,10 @@ onBeforeUnmount(() => {
   position: relative;
   flex: 1;
   display: flex;
-  background-color: var(--lume-bg-surface-raised);
+  border: 1px solid var(--lume-panel-border);
+  border-radius: var(--lume-radius-lg);
+  background-color: var(--lume-pane-bg);
+  box-shadow: var(--lume-shadow-xs);
   overflow-x: hidden;
   overflow-y: auto;
   min-width: 0;
@@ -624,8 +627,10 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 100%;
   color: var(--lume-text-primary);
+  caret-color: var(--lume-accent-default);
+  font-family: var(--lume-font-serif);
   font-size: var(--lume-font-size-md);
-  line-height: 1.8;
+  line-height: 1.65;
 }
 
 /* 独立占位区会真实增加滚动高度，不会被编辑器的 Flex 高度计算抵消。 */
@@ -637,7 +642,7 @@ onBeforeUnmount(() => {
 }
 /* 滚动条 */
 .lume-wysiwyg-pane::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .lume-wysiwyg-pane::-webkit-scrollbar-track {
@@ -647,7 +652,8 @@ onBeforeUnmount(() => {
 .lume-wysiwyg-pane::-webkit-scrollbar-thumb {
   background-color: var(--lume-border-default);
   border-radius: var(--lume-radius-full);
-  border: 2px solid var(--lume-bg-surface-raised);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .lume-wysiwyg-pane::-webkit-scrollbar-thumb:hover {
@@ -663,7 +669,7 @@ onBeforeUnmount(() => {
   max-width: var(--lume-preview-max-width);
   min-height: 100%;
   margin: 0 auto;
-  padding: var(--lume-space-8) var(--lume-space-10);
+  padding: var(--lume-space-7) clamp(24px, 2.6vw, 40px);
 }
 
 /* 移除 ProseMirror 默认焦点边框。 */
@@ -783,7 +789,7 @@ onBeforeUnmount(() => {
   bottom: -6px;
   width: 12px;
   height: 12px;
-  border: 2px solid var(--lume-bg-surface-raised);
+  border: 2px solid var(--lume-pane-bg);
   border-radius: 3px;
   background-color: var(--lume-accent-default);
   box-shadow: var(--lume-shadow-sm);

@@ -6,19 +6,25 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { FileDown, FileText, Plus, X } from 'lucide-vue-next'
-import {
-  useDocument,
-  type DocumentDropPosition,
-  type OpenDocument,
-} from '@composables/useDocument'
+import { useDocument, type DocumentDropPosition, type OpenDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { revealFileInFolder } from '@/platform/tauri/files'
 
-const props = withDefaults(defineProps<{
-  fileDropPaths?: string[]
-}>(), {
-  fileDropPaths: () => [],
-})
+const DRAG_THRESHOLD = 4
+const revealFileLabel = /Mac/i.test(navigator.platform)
+  ? '在 Finder 中显示'
+  : /Win/i.test(navigator.platform)
+    ? '在资源管理器中显示'
+    : '在文件管理器中显示'
+
+const props = withDefaults(
+  defineProps<{
+    fileDropPaths?: string[]
+  }>(),
+  {
+    fileDropPaths: () => [],
+  },
+)
 
 const {
   documents,
@@ -29,8 +35,6 @@ const {
   requestCloseDocuments,
 } = useDocument()
 const { newFile } = useFileOps()
-
-const DRAG_THRESHOLD = 4
 
 const draggedDocumentId = ref<string | null>(null)
 const dropTargetId = ref<string | null>(null)
@@ -46,21 +50,18 @@ let activePointerId: number | null = null
 let pointerStartX = 0
 let suppressNextClick = false
 let tabLayouts: Array<{ id: string; centerX: number }> = []
+let resizeObserver: ResizeObserver | null = null
 
-const contextDocumentIndex = computed(() => contextDocument.value
-  ? documents.value.findIndex((document) => document.id === contextDocument.value?.id)
-  : -1)
+const contextDocumentIndex = computed(() =>
+  contextDocument.value
+    ? documents.value.findIndex((document) => document.id === contextDocument.value?.id)
+    : -1,
+)
 const canCloseOtherDocuments = computed(() => documents.value.length > 1)
 const canCloseLeftDocuments = computed(() => contextDocumentIndex.value > 0)
-const revealFileLabel = /Mac/i.test(navigator.platform)
-  ? '在 Finder 中显示'
-  : /Win/i.test(navigator.platform)
-    ? '在资源管理器中显示'
-    : '在文件管理器中显示'
-
-const markdownDropPaths = computed(() => props.fileDropPaths.filter((path) =>
-  /\.(md|markdown)$/i.test(path),
-))
+const markdownDropPaths = computed(() =>
+  props.fileDropPaths.filter((path) => /\.(md|markdown)$/i.test(path)),
+)
 const fileDropLabel = computed(() => {
   if (markdownDropPaths.value.length === 0) return null
   if (markdownDropPaths.value.length > 1) {
@@ -69,11 +70,55 @@ const fileDropLabel = computed(() => {
   return markdownDropPaths.value[0].split(/[\\/]/).pop() || 'Markdown'
 })
 
-watch(fileDropLabel, async (label) => {
-  if (!label) return
+const getTabElement = (documentId: string) =>
+  Array.from(tabList.value?.querySelectorAll<HTMLElement>('.lume-tabs__tab') ?? []).find(
+    (tab) => tab.dataset.documentId === documentId,
+  )
+
+const keepActiveTabVisible = () => {
+  const list = tabList.value
+  const tab = getTabElement(activeDocumentId.value)
+  if (!list || !tab || draggedDocumentId.value || fileDropLabel.value) return
+
+  const listBounds = list.getBoundingClientRect()
+  const tabBounds = tab.getBoundingClientRect()
+  if (tabBounds.left < listBounds.left) list.scrollLeft += tabBounds.left - listBounds.left
+  else if (tabBounds.right > listBounds.right) list.scrollLeft += tabBounds.right - listBounds.right
+}
+
+const handleTabKeydown = async (event: KeyboardEvent, documentId: string) => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+
+  const currentIndex = documents.value.findIndex((document) => document.id === documentId)
+  if (currentIndex < 0) return
+  event.preventDefault()
+
+  let nextIndex = currentIndex
+  if (event.key === 'Home') nextIndex = 0
+  else if (event.key === 'End') nextIndex = documents.value.length - 1
+  else {
+    const direction = event.key === 'ArrowRight' ? 1 : -1
+    nextIndex = (currentIndex + direction + documents.value.length) % documents.value.length
+  }
+
+  const nextDocument = documents.value[nextIndex]
+  activateDocument(nextDocument.id)
   await nextTick()
-  if (tabList.value) tabList.value.scrollLeft = tabList.value.scrollWidth
-})
+  getTabElement(nextDocument.id)?.querySelector<HTMLButtonElement>('.lume-tabs__activate')?.focus()
+}
+
+const handleTabWheel = (event: WheelEvent) => {
+  const list = tabList.value
+  if (!list || event.ctrlKey || event.metaKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) {
+    return
+  }
+  if (list.scrollWidth <= list.clientWidth) return
+
+  const scrollUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? list.clientWidth : 1
+  list.scrollLeft += event.deltaY * scrollUnit
+  event.preventDefault()
+}
 
 function closeContextMenu() {
   contextDocument.value = null
@@ -101,15 +146,17 @@ function closeContextDocument() {
 function closeOtherDocuments() {
   const id = contextDocument.value?.id
   closeContextMenu()
-  if (id) requestCloseDocuments(documents.value
-    .filter((document) => document.id !== id)
-    .map((document) => document.id))
+  if (id)
+    requestCloseDocuments(
+      documents.value.filter((document) => document.id !== id).map((document) => document.id),
+    )
 }
 
 function closeLeftDocuments() {
   const index = contextDocumentIndex.value
   closeContextMenu()
-  if (index > 0) requestCloseDocuments(documents.value.slice(0, index).map((document) => document.id))
+  if (index > 0)
+    requestCloseDocuments(documents.value.slice(0, index).map((document) => document.id))
 }
 
 function copyTextFallback(text: string) {
@@ -185,20 +232,6 @@ function handleWindowKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeContextMenu()
 }
 
-onMounted(() => {
-  window.addEventListener('pointerdown', closeContextMenu)
-  window.addEventListener('blur', closeContextMenu)
-  window.addEventListener('resize', closeContextMenu)
-  window.addEventListener('keydown', handleWindowKeydown)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('pointerdown', closeContextMenu)
-  window.removeEventListener('blur', closeContextMenu)
-  window.removeEventListener('resize', closeContextMenu)
-  window.removeEventListener('keydown', handleWindowKeydown)
-})
-
 /** 关闭脏文档前提醒用户，防止误丢失内容。 */
 function requestClose(document: OpenDocument) {
   requestCloseDocument(document.id)
@@ -237,11 +270,16 @@ function handlePointerDown(event: PointerEvent, documentId: string) {
   activePointerId = event.pointerId
   pointerStartX = event.clientX
   if (event.currentTarget instanceof HTMLElement) {
-    draggedTabWidth.value = event.currentTarget.getBoundingClientRect().width
+    const tabGap = tabList.value
+      ? Number.parseFloat(window.getComputedStyle(tabList.value).columnGap) || 0
+      : 0
+    draggedTabWidth.value = event.currentTarget.getBoundingClientRect().width + tabGap
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  tabLayouts = Array.from(document.querySelectorAll<HTMLElement>('.lume-tabs__tab')).map((tab) => {
+  tabLayouts = Array.from(
+    tabList.value?.querySelectorAll<HTMLElement>('.lume-tabs__tab') ?? [],
+  ).map((tab) => {
     const bounds = tab.getBoundingClientRect()
     return {
       id: tab.dataset.documentId ?? '',
@@ -256,9 +294,9 @@ function updateDropTarget() {
   if (sourceIndex < 0) return
 
   const draggedCenterX = tabLayouts[sourceIndex].centerX + dragOffsetX.value
-  const targetIndex = tabLayouts
-    .filter((tab) => tab.id !== sourceId && tab.centerX < draggedCenterX)
-    .length
+  const targetIndex = tabLayouts.filter(
+    (tab) => tab.id !== sourceId && tab.centerX < draggedCenterX,
+  ).length
 
   if (targetIndex === sourceIndex) {
     dropTargetId.value = null
@@ -286,7 +324,9 @@ function getTabStyle(documentId: string) {
     return { transform: `translate3d(${dragOffsetX.value}px, 0, 0)` }
   }
 
-  const sourceIndex = documents.value.findIndex((document) => document.id === draggedDocumentId.value)
+  const sourceIndex = documents.value.findIndex(
+    (document) => document.id === draggedDocumentId.value,
+  )
   const targetIndex = dropTargetId.value
     ? documents.value.findIndex((document) => document.id === dropTargetId.value)
     : sourceIndex
@@ -325,55 +365,116 @@ function handlePointerUp(event: PointerEvent) {
   }
   resetDragState()
 }
+
+watch(
+  [activeDocumentId, () => documents.value.map((document) => document.id)],
+  keepActiveTabVisible,
+  { flush: 'post' },
+)
+
+watch(fileDropLabel, async (label) => {
+  await nextTick()
+  if (label && tabList.value) tabList.value.scrollLeft = tabList.value.scrollWidth
+  else keepActiveTabVisible()
+})
+
+onMounted(() => {
+  window.addEventListener('pointerdown', closeContextMenu)
+  window.addEventListener('blur', closeContextMenu)
+  window.addEventListener('resize', closeContextMenu)
+  window.addEventListener('keydown', handleWindowKeydown)
+  resizeObserver = new ResizeObserver(keepActiveTabVisible)
+  if (tabList.value) resizeObserver.observe(tabList.value)
+  keepActiveTabVisible()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', closeContextMenu)
+  window.removeEventListener('blur', closeContextMenu)
+  window.removeEventListener('resize', closeContextMenu)
+  window.removeEventListener('keydown', handleWindowKeydown)
+  resizeObserver?.disconnect()
+})
 </script>
 
 <template>
   <nav class="lume-tabs" aria-label="打开的文档">
-    <div ref="tabList" class="lume-tabs__list" role="tablist" @scroll="closeContextMenu">
-      <button
+    <div
+      ref="tabList"
+      class="lume-tabs__list"
+      role="tablist"
+      aria-label="打开的文档"
+      aria-orientation="horizontal"
+      @scroll="closeContextMenu"
+      @wheel="handleTabWheel"
+    >
+      <div
         v-for="document in documents"
         :key="document.id"
         class="lume-tabs__tab"
-:data-document-id="document.id"
+        :data-document-id="document.id"
         :class="{
           'lume-tabs__tab--active': document.id === activeDocumentId,
           'lume-tabs__tab--dragging': document.id === draggedDocumentId,
-        }" :style="getTabStyle(document.id)"
-        type="button"
-        role="tab"
-        :aria-selected="document.id === activeDocumentId"
+        }"
+        :style="getTabStyle(document.id)"
+        role="presentation"
         :title="document.path || document.name"
-@click="handleTabClick(document.id)"
         @auxclick="handleAuxClick($event, document)"
         @contextmenu.prevent="openContextMenu($event, document)"
-@pointerdown="handlePointerDown($event, document.id)"
-        @pointermove="handlePointerMove" @pointerup="handlePointerUp" @pointercancel="resetDragState"
+        @pointerdown="handlePointerDown($event, document.id)"
+        @pointermove="handlePointerMove"
+        @pointerup="handlePointerUp"
+        @pointercancel="resetDragState"
       >
-        <FileText class="lume-tabs__file-icon" :size="14" :stroke-width="1.6" />
-        <span class="lume-tabs__name">{{ document.name }}</span>
-        <span v-if="document.isDirty" class="lume-tabs__dirty" aria-label="未保存"></span>
-        <span
-          class="lume-tabs__close"
-          role="button"
-          tabindex="0"
-          :aria-label="`关闭 ${document.name}`"
-          @click.stop="requestClose(document)"
-          @keydown.enter.stop="requestClose(document)"
-          @keydown.space.prevent.stop="requestClose(document)"
+        <button
+          :id="`lume-document-tab-${document.id}`"
+          class="lume-tabs__activate"
+          type="button"
+          role="tab"
+          :aria-selected="document.id === activeDocumentId"
+          :aria-label="`${document.name}${document.isDirty ? '，未保存' : ''}`"
+          aria-controls="lume-document-panel"
+          :tabindex="document.id === activeDocumentId ? 0 : -1"
+          @click="handleTabClick(document.id)"
+          @keydown="handleTabKeydown($event, document.id)"
         >
-          <X :size="13" :stroke-width="1.8" />
-        </span>
-      </button>
+          <FileText
+            class="lume-tabs__file-icon"
+            :size="14"
+            :stroke-width="1.6"
+            aria-hidden="true"
+          />
+          <span class="lume-tabs__name">{{ document.name }}</span>
+        </button>
+        <button
+          class="lume-tabs__close"
+          :class="{ 'lume-tabs__close--dirty': document.isDirty }"
+          type="button"
+          :tabindex="document.id === activeDocumentId ? 0 : -1"
+          :aria-label="`关闭 ${document.name}${document.isDirty ? '（未保存）' : ''}`"
+          @click.stop="requestClose(document)"
+          @pointerdown.stop
+        >
+          <span v-if="document.isDirty" class="lume-tabs__dirty" aria-hidden="true"></span>
+          <X class="lume-tabs__close-icon" :size="13" :stroke-width="1.8" aria-hidden="true" />
+        </button>
+      </div>
 
       <div v-if="fileDropLabel" class="lume-tabs__drop-preview" aria-live="polite">
         <FileDown class="lume-tabs__drop-icon" :size="14" :stroke-width="1.6" />
         <span class="lume-tabs__name">{{ fileDropLabel }}</span>
       </div>
-
-      <button class="lume-tabs__new" type="button" title="新建文档 (Ctrl+N)" aria-label="新建文档" @click="newFile">
-        <Plus :size="16" :stroke-width="1.8" />
-      </button>
     </div>
+    <button
+      class="lume-tabs__new"
+      type="button"
+      title="新建文档 (Ctrl+N)"
+      aria-label="新建文档"
+      @click="newFile"
+    >
+      <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
+    </button>
   </nav>
 
   <Teleport to="body">
@@ -391,17 +492,32 @@ function handlePointerUp(event: PointerEvent) {
       <button type="button" role="menuitem" @click="closeContextDocument">
         <span>关闭</span>
       </button>
-      <button type="button" role="menuitem" :disabled="!canCloseOtherDocuments" @click="closeOtherDocuments">
+      <button
+        type="button"
+        role="menuitem"
+        :disabled="!canCloseOtherDocuments"
+        @click="closeOtherDocuments"
+      >
         <span>关闭其他标签</span>
       </button>
-      <button type="button" role="menuitem" :disabled="!canCloseLeftDocuments" @click="closeLeftDocuments">
+      <button
+        type="button"
+        role="menuitem"
+        :disabled="!canCloseLeftDocuments"
+        @click="closeLeftDocuments"
+      >
         <span>关闭左侧标签</span>
       </button>
       <div class="lume-tabs__context-separator" role="separator"></div>
       <button type="button" role="menuitem" :disabled="!contextDocument.path" @click="copyFilePath">
         <span>复制文件路径</span>
       </button>
-      <button type="button" role="menuitem" :disabled="!contextDocument.path" @click="revealContextDocument">
+      <button
+        type="button"
+        role="menuitem"
+        :disabled="!contextDocument.path"
+        @click="revealContextDocument"
+      >
         <span>{{ revealFileLabel }}</span>
       </button>
     </div>
@@ -410,12 +526,13 @@ function handlePointerUp(event: PointerEvent) {
 
 <style scoped>
 .lume-tabs {
-  height: 38px;
+  height: 45px;
   display: flex;
   flex-shrink: 0;
   min-width: 0;
-  background-color: var(--lume-bg-base);
-  border-bottom: 1px solid var(--lume-border-subtle);
+  padding: 7px 8px 0;
+  background-color: var(--lume-chrome-bg);
+  box-shadow: inset 0 -1px 0 var(--lume-panel-border);
   user-select: none;
 }
 
@@ -423,6 +540,7 @@ function handlePointerUp(event: PointerEvent) {
   flex: 1;
   display: flex;
   min-width: 0;
+  align-items: stretch;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -434,58 +552,78 @@ function handlePointerUp(event: PointerEvent) {
 
 .lume-tabs__tab {
   position: relative;
+  flex: 0 1 190px;
   min-width: 132px;
   max-width: 220px;
   height: 100%;
   display: flex;
   align-items: center;
-  gap: var(--lume-space-3);
-  padding: 0 var(--lume-space-3) 0 var(--lume-space-4);
-  border: none;
-  border-right: 1px solid var(--lume-border-subtle);
-  border-radius: 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
   background: transparent;
-  color: var(--lume-text-tertiary);
+  color: var(--lume-text-secondary);
   cursor: grab;
-    touch-action: none;
-    transition: transform 140ms ease;
-    will-change: transform;
+  touch-action: none;
+  transition: transform 140ms ease;
 }
 
 .lume-tabs__tab::after {
   content: '';
   position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background-color: transparent;
+  top: 10px;
+  right: -1px;
+  width: 1px;
+  height: 16px;
+  background-color: var(--lume-panel-border);
+  pointer-events: none;
+}
+
+.lume-tabs__tab--active::after,
+.lume-tabs__tab:has(+ .lume-tabs__tab--active)::after,
+.lume-tabs__tab:last-of-type::after {
+  opacity: 0;
 }
 
 .lume-tabs__tab--dragging {
   z-index: 2;
-  background-color: var(--lume-bg-surface-raised);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
+  border-color: var(--lume-panel-border);
+  background-color: var(--lume-pane-bg);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 6%);
   cursor: grabbing;
   transition: none;
+  will-change: transform;
 }
 .lume-tabs__tab:hover {
-  background-color: var(--lume-bg-surface-raised);
-  color: var(--lume-text-secondary);
-}
-
-.lume-tabs__tab--active {
-  background-color: var(--lume-bg-surface-raised);
+  background-color: color-mix(in srgb, var(--lume-pane-bg) 60%, transparent);
   color: var(--lume-text-primary);
 }
 
-.lume-tabs__tab--active::after {
-  background-color: var(--lume-accent-default);
+.lume-tabs__tab--active,
+.lume-tabs__tab--active:hover {
+  z-index: 1;
+  border-color: var(--lume-panel-border);
+  background-color: var(--lume-pane-bg);
+  color: var(--lume-text-primary);
+}
+
+.lume-tabs__activate {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--lume-space-3);
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px 0 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: inherit;
 }
 
 .lume-tabs__file-icon {
   flex-shrink: 0;
-  color: var(--lume-accent-default);
+  opacity: 0.7;
 }
 
 .lume-tabs__name {
@@ -499,8 +637,8 @@ function handlePointerUp(event: PointerEvent) {
 }
 
 .lume-tabs__dirty {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   flex-shrink: 0;
   border-radius: var(--lume-radius-full);
   background-color: var(--lume-accent-default);
@@ -515,22 +653,15 @@ function handlePointerUp(event: PointerEvent) {
   flex-shrink: 0;
   align-items: center;
   gap: var(--lume-space-3);
+  margin-left: 4px;
   padding: 0 var(--lume-space-4);
-  border-right: 1px solid var(--lume-border-subtle);
-  background-color: var(--lume-bg-surface-raised);
+  border: 1px dashed color-mix(in srgb, var(--lume-accent-default) 40%, transparent);
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background-color: var(--lume-accent-subtle);
   color: var(--lume-text-secondary);
   opacity: 0.72;
   pointer-events: none;
-}
-
-.lume-tabs__drop-preview::after {
-  content: '';
-  position: absolute;
-  right: var(--lume-space-3);
-  bottom: 0;
-  left: var(--lume-space-3);
-  height: 2px;
-  background-color: color-mix(in srgb, var(--lume-accent-default) 55%, transparent);
 }
 
 .lume-tabs__drop-icon {
@@ -541,38 +672,60 @@ function handlePointerUp(event: PointerEvent) {
 .lume-tabs__close {
   width: 20px;
   height: 20px;
-  display: none;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--lume-radius-sm);
-}
-
-.lume-tabs__tab:hover .lume-tabs__close,
-.lume-tabs__tab--active .lume-tabs__close {
-  display: inline-flex;
-}
-
-.lume-tabs__tab:hover .lume-tabs__dirty,
-.lume-tabs__tab--active .lume-tabs__dirty {
-  display: none;
-}
-
-.lume-tabs__close:hover {
-  background-color: var(--lume-border-subtle);
-  color: var(--lume-text-primary);
-}
-
-.lume-tabs__new {
-  width: 38px;
-  height: 100%;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.lume-tabs__close--dirty {
+  opacity: 1;
+}
+
+.lume-tabs__close--dirty .lume-tabs__close-icon {
+  display: none;
+}
+
+.lume-tabs__tab:hover .lume-tabs__close--dirty .lume-tabs__dirty,
+.lume-tabs__tab:focus-within .lume-tabs__close--dirty .lume-tabs__dirty {
+  display: none;
+}
+
+.lume-tabs__tab:hover .lume-tabs__close--dirty .lume-tabs__close-icon,
+.lume-tabs__tab:focus-within .lume-tabs__close--dirty .lume-tabs__close-icon {
+  display: block;
+}
+
+.lume-tabs__tab:hover .lume-tabs__close,
+.lume-tabs__tab:focus-within .lume-tabs__close,
+.lume-tabs__tab--active .lume-tabs__close {
+  opacity: 1;
+}
+
+.lume-tabs__close:hover {
+  background-color: color-mix(in srgb, var(--lume-text-primary) 10%, transparent);
+  color: var(--lume-text-primary);
+}
+
+.lume-tabs__new {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  align-items: center;
+  justify-content: center;
+  margin: 3px 0 0 6px;
+  padding: 0;
   border: none;
-  border-radius: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--lume-text-tertiary);
   cursor: pointer;
@@ -583,7 +736,7 @@ function handlePointerUp(event: PointerEvent) {
   color: var(--lume-text-primary);
 }
 
-.lume-tabs__tab:focus-visible,
+.lume-tabs__activate:focus-visible,
 .lume-tabs__new:focus-visible,
 .lume-tabs__close:focus-visible {
   outline: 2px solid var(--lume-accent-default);

@@ -2,57 +2,123 @@
 /**
  * TitleBar - 标题栏
  *
- * 显示应用名称和当前文件名，提供窗口拖拽区域。
- * 文件操作按钮统一放在 SideBar 资源管理器旁，避免重复。
+ * 显示当前文档、编辑模式与常用操作，并提供窗口拖拽区域。
  */
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Copy, Minus, Square, X } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { Check, Copy, FileText, Minus, MoreHorizontal, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
-import lightLogoUrl from '@/assets/lume-logo-light.png'
-import darkLogoUrl from '@/assets/lume-logo-dark.png'
 import { isWindowMaximized, minimizeWindow, toggleMaximizeWindow } from '@/platform/tauri/window'
 
-type ResolvedTheme = 'light' | 'dark' | 'glass'
+type MenuKind = 'window' | 'document'
 
-const props = defineProps<{
-  theme: ResolvedTheme
-}>()
-const { currentFileName, isDirty } = useFileOps()
-const isMaximized = ref(false)
-const contextMenu = ref<HTMLDivElement | null>(null)
-const contextMenuOpen = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
-
-const emit = defineEmits<{
-  (e: 'open-settings'): void
-  (e: 'close-window'): void
-}>()
-
-function closeContextMenu() {
-  contextMenuOpen.value = false
+interface MenuItem {
+  id: string
+  label: string
+  hint?: string
+  checked?: boolean
+  action: () => unknown
 }
 
-async function openContextMenu(event: MouseEvent) {
-  const menuWidth = 168
-  const menuHeight = 100
-  const margin = 8
+const MENU_WIDTH = { window: 168, document: 216 }
+const MENU_HEIGHT = { window: 106, document: 170 }
 
+const props = defineProps<{
+  viewMode: 'wysiwyg' | 'split'
+  sidebarVisible: boolean
+  inspectorVisible: boolean
+}>()
+const emit = defineEmits<{
+  'open-settings': []
+  'close-window': []
+  'open-command-palette': []
+  'save-file': []
+  'toggle-sidebar': []
+  'toggle-inspector': []
+  'update:view-mode': [mode: 'wysiwyg' | 'split']
+}>()
+
+const { currentFileName, currentFilePath, isDirty } = useFileOps()
+const isMaximized = ref(false)
+const moreButton = ref<HTMLButtonElement | null>(null)
+const contextMenu = ref<HTMLDivElement | null>(null)
+const contextMenuOpen = ref(false)
+const contextMenuKind = ref<MenuKind>('window')
+const contextMenuPosition = ref({ x: 0, y: 0 })
+
+const menuItems = computed<MenuItem[]>(() => {
+  if (contextMenuKind.value === 'window') {
+    return [
+      { id: 'minimize', label: '最小化', action: runMinimize },
+      {
+        id: 'maximize',
+        label: isMaximized.value ? '还原' : '最大化',
+        action: handleToggleMaximize,
+      },
+      { id: 'close', label: '关闭应用', action: () => emit('close-window') },
+    ]
+  }
+  return [
+    { id: 'save', label: '保存', hint: 'Ctrl+S', action: () => emit('save-file') },
+    {
+      id: 'sidebar',
+      label: '文件栏',
+      checked: props.sidebarVisible,
+      action: () => emit('toggle-sidebar'),
+    },
+    {
+      id: 'inspector',
+      label: '大纲与统计',
+      checked: props.inspectorVisible,
+      action: () => emit('toggle-inspector'),
+    },
+    { id: 'settings', label: '偏好设置', hint: 'Ctrl+,', action: () => emit('open-settings') },
+    {
+      id: 'commands',
+      label: '命令面板',
+      hint: 'Ctrl+P',
+      action: () => emit('open-command-palette'),
+    },
+  ]
+})
+
+const closeContextMenu = (restoreFocus = false) => {
+  if (!contextMenuOpen.value) return
+  contextMenuOpen.value = false
+  if (restoreFocus && contextMenuKind.value === 'document') moreButton.value?.focus()
+}
+
+const openMenu = async (kind: MenuKind, x: number, y: number) => {
+  const margin = 8
+  contextMenuKind.value = kind
   contextMenuPosition.value = {
-    x: Math.max(margin, Math.min(event.clientX, window.innerWidth - menuWidth - margin)),
-    y: Math.max(margin, Math.min(event.clientY, window.innerHeight - menuHeight - margin)),
+    x: Math.max(margin, Math.min(x, window.innerWidth - MENU_WIDTH[kind] - margin)),
+    y: Math.max(margin, Math.min(y, window.innerHeight - MENU_HEIGHT[kind] - margin)),
   }
   contextMenuOpen.value = true
   await nextTick()
   contextMenu.value?.querySelector<HTMLButtonElement>('button')?.focus()
 }
 
-async function handleToggleMaximize() {
-  isMaximized.value = await toggleMaximizeWindow()
+const handleOpenContextMenu = (event: MouseEvent) => {
+  void openMenu('window', event.clientX, event.clientY)
 }
 
-async function runToggleMaximize() {
-  closeContextMenu()
-  await handleToggleMaximize()
+const handleToggleMoreMenu = () => {
+  if (contextMenuOpen.value && contextMenuKind.value === 'document') {
+    closeContextMenu(true)
+    return
+  }
+  const bounds = moreButton.value?.getBoundingClientRect()
+  if (bounds) void openMenu('document', bounds.right - MENU_WIDTH.document, bounds.bottom + 6)
+}
+
+const handleMenuItemClick = (item: MenuItem) => {
+  closeContextMenu(true)
+  void item.action()
+}
+
+async function handleToggleMaximize() {
+  isMaximized.value = await toggleMaximizeWindow()
 }
 
 function runMinimize() {
@@ -60,15 +126,15 @@ function runMinimize() {
   void minimizeWindow()
 }
 
-function runCloseWindow() {
-  closeContextMenu()
-  emit('close-window')
-}
-
 function handleContextMenuKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
-    closeContextMenu()
+    event.stopPropagation()
+    closeContextMenu(true)
+    return
+  }
+  if (event.key === 'Tab') {
+    closeContextMenu(true)
     return
   }
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
@@ -88,47 +154,87 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
 }
 
 function handleWindowKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') closeContextMenu()
+  if (event.key === 'Escape') closeContextMenu(true)
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    ['n', 'o', 's', 't', 'w', 'p', ','].includes(event.key.toLowerCase())
+  ) {
+    closeContextMenu()
+  }
 }
+
+const handleDismissMenu = () => closeContextMenu()
 
 onMounted(async () => {
   isMaximized.value = await isWindowMaximized()
-  window.addEventListener('pointerdown', closeContextMenu)
-  window.addEventListener('blur', closeContextMenu)
-  window.addEventListener('resize', closeContextMenu)
+  window.addEventListener('pointerdown', handleDismissMenu)
+  window.addEventListener('blur', handleDismissMenu)
+  window.addEventListener('resize', handleDismissMenu)
   window.addEventListener('keydown', handleWindowKeydown)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('pointerdown', closeContextMenu)
-  window.removeEventListener('blur', closeContextMenu)
-  window.removeEventListener('resize', closeContextMenu)
+  window.removeEventListener('pointerdown', handleDismissMenu)
+  window.removeEventListener('blur', handleDismissMenu)
+  window.removeEventListener('resize', handleDismissMenu)
   window.removeEventListener('keydown', handleWindowKeydown)
 })
 </script>
 
 <template>
-  <header class="lume-titlebar" data-tauri-drag-region @contextmenu.prevent="openContextMenu">
-    <div class="lume-titlebar__left" data-tauri-drag-region>
-      <button
-        class="lume-titlebar__logo"
-        type="button"
-        title="偏好设置"
-        aria-label="打开偏好设置"
-        data-tauri-drag-region="false"
-        @click="emit('open-settings')"
+  <header class="lume-titlebar" data-tauri-drag-region @contextmenu.prevent="handleOpenContextMenu">
+    <div class="lume-titlebar__center" data-tauri-drag-region>
+      <FileText class="lume-titlebar__document-icon" :size="16" :stroke-width="1.6" />
+      <span
+        class="lume-titlebar__title"
+        :title="currentFilePath || currentFileName"
+        data-tauri-drag-region
+        >{{ currentFileName }}</span
       >
-        <img
-          class="lume-titlebar__logo-image"
-          :src="props.theme === 'dark' ? darkLogoUrl : lightLogoUrl"
-          alt=""
-        />
-      </button>
+      <span
+        class="lume-titlebar__save-status"
+        :class="{ 'lume-titlebar__save-status--dirty': isDirty }"
+        data-tauri-drag-region
+      >
+        <span class="lume-titlebar__status-dot"></span>
+        {{ isDirty ? '未保存' : currentFilePath ? '已保存' : '本地草稿' }}
+      </span>
     </div>
 
-    <div class="lume-titlebar__center" data-tauri-drag-region>
-      <span class="lume-titlebar__title">{{ currentFileName }}</span>
-      <span v-if="isDirty" class="lume-titlebar__dirty">●</span>
+    <div class="lume-titlebar__tools" data-tauri-drag-region="false">
+      <div class="lume-titlebar__modes" role="group" aria-label="编辑模式">
+        <button
+          type="button"
+          :aria-pressed="props.viewMode === 'wysiwyg'"
+          @click="emit('update:view-mode', 'wysiwyg')"
+        >
+          编辑
+        </button>
+        <button
+          type="button"
+          :aria-pressed="props.viewMode === 'split'"
+          @click="emit('update:view-mode', 'split')"
+        >
+          分栏预览
+        </button>
+      </div>
+      <button
+        ref="moreButton"
+        class="lume-titlebar__tool lume-titlebar__more"
+        type="button"
+        title="更多操作"
+        aria-label="更多操作"
+        aria-haspopup="menu"
+        :aria-expanded="contextMenuOpen && contextMenuKind === 'document'"
+        :aria-controls="
+          contextMenuOpen && contextMenuKind === 'document' ? 'lume-titlebar-menu' : undefined
+        "
+        @pointerdown.stop
+        @click="handleToggleMoreMenu"
+        @keydown.down.prevent="handleToggleMoreMenu"
+      >
+        <MoreHorizontal :size="18" />
+      </button>
     </div>
 
     <div class="lume-titlebar__right" data-tauri-drag-region="false">
@@ -168,23 +274,31 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div
       v-if="contextMenuOpen"
+      id="lume-titlebar-menu"
       ref="contextMenu"
       class="lume-titlebar__context-menu"
       role="menu"
-      aria-label="窗口操作"
-      :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+      :aria-label="contextMenuKind === 'window' ? '窗口操作' : '更多操作'"
+      :style="{
+        left: contextMenuPosition.x + 'px',
+        top: contextMenuPosition.y + 'px',
+        width: `${MENU_WIDTH[contextMenuKind]}px`,
+      }"
       @contextmenu.prevent
       @keydown="handleContextMenuKeydown"
       @pointerdown.stop
     >
-      <button type="button" role="menuitem" @click="runMinimize">
-        <span>最小化</span>
-      </button>
-      <button type="button" role="menuitem" @click="runToggleMaximize">
-        <span>{{ isMaximized ? '还原' : '最大化' }}</span>
-      </button>
-      <button type="button" role="menuitem" @click="runCloseWindow">
-        <span>关闭应用</span>
+      <button
+        v-for="item in menuItems"
+        :key="item.id"
+        type="button"
+        :role="item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'"
+        :aria-checked="item.checked"
+        @click="handleMenuItemClick(item)"
+      >
+        <span class="lume-titlebar__menu-label">{{ item.label }}</span>
+        <Check v-if="item.checked" :size="14" :stroke-width="1.7" />
+        <span v-else-if="item.hint" class="lume-titlebar__menu-hint">{{ item.hint }}</span>
       </button>
     </div>
   </Teleport>
@@ -196,77 +310,126 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-left: var(--lume-space-2);
-  background-color: var(--lume-bg-surface);
-  border-bottom: 1px solid var(--lume-border-subtle);
+  gap: 12px;
+  padding-left: 14px;
+  background: var(--lume-chrome-bg);
+  border-bottom: 0;
   user-select: none;
   flex-shrink: 0;
 }
 
-.lume-titlebar__left {
-  display: flex;
-  align-items: center;
-  gap: var(--lume-space-4);
-}
-
-.lume-titlebar__logo {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  border: none;
-  border-radius: var(--lume-radius-sm);
-  background: transparent;
-  cursor: pointer;
-}
-
-.lume-titlebar__logo:hover {
-  background-color: var(--lume-bg-surface-raised);
-}
-
-.lume-titlebar__logo:focus-visible {
-  outline: 2px solid var(--lume-accent-default);
-  outline-offset: 2px;
-}
-
-.lume-titlebar__logo-image {
-  width: 24px;
-  height: 24px;
-  display: block;
-  border-radius: 5px;
-  object-fit: cover;
-  pointer-events: none;
-}
-
 .lume-titlebar__center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: var(--lume-space-2);
+  gap: 10px;
+}
+
+.lume-titlebar__document-icon {
+  flex-shrink: 0;
+  color: var(--lume-text-secondary);
 }
 
 .lume-titlebar__title {
   font-size: var(--lume-font-size-sm);
+  font-weight: 600;
+  color: var(--lume-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lume-titlebar__save-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  color: var(--lume-text-tertiary);
+  font-size: var(--lume-font-size-xs);
+}
+
+.lume-titlebar__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lume-color-success);
+}
+
+.lume-titlebar__save-status--dirty .lume-titlebar__status-dot {
+  background: var(--lume-color-warning);
+}
+
+.lume-titlebar__tools {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.lume-titlebar__modes {
+  display: flex;
+  gap: 2px;
+  margin-right: 8px;
+  padding: 3px;
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: 9px;
+  background: var(--lume-bg-surface-raised);
+}
+
+.lume-titlebar__modes button {
+  min-width: 55px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--lume-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.lume-titlebar__modes button[aria-pressed='true'] {
+  border-color: var(--lume-panel-border);
+  background: var(--lume-bg-surface);
+  box-shadow: var(--lume-shadow-xs);
+  color: var(--lume-text-primary);
+  font-weight: 600;
+}
+
+.lume-titlebar__tool {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
   color: var(--lume-text-secondary);
 }
 
-.lume-titlebar__dirty {
-  font-size: 10px;
-  color: var(--lume-accent-default);
+.lume-titlebar__tool:hover {
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-titlebar__tool[aria-expanded='true'] {
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-titlebar__tools button:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 2px;
 }
 
 .lume-titlebar__right {
   align-self: stretch;
   display: flex;
   align-items: center;
+  margin-left: 4px;
 }
 
 .lume-titlebar__window-control {
-  width: 46px;
+  width: 42px;
   height: 100%;
   display: inline-flex;
   align-items: center;
@@ -300,7 +463,9 @@ onBeforeUnmount(() => {
 .lume-titlebar__context-menu {
   position: fixed;
   z-index: var(--lume-z-tooltip);
-  width: 168px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   padding: var(--lume-space-2);
   border: 1px solid var(--lume-border-subtle);
   border-radius: var(--lume-radius-md);
@@ -313,9 +478,10 @@ onBeforeUnmount(() => {
 
 .lume-titlebar__context-menu button {
   width: 100%;
-  height: 28px;
+  height: 32px;
   display: flex;
   align-items: center;
+  gap: 12px;
   padding: 0 var(--lume-space-3);
   border: 0;
   border-radius: var(--lume-radius-sm);
@@ -326,10 +492,46 @@ onBeforeUnmount(() => {
   cursor: default;
 }
 
+.lume-titlebar__menu-label {
+  flex: 1;
+  text-align: left;
+}
+
+.lume-titlebar__menu-hint {
+  color: var(--lume-text-tertiary);
+  font-size: var(--lume-font-size-xs);
+}
+
 .lume-titlebar__context-menu button:hover,
 .lume-titlebar__context-menu button:focus-visible {
   outline: none;
   background-color: color-mix(in srgb, var(--lume-text-primary) 7%, transparent);
   color: var(--lume-text-primary);
+}
+
+@media (max-width: 699px) {
+  .lume-titlebar__save-status {
+    display: none;
+  }
+
+  .lume-titlebar {
+    gap: 6px;
+    padding-left: 8px;
+  }
+
+  .lume-titlebar__modes {
+    margin-right: 2px;
+  }
+  .lume-titlebar__window-control {
+    width: 34px;
+  }
+}
+
+@media (max-width: 519px) {
+  .lume-titlebar__modes button {
+    min-width: 40px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
 }
 </style>

@@ -20,32 +20,63 @@
 :root[data-theme='glass'] .lume-titlebar,
 :root[data-theme='glass'] .lume-tabs,
 :root[data-theme='glass'] .lume-sidebar,
+:root[data-theme='glass'] .lume-document-inspector,
 :root[data-theme='glass'] .lume-statusbar {
-  border-color: rgba(255, 255, 255, 0.82);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 247, 250, 0.91));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 1px 10px rgba(43, 59, 78, 0.1);
+  border-color: var(--lume-panel-border);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(239, 244, 252, 0.78));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(42px) saturate(105%);
   -webkit-backdrop-filter: blur(42px) saturate(105%);
 }
 
 :root[data-theme='glass'] .lume-editor-pane,
+:root[data-theme='glass'] .lume-source-editor,
 :root[data-theme='glass'] .lume-preview-pane,
 :root[data-theme='glass'] .lume-wysiwyg-pane {
-  border-color: rgba(255, 255, 255, 0.78);
+  border-color: var(--lume-panel-border);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(245, 248, 251, 0.88));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.94), inset 0 0 38px rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    inset 0 0 38px rgba(255, 255, 255, 0.28);
   backdrop-filter: blur(48px) saturate(100%);
   -webkit-backdrop-filter: blur(48px) saturate(100%);
 }
 
+:root[data-theme='glass'] .lume-app__editor-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(239, 244, 252, 0.76));
+  box-shadow: none;
+  backdrop-filter: blur(42px) saturate(105%);
+  -webkit-backdrop-filter: blur(42px) saturate(105%);
+}
+
+:root[data-theme='glass'] .lume-titlebar {
+  box-shadow: none;
+}
+
+:root[data-theme='glass'] .lume-tabs {
+  box-shadow: inset 0 -1px 0 var(--lume-panel-border);
+}
+
+:root[data-theme='glass'] .lume-app__editor-card .lume-app__main .lume-wysiwyg-pane,
+:root[data-theme='glass'] .lume-app__editor-card .lume-app__main .lume-source-editor,
+:root[data-theme='glass'] .lume-app__editor-card .lume-app__main .lume-preview-pane {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 :root[data-theme='glass'] .lume-tabs__tab--active {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96), 0 4px 14px rgba(55, 72, 94, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 4px 14px rgba(55, 72, 94, 0.08);
 }
 
 :root[data-theme='glass'] .lume-tabs__tab:hover,
-:root[data-theme='glass'] .lume-titlebar__logo:hover,
-:root[data-theme='glass'] .lume-titlebar__window-control:hover,
+:root[data-theme='glass']
+  .lume-titlebar__window-control:not(.lume-titlebar__window-control--close):hover,
 :root[data-theme='glass'] .lume-statusbar__menu-trigger:hover {
   background-color: rgba(255, 255, 255, 0.82);
 }
@@ -55,7 +86,9 @@
 :root[data-theme='glass'] .lume-statusbar__menu {
   border: 1px solid rgba(255, 255, 255, 0.9);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 246, 251, 0.95));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96), var(--lume-shadow-xl);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    var(--lume-shadow-xl);
   backdrop-filter: blur(48px) saturate(105%);
   -webkit-backdrop-filter: blur(48px) saturate(105%);
 }

@@ -1,24 +1,26 @@
 /** WYSIWYG 与 Preview 共用的 Markdown 正文排版。 */
 .lume-markdown-content h1 {
-  margin: var(--lume-space-8) 0 var(--lume-space-4);
-  padding-bottom: var(--lume-space-2);
-  border-bottom: 1px solid var(--lume-border-subtle);
-  font-size: 1.8em;
+  margin: var(--lume-space-7) 0 var(--lume-space-5);
+  font-size: 2em;
   font-weight: var(--lume-font-weight-bold);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
 }
 
 .lume-markdown-content h2 {
   margin: var(--lume-space-7) 0 var(--lume-space-3);
-  padding-bottom: var(--lume-space-1);
-  border-bottom: 1px solid var(--lume-border-subtle);
-  font-size: 1.4em;
+  font-size: 1.5em;
   font-weight: var(--lume-font-weight-semibold);
+  line-height: 1.3;
+  letter-spacing: -0.025em;
 }
 
 .lume-markdown-content h3 {
   margin: var(--lume-space-6) 0 var(--lume-space-3);
-  font-size: 1.2em;
+  font-size: 1.3em;
   font-weight: var(--lume-font-weight-semibold);
+  line-height: 1.35;
+  letter-spacing: -0.02em;
 }
 
 .lume-markdown-content h4,
@@ -30,7 +32,12 @@
 }
 
 .lume-markdown-content p {
-  margin: var(--lume-space-3) 0;
+  margin: var(--lume-space-4) 0;
+}
+
+.lume-markdown-content > :first-child,
+.lume-markdown-content .ProseMirror > :first-child {
+  margin-top: 0;
 }
 .lume-markdown-content a {
   color: var(--lume-accent-default);
@@ -61,6 +68,10 @@
 }
 .lume-markdown-content li {
   margin: var(--lume-space-1) 0;
+}
+
+.lume-markdown-content li::marker {
+  color: var(--lume-accent-default);
 }
 
 .lume-markdown-content .lume-task-item {
@@ -114,11 +125,13 @@
 
 .lume-markdown-content blockquote {
   margin: var(--lume-space-4) 0;
-  padding: var(--lume-space-2) var(--lume-space-5);
-  border-left: 3px solid var(--lume-accent-default);
-  border-radius: 0 var(--lume-radius-sm) var(--lume-radius-sm) 0;
-  background-color: var(--lume-accent-subtle);
+  padding: var(--lume-space-3) var(--lume-space-5);
+  border-left: 3px solid var(--lume-border-strong);
+  border-radius: var(--lume-radius-sm) var(--lume-radius-lg) var(--lume-radius-lg)
+    var(--lume-radius-sm);
+  background-color: var(--lume-chrome-bg);
   color: var(--lume-text-secondary);
+  font-style: italic;
 }
 
 .lume-markdown-content blockquote p {
