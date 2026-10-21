@@ -1,11 +1,38 @@
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { html } from '@codemirror/lang-html'
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { defaultHighlightStyle, ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language'
 import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark'
 import { redo, undo } from '@milkdown/kit/prose/history'
 import type { EditorView as ProseView } from '@milkdown/kit/prose/view'
+
+const isHtmlComplete = (state: EditorState) => {
+  const tree = ensureSyntaxTree(state, state.doc.length)
+  if (!tree) return false
+  let complete = false
+  for (let child = tree.topNode.firstChild; child; child = child.nextSibling) {
+    if (child.name === 'Text' && !state.sliceDoc(child.from, child.to).trim()) continue
+    if (child.name === 'Element') {
+      // 解析器会在文末隐式结束未闭合元素，需确认最外层已有结束标记。
+      if (child.firstChild?.name !== 'SelfClosingTag' && child.lastChild?.name !== 'CloseTag')
+        return false
+    } else if (!['Comment', 'DoctypeDecl', 'ProcessingInst'].includes(child.name)) return false
+    complete = true
+  }
+  tree.iterate({
+    enter(node) {
+      // 脚本和样式的内部语法不影响 HTML 标签是否闭合。
+      if (node.type.isTop && node.name !== 'Document') return false
+      if (
+        node.type.isError ||
+        ['IncompleteTag', 'IncompleteCloseTag', 'MismatchedCloseTag'].includes(node.name)
+      )
+        complete = false
+    },
+  })
+  return complete
+}
 
 export const createHtmlSourceEditor = (
   parent: HTMLElement,
@@ -14,6 +41,7 @@ export const createHtmlSourceEditor = (
   onChange: (value: string) => void,
   onExit: (direction: number) => void,
   cursor = 0,
+  block = false,
 ) => {
   let synchronizing = false
   let destroyed = false
@@ -38,7 +66,7 @@ export const createHtmlSourceEditor = (
       doc: value,
       selection: { anchor: Math.max(0, Math.min(value.length, cursor)) },
       extensions: [
-        html(),
+        html({ selfClosingTags: true }),
         highlighting.of(highlight()),
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ 'aria-label': 'HTML 源码', spellcheck: 'false' }),
@@ -57,6 +85,24 @@ export const createHtmlSourceEditor = (
           },
         }),
         keymap.of([
+          {
+            key: 'Enter',
+            run: (cm) => {
+              const { selection, doc } = cm.state
+              if (
+                !block ||
+                !view.editable ||
+                cm.compositionStarted ||
+                selection.ranges.length !== 1 ||
+                !selection.main.empty ||
+                selection.main.head !== doc.length ||
+                !isHtmlComplete(cm.state)
+              )
+                return false
+              onExit(1)
+              return true
+            },
+          },
           {
             key: 'Escape',
             run: () => {

@@ -176,7 +176,8 @@ export const createHtmlNodeView = (
       view,
       handleSourceChange,
       finish,
-      entry?.pos === getPos() && entry.atEnd ? value.length : 0,
+      entry?.pos === getPos() && entry?.atEnd ? value.length : 0,
+      block,
     )
     focusFrame = requestAnimationFrame(() => {
       if (!destroyed && editing) source?.editor.focus()
