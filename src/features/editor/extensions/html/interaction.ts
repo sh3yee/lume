@@ -1,13 +1,18 @@
 import { parserCtx, serializerCtx } from '@milkdown/kit/core'
 import type { Node } from '@milkdown/kit/prose/model'
-import { Plugin, TextSelection } from '@milkdown/kit/prose/state'
+import { NodeSelection, Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { isHistoryTransaction } from '@milkdown/kit/prose/history'
 import { parseHtmlTag } from './remark'
 import { prepareHtmlParagraphBreak } from './paragraphBreak'
-import { collapseHtmlSource, expandHtmlSource, htmlEditingKey } from './sourceEditing'
+import {
+  collapseHtmlSource,
+  expandHtmlSource,
+  htmlEditingKey,
+  type HtmlSourceEntry,
+} from './sourceEditing'
 
 export const openHtmlSource = (
   view: EditorView,
@@ -52,13 +57,33 @@ export const htmlInteraction = $prose((ctx) => {
         ? view.state.selection
         : TextSelection.near(view.state.doc.resolve(pos + node.nodeSize)),
     )
-    view.dispatch(
-      tr.setMeta(htmlEditingKey, { close: pos }).scrollIntoView(),
-    )
+    view.dispatch(tr.setMeta(htmlEditingKey, { close: pos }).scrollIntoView())
     return true
   }
-  return new Plugin({
+  return new Plugin<HtmlSourceEntry | null>({
     key: htmlEditingKey,
+    state: {
+      init: () => null,
+      apply(tr, entry, previous) {
+        const selection = tr.selection
+        if (
+          !(selection instanceof NodeSelection) ||
+          !['html', 'html_block'].includes(selection.node.type.name)
+        )
+          return null
+        // 从正文后方退格进入源码时保留方向，显式点击入口仍从开头编辑。
+        return {
+          pos: selection.from,
+          atEnd:
+            tr.getMeta(htmlEditingKey)?.sourceCursor !== 'start' &&
+            !isHistoryTransaction(tr) &&
+            ((previous.selection instanceof TextSelection &&
+              previous.selection.empty &&
+              tr.mapping.map(previous.selection.from) >= selection.to) ||
+              (entry?.atEnd === true && tr.mapping.map(entry.pos) === selection.from)),
+        }
+      },
+    },
     view(view) {
       editorView = view
       return {

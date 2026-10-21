@@ -2,7 +2,12 @@ import { Fragment, Slice, type Node } from '@milkdown/kit/prose/model'
 import { PluginKey, TextSelection, type Transaction } from '@milkdown/kit/prose/state'
 import { ReplaceAroundStep } from '@milkdown/kit/prose/transform'
 
-export const htmlEditingKey = new PluginKey('lumeHtmlEditing')
+export interface HtmlSourceEntry {
+  pos: number
+  atEnd: boolean
+}
+
+export const htmlEditingKey = new PluginKey<HtmlSourceEntry | null>('lumeHtmlEditing')
 
 export const serializeHtmlInline = (node: Node, serialize: (doc: Node) => string) => {
   const { schema } = node.type

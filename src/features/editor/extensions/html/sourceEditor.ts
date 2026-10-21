@@ -13,6 +13,7 @@ export const createHtmlSourceEditor = (
   view: ProseView,
   onChange: (value: string) => void,
   onExit: (direction: number) => void,
+  cursor = 0,
 ) => {
   let synchronizing = false
   let destroyed = false
@@ -35,6 +36,7 @@ export const createHtmlSourceEditor = (
     parent,
     state: EditorState.create({
       doc: value,
+      selection: { anchor: Math.max(0, Math.min(value.length, cursor)) },
       extensions: [
         html(),
         highlighting.of(highlight()),

@@ -4,6 +4,7 @@ import type { EditorView, NodeView } from '@milkdown/kit/prose/view'
 import { deleteHtmlNode } from './commands'
 import { getHtmlResources, isInvisibleHtml, renderHtml } from './policy'
 import { createHtmlSourceEditor } from './sourceEditor'
+import { htmlEditingKey } from './sourceEditing'
 
 const interactiveSelector = 'a, summary, video, audio, iframe, button, input, select, textarea'
 
@@ -167,12 +168,15 @@ export const createHtmlNodeView = (
     editing = true
     updateControls()
     renderPreview()
+    const value = String(currentNode.attrs.value)
+    const entry = htmlEditingKey.getState(view.state)
     source = createHtmlSourceEditor(
       sourceHost,
-      String(currentNode.attrs.value),
+      value,
       view,
       handleSourceChange,
       finish,
+      entry?.pos === getPos() && entry.atEnd ? value.length : 0,
     )
     focusFrame = requestAnimationFrame(() => {
       if (!destroyed && editing) source?.editor.focus()
@@ -181,7 +185,11 @@ export const createHtmlNodeView = (
   const selectAndStart = () => {
     const pos = getPos()
     if (pos == null || !view.editable) return
-    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)))
+    view.dispatch(
+      view.state.tr
+        .setSelection(NodeSelection.create(view.state.doc, pos))
+        .setMeta(htmlEditingKey, { sourceCursor: 'start' }),
+    )
     start()
   }
   toggle.addEventListener('mousedown', (event) => event.preventDefault())
