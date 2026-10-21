@@ -12,6 +12,7 @@ import {
   Image,
   Monitor,
   Moon,
+  SlidersHorizontal,
   Sparkles,
   Sun,
   Type,
@@ -151,11 +152,12 @@ onBeforeUnmount(() => dialogRef.value?.close())
   >
     <div class="lume-settings__panel">
       <header class="lume-settings__header">
-        <div class="lume-settings__heading">
-          <span class="lume-settings__eyebrow">Lume Preferences</span>
-          <h2 id="settings-title" class="lume-settings__title">偏好设置</h2>
-          <p class="lume-settings__description">让写作空间更符合你的习惯。</p>
-        </div>
+        <h2 id="settings-title" class="lume-settings__title">
+          <span class="lume-settings__title-icon" aria-hidden="true">
+            <SlidersHorizontal :size="17" :stroke-width="1.7" />
+          </span>
+          <span>偏好设置</span>
+        </h2>
         <button
           class="lume-settings__close"
           type="button"
@@ -531,38 +533,40 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
 .lume-settings__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: var(--lume-space-8) var(--lume-space-8) var(--lume-space-6);
+  padding: var(--lume-space-5) var(--lume-space-7);
   background: linear-gradient(135deg, var(--lume-accent-subtle), transparent 55%);
 }
 
-.lume-settings__heading {
-  display: flex;
-  flex-direction: column;
-}
-
-.lume-settings__eyebrow {
-  margin-bottom: var(--lume-space-3);
-  color: var(--lume-accent-default);
-  font-size: 10px;
-  font-weight: var(--lume-font-weight-semibold);
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-}
-
 .lume-settings__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lume-space-4);
   margin: 0;
-  font-size: var(--lume-font-size-2xl);
-  font-weight: var(--lume-font-weight-semibold);
-  letter-spacing: -0.4px;
+  font-size: var(--lume-font-size-lg);
+  font-weight: var(--lume-font-weight-medium);
+  line-height: 1.4;
+  letter-spacing: 0.04em;
 }
 
-.lume-settings__description,
+.lume-settings__title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
+
 .lume-settings__hint {
-  margin: var(--lume-space-3) 0 0;
+  margin: var(--lume-space-2) 0 0;
   color: var(--lume-text-tertiary);
-  font-size: var(--lume-font-size-sm);
+  font-size: var(--lume-font-size-xs);
+  line-height: var(--lume-line-height-normal);
 }
 
 .lume-settings__close {
@@ -591,8 +595,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__sidebar {
-  flex: 0 0 200px;
-  width: 200px;
+  flex: 0 0 152px;
+  width: 152px;
   padding: var(--lume-space-4) var(--lume-space-3);
   border-right: 1px solid var(--lume-border-subtle);
   background: var(--lume-bg-surface-raised);
@@ -603,14 +607,16 @@ onBeforeUnmount(() => dialogRef.value?.close())
   display: inline-flex;
   align-items: center;
   gap: var(--lume-space-3);
-  padding: var(--lume-space-3) var(--lume-space-4);
+  padding: var(--lume-space-3);
   margin-bottom: var(--lume-space-2);
   border: 1px solid transparent;
   border-radius: var(--lume-radius-md);
   background: transparent;
   color: var(--lume-text-secondary);
+  font-size: var(--lume-font-size-base);
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
   transition:
     background-color var(--lume-transition-fast),
     border-color var(--lume-transition-fast),
@@ -633,15 +639,16 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 .lume-settings__content {
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  padding: var(--lume-space-6) var(--lume-space-8) var(--lume-space-7);
+  padding: var(--lume-space-5) var(--lume-space-6);
   overflow-y: auto;
 }
 
 .lume-settings__section {
   display: flex;
   flex-direction: column;
-  gap: var(--lume-space-5);
+  gap: var(--lume-space-4);
 }
 
 .lume-settings__section-heading {
@@ -649,14 +656,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__section--divided {
-  margin-top: var(--lume-space-7);
-  padding-top: var(--lume-space-6);
+  margin-top: var(--lume-space-5);
+  padding-top: var(--lume-space-5);
   border-top: 1px solid var(--lume-border-subtle);
 }
 
 .lume-settings__label {
   margin: 0;
-  font-size: var(--lume-font-size-md);
+  font-size: var(--lume-font-size-base);
   font-weight: var(--lume-font-weight-semibold);
 }
 
@@ -664,7 +671,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
   width: 100%;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--lume-space-4);
+  gap: var(--lume-space-3);
 }
 
 .lume-settings__options--stacked {
@@ -690,13 +697,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__mini-option {
-  min-width: 72px;
-  min-height: 36px;
-  padding: 0 var(--lume-space-4);
+  min-width: 60px;
+  min-height: 30px;
+  padding: 0 var(--lume-space-3);
   border: 1px solid var(--lume-border-default);
   border-radius: var(--lume-radius-md);
   background: var(--lume-bg-surface-raised);
   color: var(--lume-text-secondary);
+  font-size: var(--lume-font-size-sm);
   cursor: pointer;
   transition:
     border-color var(--lume-transition-fast),
@@ -716,15 +724,13 @@ onBeforeUnmount(() => dialogRef.value?.close())
   box-shadow: 0 0 0 1px var(--lume-accent-default);
 }
 .lume-settings__option {
-  position: relative;
-  min-height: 118px;
+  min-height: 80px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--lume-space-4);
-  padding: var(--lume-space-5);
+  align-items: center;
+  gap: var(--lume-space-3);
+  padding: var(--lume-space-4);
   border: 1px solid var(--lume-border-default);
-  border-radius: var(--lume-radius-lg);
+  border-radius: var(--lume-radius-md);
   background-color: var(--lume-bg-surface-raised);
   color: var(--lume-text-primary);
   text-align: left;
@@ -742,8 +748,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__option--toggle {
-  min-height: 86px;
-  padding-right: var(--lume-space-8);
+  min-height: 64px;
 }
 
 .lume-settings__option:disabled {
@@ -766,8 +771,9 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__option-icon {
-  width: 34px;
-  height: 34px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -777,15 +783,25 @@ onBeforeUnmount(() => dialogRef.value?.close())
   box-shadow: var(--lume-shadow-xs);
 }
 
+.lume-settings__option-icon > svg,
+.lume-settings__theme-option > svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
 .lume-settings__option-copy {
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
   gap: var(--lume-space-2);
+  overflow-wrap: anywhere;
 }
 
 .lume-settings__option-copy strong {
-  font-size: var(--lume-font-size-base);
-  font-weight: var(--lume-font-weight-semibold);
+  font-size: var(--lume-font-size-sm);
+  font-weight: var(--lume-font-weight-medium);
 }
 
 .lume-settings__option-copy small {
@@ -795,9 +811,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__check {
-  position: absolute;
-  top: var(--lume-space-5);
-  right: var(--lume-space-5);
+  flex: 0 0 9px;
   width: 9px;
   height: 9px;
   border: 1px solid var(--lume-border-strong);
@@ -814,14 +828,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
 .lume-settings__theme-options {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: var(--lume-space-3);
 }
 
 .lume-settings__theme-option {
   width: 100%;
   min-width: 0;
-  min-height: 80px;
+  min-height: 56px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -862,8 +876,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
   align-items: center;
   justify-content: flex-end;
   gap: var(--lume-space-2);
-  margin-top: var(--lume-space-7);
-  padding-top: var(--lume-space-5);
+  margin-top: var(--lume-space-5);
+  padding-top: var(--lume-space-4);
   border-top: 1px solid var(--lume-border-subtle);
   color: var(--lume-text-tertiary);
   font-size: var(--lume-font-size-xs);
