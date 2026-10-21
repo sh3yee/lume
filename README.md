@@ -107,7 +107,7 @@ On macOS, use `Command` instead of `Ctrl`.
 
 ## Project Status
 
-Lume is in early development. The current repository version is **0.3.0**. Local document editing, workspace file management, autosave, external conflict handling, and session recovery are implemented. Markdown extensions and image workflows continue to improve.
+Lume is in early development. The current repository version is **0.4.0**. Local document editing, workspace file management, autosave, external conflict handling, and session recovery are implemented. Markdown extensions and image workflows continue to improve.
 
 The desktop app uses Tauri 2, Rust, Vue 3, and TypeScript. WYSIWYG editing is powered by Milkdown / ProseMirror, and split-view previews use markdown-it. Workspace management, automatic saves to source files, and local image asset handling require the desktop environment. Browser mode is intended for frontend development and a preview of the basic experience.
 
