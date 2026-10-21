@@ -106,8 +106,8 @@ npm run tauri:build
 提交版本变更后，创建并推送以 `v` 开头的标签：
 
 ```powershell
-git tag -a v0.4.0 -m "发布 v0.4.0"
-git push --atomic origin main v0.4.0
+git tag -a v0.5.0 -m "发布 v0.5.0"
+git push --atomic origin main v0.5.0
 ```
 
 推送标签后，工作流会在 GitHub Releases 中直接发布正式版本，并自动附加各平台安装包。Windows 会同时提供两种安装程序：

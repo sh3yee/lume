@@ -2,7 +2,7 @@
 
 **English** | [简体中文](roadmap.zh-CN.md)
 
-This document covers Lume's product principles, technical direction, syntax plans, and development phases, based on the current **0.4.0** repository code. For setup, project structure, and commands, see the [Development Guide](development.md). Architecture refactoring tasks are tracked in the [Refactoring Plan (Chinese)](refactoring-plan.md).
+This document covers Lume's product principles, technical direction, syntax plans, and development phases, based on the current **0.5.0** repository code. For setup, project structure, and commands, see the [Development Guide](development.md). Architecture refactoring tasks are tracked in the [Refactoring Plan (Chinese)](refactoring-plan.md).
 
 In this roadmap, `[x]` means an implementation exists in the code, and `[ ]` means the feature remains to be implemented or improved.
 
