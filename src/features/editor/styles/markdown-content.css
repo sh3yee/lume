@@ -75,12 +75,14 @@
 .lume-markdown-content .lume-task-checkbox:disabled {
   opacity: 1;
 }
-.lume-markdown-content .lume-link-source {
+.lume-markdown-content .lume-link-source,
+.lume-markdown-content .lume-html-source {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.lume-markdown-content .lume-link-source--valid {
+.lume-markdown-content .lume-link-source--valid,
+.lume-markdown-content .lume-html-syntax {
   color: var(--lume-accent-default);
 }
 

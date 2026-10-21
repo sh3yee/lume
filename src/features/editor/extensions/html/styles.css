@@ -100,11 +100,8 @@
 .lume-html-source {
   color: var(--lume-text-primary);
   font-family: var(--lume-font-mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.lume-html-syntax {
-  color: var(--lume-text-secondary);
+  font-weight: var(--lume-font-weight-regular);
+  font-style: normal;
 }
 .lume-html-invisible,
 .lume-html-placeholder {
