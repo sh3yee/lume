@@ -1,6 +1,7 @@
 import type { Node } from '@milkdown/kit/prose/model'
 import { NodeSelection, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view'
+import { deleteHtmlNode } from './commands'
 import { getHtmlResources, isInvisibleHtml, renderHtml } from './policy'
 import { createHtmlSourceEditor } from './sourceEditor'
 
@@ -36,6 +37,7 @@ export const createHtmlNodeView = (
   let currentNode = node
   let source: ReturnType<typeof createHtmlSourceEditor> | null = null
   let editing = false
+  let selected = false
   let destroyed = false
   let revision = 0
   let rendered = ''
@@ -129,8 +131,28 @@ export const createHtmlNodeView = (
     view.dispatch(tr.scrollIntoView())
     view.focus()
   }
+  const handleSourceChange = (value: string) => {
+    if (destroyed) return
+    const pos = getPos()
+    if (pos == null || view.isDestroyed || !view.editable) return
+    if (!value.trim()) {
+      const tr = deleteHtmlNode(view.state, pos)
+      if (!tr) return
+      const focused = dom.contains(dom.ownerDocument.activeElement)
+      if (!focused)
+        tr.setSelection(view.state.selection.getBookmark().map(tr.mapping).resolve(tr.doc))
+      view.dispatch(focused ? tr.scrollIntoView() : tr)
+      if (focused) view.focus()
+      return
+    }
+    view.dispatch(view.state.tr.setNodeAttribute(pos, 'value', value))
+  }
   const finish = (direction?: number) => {
     if (!editing) return
+    if (source && !source.editor.compositionStarted && !source.editor.state.doc.toString().trim()) {
+      handleSourceChange(source.editor.state.doc.toString())
+      if (destroyed) return
+    }
     editing = false
     cancelAnimationFrame(focusFrame)
     source?.destroy()
@@ -149,11 +171,7 @@ export const createHtmlNodeView = (
       sourceHost,
       String(currentNode.attrs.value),
       view,
-      (value) => {
-        const pos = getPos()
-        if (pos == null || view.isDestroyed || !view.editable) return
-        view.dispatch(view.state.tr.setNodeAttribute(pos, 'value', value))
-      },
+      handleSourceChange,
       finish,
     )
     focusFrame = requestAnimationFrame(() => {
@@ -218,17 +236,24 @@ export const createHtmlNodeView = (
       return true
     },
     selectNode() {
+      selected = true
       dom.classList.add('ProseMirror-selectednode')
       start()
     },
     deselectNode() {
+      selected = false
       dom.classList.remove('ProseMirror-selectednode')
-      if (!dom.contains(dom.ownerDocument.activeElement)) finish()
+      // 选区同步完成后再退出，避免清空源码时在视图更新中派发删除事务。
+      queueMicrotask(() => {
+        if (!destroyed && !selected && !dom.contains(dom.ownerDocument.activeElement)) finish()
+      })
     },
+    // HTML 自行处理点击，避免外层编辑器在 mouseup 时抢回焦点并收起源码。
     stopEvent: (event) =>
-      event.target instanceof Element &&
-      (Boolean(event.target.closest('.lume-html-editor, .lume-html-tools')) ||
-        (event.type !== 'keydown' && Boolean(event.target.closest(interactiveSelector)))),
+      event.type === 'mousedown' ||
+      (event.target instanceof Element &&
+        (Boolean(event.target.closest('.lume-html-editor, .lume-html-tools')) ||
+          (event.type !== 'keydown' && Boolean(event.target.closest(interactiveSelector))))),
     ignoreMutation: () => true,
     destroy() {
       destroyed = true

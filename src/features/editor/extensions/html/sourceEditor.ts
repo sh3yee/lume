@@ -15,6 +15,15 @@ export const createHtmlSourceEditor = (
   onExit: (direction: number) => void,
 ) => {
   let synchronizing = false
+  let destroyed = false
+  let emptyTimer: ReturnType<typeof setTimeout> | undefined
+  const notifyChange = (cm: EditorView) => {
+    clearTimeout(emptyTimer)
+    const value = cm.state.doc.toString()
+    // 输入法替换选区时的临时空值，留到组合结束后再确认。
+    if (!value.trim() && cm.compositionStarted) return
+    onChange(value)
+  }
   const highlighting = new Compartment()
   const highlight = () =>
     syntaxHighlighting(
@@ -34,6 +43,17 @@ export const createHtmlSourceEditor = (
         EditorState.transactionFilter.of((tr) =>
           tr.docChanged && !synchronizing && !view.editable ? [] : tr,
         ),
+        EditorView.domEventHandlers({
+          compositionend: (_event, cm) => {
+            clearTimeout(emptyTimer)
+            emptyTimer = setTimeout(() => {
+              if (destroyed || cm.compositionStarted) return
+              const value = cm.state.doc.toString()
+              if (!value.trim()) onChange(value)
+            }, 0)
+            return false
+          },
+        }),
         keymap.of([
           {
             key: 'Escape',
@@ -76,7 +96,7 @@ export const createHtmlSourceEditor = (
           ...defaultKeymap,
         ]),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged && !synchronizing) onChange(update.state.doc.toString())
+          if (update.docChanged && !synchronizing) notifyChange(update.view)
         }),
       ],
     }),
@@ -109,6 +129,8 @@ export const createHtmlSourceEditor = (
       }
     },
     destroy() {
+      destroyed = true
+      clearTimeout(emptyTimer)
       themeObserver.disconnect()
       editor.destroy()
     },

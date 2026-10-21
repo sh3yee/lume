@@ -16,6 +16,12 @@ export const getSelectionToolbarModel = (
   state: EditorState,
   editable = true,
 ): SelectionToolbarModel | null => {
+  // HTML 使用原位源码入口与右键菜单，避免重复的浮动栏遮挡内容。
+  if (
+    context.node &&
+    ['html', 'html_block', 'html_inline', 'html_source'].includes(context.node.node.type.name)
+  )
+    return null
   const selected = context.nativeCode
     ? context.nativeCode.state.selection.ranges.some((range) => !range.empty)
     : (context.selection instanceof TextSelection || context.selection instanceof AllSelection) &&
