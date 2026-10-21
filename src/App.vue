@@ -4,7 +4,6 @@
       :theme="resolvedTheme"
       @open-settings="openSettings"
       @close-window="handleCloseWindow"
-      @image-command="imageCommands.execute"
     />
 
     <div class="lume-app__body">

@@ -8,8 +8,6 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Copy, Minus, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
-import ImageMenu from '@/features/images/components/ImageMenu.vue'
-import type { ImageCommand } from '@/features/images/model/imageCommands'
 import lightLogoUrl from '@/assets/lume-logo-light.png'
 import darkLogoUrl from '@/assets/lume-logo-dark.png'
 import { isWindowMaximized, minimizeWindow, toggleMaximizeWindow } from '@/platform/tauri/window'
@@ -28,7 +26,6 @@ const contextMenuPosition = ref({ x: 0, y: 0 })
 const emit = defineEmits<{
   (e: 'open-settings'): void
   (e: 'close-window'): void
-  (e: 'image-command', id: ImageCommand): void
 }>()
 
 function closeContextMenu() {
@@ -127,7 +124,6 @@ onBeforeUnmount(() => {
           alt=""
         />
       </button>
-      <ImageMenu @command="emit('image-command', $event)" />
     </div>
 
     <div class="lume-titlebar__center" data-tauri-drag-region>
