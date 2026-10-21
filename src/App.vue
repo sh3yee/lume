@@ -11,18 +11,18 @@
       @save-file="saveCurrentFile()"
       @open-settings="openSettings"
       @close-window="handleCloseWindow"
-    />
+    >
+      <template v-if="tabsEnabled && !focusMode" #documents>
+        <DocumentTabs :file-drop-paths="fileDragPaths" />
+      </template>
+    </TitleBar>
 
     <div class="lume-app__body">
-      <SideBar v-if="sidebarVisible && !focusMode" @open-command-palette="commandPalette.open" />
+      <SideBar v-if="sidebarVisible && !focusMode" />
 
       <div class="lume-app__workspace">
         <div class="lume-app__content">
           <div class="lume-app__editor-card">
-            <DocumentTabs
-              v-if="!focusMode && documents.length > 1"
-              :file-drop-paths="fileDragPaths"
-            />
             <main class="lume-app__main">
               <WysiwygPane
                 v-if="viewMode === 'wysiwyg'"
@@ -62,12 +62,14 @@
       :focus-mode="focusMode"
       :writing-width="writingWidth"
       :font-scale="fontScale"
+      :tabs-enabled="tabsEnabled"
       @close="settingsOpen = false"
       @update:view-mode="handleViewModeChange"
       @update:theme="themePreference = $event"
       @update:focus-mode="focusMode = $event"
       @update:writing-width="writingWidth = $event"
       @update:font-scale="fontScale = $event"
+      @update:tabs-enabled="tabsEnabled = $event"
     />
     <UnsavedChangesDialog
       v-if="pendingCloseDocument"
@@ -118,6 +120,7 @@ import { useWindowPersistence } from '@/app/lifecycle/useWindowPersistence'
 import { useWorkspaceLifecycle } from '@/app/lifecycle/useWorkspaceLifecycle'
 import { useThemePreference } from '@/app/preferences/useThemePreference'
 import { useWritingPreference } from '@/app/preferences/useWritingPreference'
+import { useTabsPreference } from '@/app/preferences/useTabsPreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
 import {
   useImageCommands,
@@ -142,6 +145,7 @@ const commandPalette = useCommandPalette({
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
   toggleSidebar,
+  toggleInspector: () => handleToggleInspector(),
   toggleFocusMode: () => {
     focusMode.value = !focusMode.value
   },
@@ -169,6 +173,7 @@ const {
 } = useDocument()
 const { themePreference } = useThemePreference()
 const { writingWidth, fontScale } = useWritingPreference()
+const { tabsEnabled } = useTabsPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
 const imageCommands = useImageCommands({
   getEditor: () => (viewMode.value === 'wysiwyg' ? wysiwygPaneRef.value : sourceEditorRef.value),
@@ -256,6 +261,8 @@ function closeActiveDocument() {
 }
 
 useAppShortcuts({
+  toggleSidebar,
+  toggleInspector: handleToggleInspector,
   closeActiveDocument,
   newFile,
   openFile,
@@ -379,8 +386,7 @@ useAppShortcuts({
     z-index: var(--lume-z-raised);
     top: 0;
     right: 10px;
-    bottom: 10px;
-    background: var(--lume-chrome-bg, var(--lume-bg-surface));
+    bottom: 0;
     box-shadow: var(--lume-shadow-lg);
   }
 }
@@ -391,7 +397,6 @@ useAppShortcuts({
     z-index: var(--lume-z-sticky);
     inset: 0 auto 0 0;
     box-shadow: var(--lume-shadow-lg);
-    background: var(--lume-bg-surface);
   }
 }
 

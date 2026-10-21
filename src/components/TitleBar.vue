@@ -19,8 +19,8 @@ interface MenuItem {
   action: () => unknown
 }
 
-const MENU_WIDTH = { window: 168, document: 216 }
-const MENU_HEIGHT = { window: 106, document: 170 }
+const MENU_WIDTH = { window: 168, document: 248 }
+const MENU_HEIGHT = { window: 106, document: 202 }
 
 const props = defineProps<{
   viewMode: 'wysiwyg' | 'split'
@@ -58,16 +58,24 @@ const menuItems = computed<MenuItem[]>(() => {
     ]
   }
   return [
+    {
+      id: 'split-view',
+      label: '分栏预览',
+      checked: props.viewMode === 'split',
+      action: () => emit('update:view-mode', props.viewMode === 'split' ? 'wysiwyg' : 'split'),
+    },
     { id: 'save', label: '保存', hint: 'Ctrl+S', action: () => emit('save-file') },
     {
       id: 'sidebar',
       label: '文件栏',
+      hint: 'Ctrl+Shift+E',
       checked: props.sidebarVisible,
       action: () => emit('toggle-sidebar'),
     },
     {
       id: 'inspector',
       label: '大纲与统计',
+      hint: 'Ctrl+Shift+O',
       checked: props.inspectorVisible,
       action: () => emit('toggle-inspector'),
     },
@@ -182,8 +190,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="lume-titlebar" data-tauri-drag-region @contextmenu.prevent="handleOpenContextMenu">
-    <div class="lume-titlebar__center" data-tauri-drag-region>
+  <header class="lume-titlebar" @contextmenu.prevent="handleOpenContextMenu">
+    <div v-if="$slots.documents" class="lume-titlebar__documents" @contextmenu.stop>
+      <slot name="documents" />
+    </div>
+    <div v-else class="lume-titlebar__center" data-tauri-drag-region>
       <FileText class="lume-titlebar__document-icon" :size="16" :stroke-width="1.6" />
       <span
         class="lume-titlebar__title"
@@ -201,23 +212,9 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <div class="lume-titlebar__tools" data-tauri-drag-region="false">
-      <div class="lume-titlebar__modes" role="group" aria-label="编辑模式">
-        <button
-          type="button"
-          :aria-pressed="props.viewMode === 'wysiwyg'"
-          @click="emit('update:view-mode', 'wysiwyg')"
-        >
-          编辑
-        </button>
-        <button
-          type="button"
-          :aria-pressed="props.viewMode === 'split'"
-          @click="emit('update:view-mode', 'split')"
-        >
-          分栏预览
-        </button>
-      </div>
+    <div class="lume-titlebar__drag-space" data-tauri-drag-region aria-hidden="true"></div>
+
+    <div class="lume-titlebar__tools">
       <button
         ref="moreButton"
         class="lume-titlebar__tool lume-titlebar__more"
@@ -237,7 +234,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div class="lume-titlebar__right" data-tauri-drag-region="false">
+    <div class="lume-titlebar__right">
       <button
         class="lume-titlebar__window-control"
         type="button"
@@ -298,7 +295,7 @@ onBeforeUnmount(() => {
       >
         <span class="lume-titlebar__menu-label">{{ item.label }}</span>
         <Check v-if="item.checked" :size="14" :stroke-width="1.7" />
-        <span v-else-if="item.hint" class="lume-titlebar__menu-hint">{{ item.hint }}</span>
+        <span v-if="item.hint" class="lume-titlebar__menu-hint">{{ item.hint }}</span>
       </button>
     </div>
   </Teleport>
@@ -316,6 +313,17 @@ onBeforeUnmount(() => {
   border-bottom: 0;
   user-select: none;
   flex-shrink: 0;
+}
+
+.lume-titlebar__documents {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lume-titlebar__drag-space {
+  flex: 1 0 40px;
+  align-self: stretch;
 }
 
 .lume-titlebar__center {
@@ -366,35 +374,6 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   align-items: center;
   gap: 4px;
-}
-
-.lume-titlebar__modes {
-  display: flex;
-  gap: 2px;
-  margin-right: 8px;
-  padding: 3px;
-  border: 1px solid var(--lume-border-subtle);
-  border-radius: 9px;
-  background: var(--lume-bg-surface-raised);
-}
-
-.lume-titlebar__modes button {
-  min-width: 55px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--lume-text-secondary);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.lume-titlebar__modes button[aria-pressed='true'] {
-  border-color: var(--lume-panel-border);
-  background: var(--lume-bg-surface);
-  box-shadow: var(--lume-shadow-xs);
-  color: var(--lume-text-primary);
-  font-weight: 600;
 }
 
 .lume-titlebar__tool {
@@ -519,19 +498,8 @@ onBeforeUnmount(() => {
     padding-left: 8px;
   }
 
-  .lume-titlebar__modes {
-    margin-right: 2px;
-  }
   .lume-titlebar__window-control {
     width: 34px;
-  }
-}
-
-@media (max-width: 519px) {
-  .lume-titlebar__modes button {
-    min-width: 40px;
-    padding: 0 5px;
-    font-size: 11px;
   }
 }
 </style>

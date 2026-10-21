@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@/features/documents/model/useDocument'
 import {
   useDocumentOutline,
@@ -11,6 +11,70 @@ const { outlineItems, navigateToHeading } = useDocumentOutline()
 const activePanel = ref<'outline' | 'stats'>('outline')
 const selectedHeading = ref<number | null>(null)
 const currentHeading = computed(() => selectedHeading.value ?? outlineItems.value[0]?.index ?? null)
+const viewportWidth = ref(window.innerWidth)
+const manualWidth = ref<number | null>(null)
+const measuredWidth = ref(220)
+const maxWidth = computed(() => Math.max(180, Math.min(420, Math.floor(viewportWidth.value * 0.4))))
+const panelWidth = computed(() =>
+  Math.max(180, Math.min(manualWidth.value ?? measuredWidth.value, maxWidth.value)),
+)
+let resizeStartX = 0
+let resizeStartWidth = 0
+const resizing = ref(false)
+let measureContext: CanvasRenderingContext2D | null = null
+
+function measureOutlineWidth() {
+  if (!measureContext) return
+  measureContext.font = `500 11px ${getComputedStyle(document.documentElement).getPropertyValue('--lume-font-sans')}`
+  measuredWidth.value = Math.min(
+    320,
+    Math.max(
+      220,
+      ...outlineRows.value.map(
+        ({ item, depth }) =>
+          Math.ceil(measureContext!.measureText(item.text).width) + depth * 20 + 40,
+      ),
+    ),
+  )
+}
+
+function updateViewportWidth() {
+  viewportWidth.value = window.innerWidth
+}
+
+function startResize(event: PointerEvent) {
+  if (event.button !== 0 || !event.isPrimary) return
+  resizeStartX = event.clientX
+  resizeStartWidth = panelWidth.value
+  resizing.value = true
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+function resizePanel(event: PointerEvent) {
+  if (!resizing.value) return
+  manualWidth.value = Math.max(
+    180,
+    Math.min(maxWidth.value, resizeStartWidth + resizeStartX - event.clientX),
+  )
+}
+
+function finishResize(event: PointerEvent) {
+  resizing.value = false
+  const handle = event.currentTarget as HTMLElement
+  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
+}
+
+function resizeWithKeyboard(event: KeyboardEvent) {
+  if (event.key === 'Home' || event.key === 'Enter') manualWidth.value = null
+  else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    manualWidth.value = Math.max(
+      180,
+      Math.min(maxWidth.value, panelWidth.value + (event.key === 'ArrowLeft' ? 16 : -16)),
+    )
+  } else return
+  event.preventDefault()
+}
 
 const statistics = computed(() => [
   { label: '字数', value: stats.value.words.toLocaleString() },
@@ -59,6 +123,14 @@ const handleHeadingClick = async (index: number) => {
   }
 }
 
+watch(outlineRows, measureOutlineWidth, { flush: 'post' })
+onMounted(() => {
+  measureContext = document.createElement('canvas').getContext('2d')
+  measureOutlineWidth()
+  window.addEventListener('resize', updateViewportWidth)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', updateViewportWidth))
+
 watch(
   () => activeDocument.value?.id,
   () => {
@@ -72,7 +144,30 @@ watch(outlineItems, () => {
 </script>
 
 <template>
-  <aside class="lume-document-inspector" aria-label="文档信息">
+  <aside
+    class="lume-document-inspector lume-side-glass"
+    :style="{ width: `${panelWidth}px` }"
+    aria-label="文档信息"
+  >
+    <div
+      class="lume-document-inspector__resize"
+      :class="{ 'lume-document-inspector__resize--active': resizing }"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="调整大纲宽度"
+      :aria-valuenow="panelWidth"
+      :aria-valuemin="180"
+      :aria-valuemax="maxWidth"
+      tabindex="0"
+      title="拖动调整宽度，双击恢复自适应"
+      @pointerdown="startResize"
+      @pointermove="resizePanel"
+      @pointerup="finishResize"
+      @pointercancel="finishResize"
+      @lostpointercapture="resizing = false"
+      @dblclick="manualWidth = null"
+      @keydown="resizeWithKeyboard"
+    ></div>
     <div class="lume-document-inspector__tabs" aria-label="文档信息视图">
       <button
         class="lume-document-inspector__tab"
@@ -147,14 +242,31 @@ watch(outlineItems, () => {
 
 <style scoped>
 .lume-document-inspector {
-  width: 168px;
-  min-width: 168px;
+  position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
   border-left: 0;
   background: transparent;
+}
+
+.lume-document-inspector__resize {
+  position: absolute;
+  z-index: 2;
+  inset: 0 auto 0 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.lume-document-inspector__resize:hover,
+.lume-document-inspector__resize:focus-visible,
+.lume-document-inspector__resize--active {
+  background: var(--lume-accent-subtle);
+  box-shadow: inset 2px 0 var(--lume-accent-default);
+  outline: none;
 }
 
 .lume-document-inspector__tabs {

@@ -6,6 +6,7 @@
 @import './reset.css';
 @import './tokens.css';
 @import './liquid-glass.css';
+@import './side-glass.css';
 @import 'katex/dist/katex.min.css';
 @import '../features/editor/styles/markdown-content.css';
 @import '../features/editor/extensions/code-block/styles.css';

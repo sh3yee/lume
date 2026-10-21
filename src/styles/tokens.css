@@ -123,7 +123,7 @@
   --lume-transition-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ===== 布局尺寸 ===== */
-  --lume-titlebar-height: 54px;
+  --lume-titlebar-height: 42px;
   --lume-sidebar-width: 228px;
   --lume-sidebar-collapsed-width: 48px;
   --lume-statusbar-height: 32px;

@@ -20,6 +20,7 @@ export interface CommandPaletteActions {
   saveFile: (saveAs?: boolean) => unknown
   saveFileAs: () => unknown
   toggleSidebar: () => void
+  toggleInspector: () => void
   toggleFocusMode: () => void
   toggleViewMode: () => void
   openSettings: () => void
@@ -34,7 +35,8 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     { id: 'open-file', label: '打开文件', hint: 'Ctrl+O' },
     { id: 'save-file', label: '保存', hint: 'Ctrl+S' },
     { id: 'save-file-as', label: '另存为', hint: 'Ctrl+Shift+S' },
-    { id: 'toggle-sidebar', label: '切换侧边栏', hint: '快捷键' },
+    { id: 'toggle-sidebar', label: '切换文件栏', hint: 'Ctrl+Shift+E' },
+    { id: 'toggle-inspector', label: '切换大纲', hint: 'Ctrl+Shift+O' },
     { id: 'toggle-view-mode', label: '切换编辑模式', hint: '视图' },
     { id: 'toggle-focus-mode', label: '切换专注模式', hint: '写作' },
     { id: 'toggle-settings', label: '偏好设置', hint: 'Ctrl+,' },
@@ -65,6 +67,7 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     if (id === 'save-file') void actions.saveFile(false)
     if (id === 'save-file-as') void actions.saveFileAs()
     if (id === 'toggle-sidebar') actions.toggleSidebar()
+    if (id === 'toggle-inspector') actions.toggleInspector()
     if (id === 'toggle-view-mode') actions.toggleViewMode()
     if (id === 'toggle-focus-mode') actions.toggleFocusMode()
     if (id === 'toggle-settings') actions.openSettings()

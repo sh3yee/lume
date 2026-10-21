@@ -94,6 +94,7 @@ const props = defineProps<{
   focusMode: boolean
   writingWidth: WritingWidth
   fontScale: FontScale
+  tabsEnabled: boolean
 }>()
 
 const emit = defineEmits<{
@@ -103,6 +104,7 @@ const emit = defineEmits<{
   (e: 'update:focus-mode', value: boolean): void
   (e: 'update:writing-width', value: WritingWidth): void
   (e: 'update:font-scale', value: FontScale): void
+  (e: 'update:tabs-enabled', value: boolean): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
@@ -227,6 +229,30 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 <span class="lume-settings__check"></span>
               </button>
             </div>
+          </section>
+
+          <section
+            v-if="activeCategory === 'editor'"
+            class="lume-settings__section lume-settings__section--divided"
+          >
+            <button
+              type="button"
+              class="lume-settings__option lume-settings__option--toggle"
+              :class="{ 'lume-settings__option--active': tabsEnabled }"
+              role="switch"
+              :aria-checked="tabsEnabled"
+              aria-label="显示文档标签栏"
+              aria-describedby="tabs-setting-description"
+              @click="emit('update:tabs-enabled', !tabsEnabled)"
+            >
+              <span class="lume-settings__option-copy">
+                <strong>显示文档标签栏</strong>
+                <small id="tabs-setting-description">
+                  在标题栏切换多个文档，默认启用。关闭后显示当前文件标题，不会关闭已打开的文档。
+                </small>
+              </span>
+              <span class="lume-settings__check" aria-hidden="true"></span>
+            </button>
           </section>
 
           <template v-if="activeCategory === 'markdown'">

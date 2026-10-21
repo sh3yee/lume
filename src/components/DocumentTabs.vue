@@ -252,11 +252,12 @@ function resetDragState() {
   tabLayouts = []
 }
 
-function handleTabClick(documentId: string) {
-  if (suppressNextClick) {
+function handleTabClick(event: MouseEvent, documentId: string) {
+  if (suppressNextClick && event.detail !== 0) {
     suppressNextClick = false
     return
   }
+  suppressNextClick = false
   activateDocument(documentId)
 }
 
@@ -266,6 +267,8 @@ function handlePointerDown(event: PointerEvent, documentId: string) {
     return
   }
 
+  // A drag may end without a click; never suppress the next independent press.
+  suppressNextClick = false
   pendingDocumentId = documentId
   activePointerId = event.pointerId
   pointerStartX = event.clientX
@@ -274,7 +277,6 @@ function handlePointerDown(event: PointerEvent, documentId: string) {
       ? Number.parseFloat(window.getComputedStyle(tabList.value).columnGap) || 0
       : 0
     draggedTabWidth.value = event.currentTarget.getBoundingClientRect().width + tabGap
-    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   tabLayouts = Array.from(
@@ -310,8 +312,16 @@ function updateDropTarget() {
 
 function handlePointerMove(event: PointerEvent) {
   if (event.pointerId !== activePointerId || !pendingDocumentId) return
+  if (!(event.buttons & 1)) {
+    resetDragState()
+    return
+  }
   if (!draggedDocumentId.value && Math.abs(event.clientX - pointerStartX) < DRAG_THRESHOLD) return
 
+  // Leave ordinary clicks untouched in WebView2; capture only an actual drag.
+  if (!draggedDocumentId.value && event.currentTarget instanceof HTMLElement) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
   event.preventDefault()
   draggedDocumentId.value = pendingDocumentId
   dragOffsetX.value = event.clientX - pointerStartX
@@ -398,7 +408,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <nav class="lume-tabs" aria-label="打开的文档">
+  <nav
+    class="lume-tabs"
+    :class="{ 'lume-tabs--single': documents.length === 1 }"
+    aria-label="打开的文档"
+  >
     <div
       ref="tabList"
       class="lume-tabs__list"
@@ -420,6 +434,7 @@ onBeforeUnmount(() => {
         :style="getTabStyle(document.id)"
         role="presentation"
         :title="document.path || document.name"
+        @click="handleTabClick($event, document.id)"
         @auxclick="handleAuxClick($event, document)"
         @contextmenu.prevent="openContextMenu($event, document)"
         @pointerdown="handlePointerDown($event, document.id)"
@@ -436,7 +451,6 @@ onBeforeUnmount(() => {
           :aria-label="`${document.name}${document.isDirty ? '，未保存' : ''}`"
           aria-controls="lume-document-panel"
           :tabindex="document.id === activeDocumentId ? 0 : -1"
-          @click="handleTabClick(document.id)"
           @keydown="handleTabKeydown($event, document.id)"
         >
           <FileText
@@ -526,21 +540,24 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lume-tabs {
-  height: 45px;
+  height: var(--lume-titlebar-height);
   display: flex;
   flex-shrink: 0;
   min-width: 0;
-  padding: 7px 8px 0;
-  background-color: var(--lume-chrome-bg);
-  box-shadow: inset 0 -1px 0 var(--lume-panel-border);
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  background: transparent;
   user-select: none;
 }
 
 .lume-tabs__list {
-  flex: 1;
+  flex: 0 1 auto;
   display: flex;
   min-width: 0;
-  align-items: stretch;
+  height: 100%;
+  align-items: center;
+  gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -552,64 +569,90 @@ onBeforeUnmount(() => {
 
 .lume-tabs__tab {
   position: relative;
-  flex: 0 1 190px;
-  min-width: 132px;
-  max-width: 220px;
-  height: 100%;
+  flex: 0 1 auto;
+  width: max-content;
+  min-width: 96px;
+  max-width: 200px;
+  height: 28px;
   display: flex;
   align-items: center;
-  border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: 9px 9px 0 0;
+  padding-right: 6px;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--lume-text-secondary);
-  cursor: grab;
+  cursor: default;
   touch-action: none;
-  transition: transform 140ms ease;
-}
-
-.lume-tabs__tab::after {
-  content: '';
-  position: absolute;
-  top: 10px;
-  right: -1px;
-  width: 1px;
-  height: 16px;
-  background-color: var(--lume-panel-border);
-  pointer-events: none;
-}
-
-.lume-tabs__tab--active::after,
-.lume-tabs__tab:has(+ .lume-tabs__tab--active)::after,
-.lume-tabs__tab:last-of-type::after {
-  opacity: 0;
+  transition:
+    transform 140ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .lume-tabs__tab--dragging {
   z-index: 2;
-  border-color: var(--lume-panel-border);
-  background-color: var(--lume-pane-bg);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 6%);
+  background-color: var(--lume-bg-surface);
+  box-shadow: var(--lume-shadow-sm);
   cursor: grabbing;
   transition: none;
   will-change: transform;
 }
 .lume-tabs__tab:hover {
-  background-color: color-mix(in srgb, var(--lume-pane-bg) 60%, transparent);
+  background-color: color-mix(in srgb, var(--lume-text-secondary) 6%, transparent);
   color: var(--lume-text-primary);
 }
 
 .lume-tabs__tab--active,
 .lume-tabs__tab--active:hover {
   z-index: 1;
-  border-color: var(--lume-panel-border);
-  background-color: var(--lume-pane-bg);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--lume-bg-surface) 64%, transparent),
+    color-mix(in srgb, var(--lume-bg-surface-raised) 38%, transparent)
+  );
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  box-shadow:
+    inset 0 1px 0 var(--lume-side-glass-highlight),
+    inset 0 0 0 0.5px color-mix(in srgb, var(--lume-panel-border) 45%, transparent),
+    0 1px 3px rgb(24 42 70 / 4%);
   color: var(--lume-text-primary);
+}
+
+.lume-tabs__tab--active .lume-tabs__file-icon {
+  color: var(--lume-text-secondary);
+  opacity: 1;
+}
+
+.lume-tabs__tab--active .lume-tabs__name {
+  font-weight: var(--lume-font-weight-medium);
+}
+
+.lume-tabs--single .lume-tabs__tab--active {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  cursor: default;
+}
+
+.lume-tabs--single .lume-tabs__tab:hover {
+  background: color-mix(in srgb, var(--lume-text-secondary) 5%, transparent);
+}
+
+.lume-tabs--single
+  .lume-tabs__tab:not(:hover):not(:focus-within)
+  .lume-tabs__close:not(.lume-tabs__close--dirty) {
+  opacity: 0;
+}
+
+.lume-tabs__tab--dragging {
+  z-index: 2;
 }
 
 .lume-tabs__activate {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--lume-space-3);
   min-width: 0;
@@ -641,14 +684,14 @@ onBeforeUnmount(() => {
   height: 6px;
   flex-shrink: 0;
   border-radius: var(--lume-radius-full);
-  background-color: var(--lume-accent-default);
+  background-color: var(--lume-text-tertiary);
 }
 
 .lume-tabs__drop-preview {
   position: relative;
   min-width: 132px;
   max-width: 220px;
-  height: 100%;
+  height: 28px;
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -656,8 +699,7 @@ onBeforeUnmount(() => {
   margin-left: 4px;
   padding: 0 var(--lume-space-4);
   border: 1px dashed color-mix(in srgb, var(--lume-accent-default) 40%, transparent);
-  border-bottom: 0;
-  border-radius: 9px 9px 0 0;
+  border-radius: 6px;
   background-color: var(--lume-accent-subtle);
   color: var(--lume-text-secondary);
   opacity: 0.72;
@@ -719,10 +761,10 @@ onBeforeUnmount(() => {
   height: 30px;
   display: inline-flex;
   flex-shrink: 0;
-  align-self: flex-start;
+  align-self: center;
   align-items: center;
   justify-content: center;
-  margin: 3px 0 0 6px;
+  margin: 0;
   padding: 0;
   border: none;
   border-radius: 7px;
@@ -788,5 +830,11 @@ onBeforeUnmount(() => {
   height: 1px;
   margin: var(--lume-space-2) var(--lume-space-3);
   background-color: var(--lume-border-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lume-tabs__tab {
+    transition: none;
+  }
 }
 </style>

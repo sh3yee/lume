@@ -13,7 +13,21 @@ export function useAppShortcuts(commands: {
   saveFile: () => unknown
   saveFileAs: () => unknown
   openCommandPalette?: () => void
+  toggleSidebar: () => void
+  toggleInspector: () => void
 }) {
+  function handlePanelShortcut(event: KeyboardEvent) {
+    if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey || event.isComposing)
+      return
+    const key = event.key.toLowerCase()
+    if (key !== 'e' && key !== 'o') return
+    event.preventDefault()
+    event.stopPropagation()
+    if (event.repeat) return
+    if (key === 'e') commands.toggleSidebar()
+    else commands.toggleInspector()
+  }
+
   /** 桌面编辑器常用文件快捷键。 */
   function handleShortcut(event: KeyboardEvent) {
     if (!(event.ctrlKey || event.metaKey)) return
@@ -38,6 +52,12 @@ export function useAppShortcuts(commands: {
     if (key === 'w') commands.closeActiveDocument()
   }
 
-  onMounted(() => window.addEventListener('keydown', handleShortcut))
-  onBeforeUnmount(() => window.removeEventListener('keydown', handleShortcut))
+  onMounted(() => {
+    window.addEventListener('keydown', handlePanelShortcut, true)
+    window.addEventListener('keydown', handleShortcut)
+  })
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handlePanelShortcut, true)
+    window.removeEventListener('keydown', handleShortcut)
+  })
 }
