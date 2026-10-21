@@ -1,13 +1,22 @@
 import { $remark } from '@milkdown/kit/utils'
 import type { Extension as FromMarkdownExtension } from 'mdast-util-from-markdown'
-import type { Root } from 'mdast'
+import type { Literal, Root } from 'mdast'
 import type { Extension, State, Tokenizer } from 'micromark-util-types'
 import type { Plugin as RemarkPlugin } from 'unified'
 import { emojiEntries, findEmoji } from './data'
 
+interface Emoji extends Literal {
+  type: 'emoji'
+  value: string
+}
+
 declare module 'mdast' {
   interface PhrasingContentMap {
-    emoji: { type: 'emoji'; value: string }
+    emoji: Emoji
+  }
+
+  interface RootContentMap {
+    emoji: Emoji
   }
 }
 
