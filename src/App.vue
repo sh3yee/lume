@@ -61,14 +61,18 @@
       :theme="themePreference"
       :focus-mode="focusMode"
       :writing-width="writingWidth"
-      :font-scale="fontScale"
+      :writing-font="writingFont"
+      :font-size="fontSize"
+      :line-height="lineHeight"
       :tabs-enabled="tabsEnabled"
       @close="settingsOpen = false"
       @update:view-mode="handleViewModeChange"
       @update:theme="themePreference = $event"
       @update:focus-mode="focusMode = $event"
       @update:writing-width="writingWidth = $event"
-      @update:font-scale="fontScale = $event"
+      @update:writing-font="writingFont = $event"
+      @update:font-size="fontSize = $event"
+      @update:line-height="lineHeight = $event"
       @update:tabs-enabled="tabsEnabled = $event"
     />
     <UnsavedChangesDialog
@@ -172,7 +176,7 @@ const {
   requestCloseDocuments,
 } = useDocument()
 const { themePreference } = useThemePreference()
-const { writingWidth, fontScale } = useWritingPreference()
+const { writingWidth, writingFont, fontSize, lineHeight } = useWritingPreference()
 const { tabsEnabled } = useTabsPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
 const imageCommands = useImageCommands({

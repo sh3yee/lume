@@ -1,52 +1,63 @@
-/**
- * useWritingPreference - 写作偏好
- *
- * 负责正文宽度和正文字号的前端配置，避免把这些设置耦合进编辑器或 Rust 层。
- */
 import { ref, watch } from 'vue'
 
 export type WritingWidth = 'compact' | 'comfortable' | 'wide'
-export type FontScale = 'small' | 'medium' | 'large'
+export const WRITING_FONTS = {
+  serif: 'var(--lume-font-serif)',
+  sans: 'var(--lume-font-sans)',
+  mono: 'var(--lume-font-mono)',
+  song: '"SimSun", "Songti SC", serif',
+  kai: '"KaiTi", "Kaiti SC", serif',
+} as const
+export type WritingFont = keyof typeof WRITING_FONTS
 
-const WRITING_WIDTH_KEY = 'lume-writing-width'
-const FONT_SCALE_KEY = 'lume-font-scale'
-
-function getInitialWritingWidth(): WritingWidth {
-  const saved = localStorage.getItem(WRITING_WIDTH_KEY)
-  return saved === 'compact' || saved === 'comfortable' || saved === 'wide' ? saved : 'comfortable'
+function readPreference(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
 }
-
-function getInitialFontScale(): FontScale {
-  const saved = localStorage.getItem(FONT_SCALE_KEY)
-  return saved === 'small' || saved === 'medium' || saved === 'large' ? saved : 'medium'
+function savePreference(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* Keep session preferences. */
+  }
+}
+function boundedNumber(value: string | null, fallback: number, min: number, max: number) {
+  const number = value === null ? NaN : Number(value)
+  return Number.isFinite(number) && number >= min && number <= max ? number : fallback
 }
 
 export function useWritingPreference() {
-  const writingWidth = ref<WritingWidth>(getInitialWritingWidth())
-  const fontScale = ref<FontScale>(getInitialFontScale())
-
-  function applyWritingPreferences() {
-    document.documentElement.dataset.writingWidth = writingWidth.value
-    document.documentElement.dataset.fontScale = fontScale.value
-  }
+  const savedWidth = readPreference('lume-writing-width')
+  const writingWidth = ref<WritingWidth>(
+    savedWidth === 'compact' || savedWidth === 'wide' ? savedWidth : 'comfortable',
+  )
+  const savedFont = readPreference('lume-writing-font')
+  const writingFont = ref<WritingFont>(
+    savedFont && Object.hasOwn(WRITING_FONTS, savedFont) ? (savedFont as WritingFont) : 'serif',
+  )
+  const legacyScale = readPreference('lume-font-scale')
+  const legacySize = legacyScale === 'small' ? 14 : legacyScale === 'large' ? 16 : 15
+  const fontSize = ref(boundedNumber(readPreference('lume-writing-font-size'), legacySize, 12, 32))
+  const lineHeight = ref(boundedNumber(readPreference('lume-writing-line-height'), 1.65, 1.2, 2.4))
 
   watch(
-    writingWidth,
-    (value) => {
-      localStorage.setItem(WRITING_WIDTH_KEY, value)
-      applyWritingPreferences()
+    [writingWidth, writingFont, fontSize, lineHeight],
+    () => {
+      const root = document.documentElement
+      root.dataset.writingWidth = writingWidth.value
+      root.style.setProperty('--lume-writing-font', WRITING_FONTS[writingFont.value])
+      root.style.setProperty('--lume-writing-font-size', fontSize.value + 'px')
+      root.style.setProperty('--lume-writing-line-height', String(lineHeight.value))
+      savePreference('lume-writing-width', writingWidth.value)
+      savePreference('lume-writing-font', writingFont.value)
+      savePreference('lume-writing-font-size', String(fontSize.value))
+      savePreference('lume-writing-line-height', String(lineHeight.value))
     },
     { immediate: true },
   )
 
-  watch(
-    fontScale,
-    (value) => {
-      localStorage.setItem(FONT_SCALE_KEY, value)
-      applyWritingPreferences()
-    },
-    { immediate: true },
-  )
-
-  return { writingWidth, fontScale }
+  return { writingWidth, writingFont, fontSize, lineHeight }
 }

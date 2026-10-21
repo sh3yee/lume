@@ -23,12 +23,12 @@ import {
   type MarkdownExtension,
 } from '@/app/preferences/useMarkdownPreference'
 import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
+import { WRITING_FONTS, type WritingFont } from '@/app/preferences/useWritingPreference'
 
 type ViewMode = 'wysiwyg' | 'split'
 type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
-type FontScale = 'small' | 'medium' | 'large'
-type SettingsCategory = 'editor' | 'markdown' | 'writing' | 'appearance' | 'images'
+type SettingsCategory = 'general' | 'editor' | 'markdown' | 'appearance' | 'images'
 interface MarkdownSettingsGroup {
   id: string
   label: string
@@ -93,7 +93,9 @@ const props = defineProps<{
   theme: ThemePreference
   focusMode: boolean
   writingWidth: WritingWidth
-  fontScale: FontScale
+  writingFont: WritingFont
+  fontSize: number
+  lineHeight: number
   tabsEnabled: boolean
 }>()
 
@@ -103,16 +105,18 @@ const emit = defineEmits<{
   (e: 'update:theme', value: ThemePreference): void
   (e: 'update:focus-mode', value: boolean): void
   (e: 'update:writing-width', value: WritingWidth): void
-  (e: 'update:font-scale', value: FontScale): void
+  (e: 'update:writing-font', value: WritingFont): void
+  (e: 'update:font-size', value: number): void
+  (e: 'update:line-height', value: number): void
   (e: 'update:tabs-enabled', value: boolean): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
-const activeCategory = ref<SettingsCategory>('editor')
+const activeCategory = ref<SettingsCategory>('general')
 const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }> = [
+  { id: 'general', label: '常规', icon: Type },
   { id: 'editor', label: '编辑', icon: Sparkles },
   { id: 'markdown', label: 'Markdown', icon: Braces },
-  { id: 'writing', label: '写作', icon: Type },
   { id: 'images', label: '图片', icon: Image },
   { id: 'appearance', label: '外观', icon: Droplets },
 ]
@@ -151,6 +155,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
     @cancel="handleCancel"
     @click="handleBackdropClick"
     @close="emit('close')"
+    @contextmenu.prevent
   >
     <div class="lume-settings__panel">
       <header class="lume-settings__header">
@@ -374,15 +379,69 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
           </section>
 
-          <section v-if="activeCategory === 'writing'" class="lume-settings__section">
+          <section v-if="activeCategory === 'general'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">阅读习惯</h3>
+              <h3 class="lume-settings__label">字体与排版</h3>
               <p class="lume-settings__hint">
-                调整正文宽度和字号，让长文在屏幕上更舒服地阅读和编辑。
+                应用于正文编辑和预览，自动保存。字体未安装时使用系统替代字体。
               </p>
             </div>
 
             <div class="lume-settings__options lume-settings__options--stacked">
+              <div class="lume-settings__inline-group">
+                <label class="lume-settings__inline-label" for="writing-font">正文字体</label>
+                <select
+                  id="writing-font"
+                  class="lume-settings__select"
+                  :value="writingFont"
+                  @change="
+                    emit(
+                      'update:writing-font',
+                      ($event.target as HTMLSelectElement).value as WritingFont,
+                    )
+                  "
+                >
+                  <option value="serif">默认衬线字体</option>
+                  <option value="sans">系统无衬线字体</option>
+                  <option value="song">宋体</option>
+                  <option value="kai">楷体</option>
+                  <option value="mono">等宽字体</option>
+                </select>
+              </div>
+              <div class="lume-settings__inline-group">
+                <label class="lume-settings__inline-label" for="writing-font-size">正文字号</label>
+                <select
+                  id="writing-font-size"
+                  class="lume-settings__select"
+                  :value="fontSize"
+                  @change="
+                    emit('update:font-size', Number(($event.target as HTMLSelectElement).value))
+                  "
+                >
+                  <option v-for="size in 21" :key="size" :value="size + 11">
+                    {{ size + 11 }} px
+                  </option>
+                </select>
+              </div>
+              <div class="lume-settings__inline-group">
+                <label class="lume-settings__inline-label" for="writing-line-height"
+                  >正文行距</label
+                >
+                <select
+                  id="writing-line-height"
+                  class="lume-settings__select"
+                  :value="lineHeight"
+                  @change="
+                    emit('update:line-height', Number(($event.target as HTMLSelectElement).value))
+                  "
+                >
+                  <option :value="1.4">紧凑 · 1.4</option>
+                  <option :value="1.65">默认 · 1.65</option>
+                  <option :value="1.8">舒适 · 1.8</option>
+                  <option :value="2">宽松 · 2.0</option>
+                  <option :value="2.4">宽阔 · 2.4</option>
+                </select>
+              </div>
               <div class="lume-settings__inline-group">
                 <span class="lume-settings__inline-label">正文宽度</span>
                 <div class="lume-settings__mini-options" role="radiogroup" aria-label="正文宽度">
@@ -420,43 +479,36 @@ onBeforeUnmount(() => dialogRef.value?.close())
                   </button>
                 </div>
               </div>
-
-              <div class="lume-settings__inline-group">
-                <span class="lume-settings__inline-label">正文字号</span>
-                <div class="lume-settings__mini-options" role="radiogroup" aria-label="正文字号">
-                  <button
-                    class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': fontScale === 'small' }"
-                    type="button"
-                    role="radio"
-                    :aria-checked="fontScale === 'small'"
-                    @click="emit('update:font-scale', 'small')"
-                  >
-                    小
-                  </button>
-                  <button
-                    class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': fontScale === 'medium' }"
-                    type="button"
-                    role="radio"
-                    :aria-checked="fontScale === 'medium'"
-                    @click="emit('update:font-scale', 'medium')"
-                  >
-                    中
-                  </button>
-                  <button
-                    class="lume-settings__mini-option"
-                    :class="{ 'lume-settings__mini-option--active': fontScale === 'large' }"
-                    type="button"
-                    role="radio"
-                    :aria-checked="fontScale === 'large'"
-                    @click="emit('update:font-scale', 'large')"
-                  >
-                    大
-                  </button>
-                </div>
-              </div>
             </div>
+          </section>
+
+          <section
+            v-if="activeCategory === 'general'"
+            class="lume-settings__section lume-settings__section--divided"
+          >
+            <h3 class="lume-settings__label">排版预览</h3>
+            <p
+              class="lume-settings__font-preview"
+              :style="{
+                fontFamily: WRITING_FONTS[writingFont],
+                fontSize: `${fontSize}px`,
+                lineHeight,
+              }"
+            >
+              让文字自然流动，让想法清晰呈现。<br />A quiet space to write, refine, and share.
+            </p>
+            <button
+              class="lume-settings__mini-option"
+              type="button"
+              @click="
+                emit('update:writing-font', 'serif')
+                emit('update:font-size', 15)
+                emit('update:line-height', 1.65)
+                emit('update:writing-width', 'comfortable')
+              "
+            >
+              恢复默认排版
+            </button>
           </section>
 
           <section v-if="activeCategory === 'appearance'" class="lume-settings__section">
@@ -528,6 +580,32 @@ onBeforeUnmount(() => dialogRef.value?.close())
 </template>
 
 <style scoped>
+.lume-settings__select {
+  min-width: 150px;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-bg-surface);
+  color: var(--lume-text-primary);
+  font: inherit;
+  font-size: var(--lume-font-size-sm);
+  color-scheme: light dark;
+}
+
+.lume-settings__select:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 2px;
+}
+
+.lume-settings__font-preview {
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid var(--lume-border-subtle);
+  border-radius: var(--lume-radius-md);
+  overflow-wrap: anywhere;
+}
+
 .lume-settings {
   position: fixed;
   top: 50%;

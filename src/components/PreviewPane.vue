@@ -145,9 +145,9 @@ onMounted(() => void renderPreviewExtensions())
   padding: var(--lume-space-7) clamp(24px, 2.6vw, 40px);
   overflow-y: auto;
   color: var(--lume-text-primary);
-  font-family: var(--lume-font-serif);
-  font-size: var(--lume-font-size-md);
-  line-height: 1.65;
+  font-family: var(--lume-writing-font, var(--lume-font-serif));
+  font-size: var(--lume-writing-font-size, var(--lume-font-size-md));
+  line-height: var(--lume-writing-line-height, 1.65);
 }
 
 /* 滚动条 */

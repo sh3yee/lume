@@ -628,9 +628,9 @@ onBeforeUnmount(() => {
   min-height: 100%;
   color: var(--lume-text-primary);
   caret-color: var(--lume-accent-default);
-  font-family: var(--lume-font-serif);
-  font-size: var(--lume-font-size-md);
-  line-height: 1.65;
+  font-family: var(--lume-writing-font, var(--lume-font-serif));
+  font-size: var(--lume-writing-font-size, var(--lume-font-size-md));
+  line-height: var(--lume-writing-line-height, 1.65);
 }
 
 /* 独立占位区会真实增加滚动高度，不会被编辑器的 Flex 高度计算抵消。 */
