@@ -71,7 +71,7 @@ The block elements, inline elements, and HTML content in [Typora's Markdown refe
 - [x] Escaped characters: use backslashes to preserve syntax characters such as asterisks and underscores.
 - [x] Inline math: LaTeX content wrapped in `$...$`.
 - [ ] Underline: display and edit `<u>...</u>`.
-- [ ] Emoji: support shortcodes such as `:smile:` and completion; ordinary Unicode emoji can already be entered directly.
+- [x] Emoji: support shortcodes such as `:smile:` and completion; ordinary Unicode emoji can already be entered directly.
 - [ ] Subscript: support syntax such as `H~2~O`.
 - [ ] Superscript: support syntax such as `X^2^`, keeping it distinct from footnote references.
 - [ ] Highlight: support `==highlighted text==`.

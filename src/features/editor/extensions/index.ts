@@ -15,7 +15,10 @@ import { useFrontMatterPreviewExtension, useFrontMatterWysiwygExtension } from '
 import { useTocPreviewExtension, useTocWysiwygExtension } from './toc'
 import { useCalloutsPreviewExtension, useCalloutsWysiwygExtension } from './callouts'
 import { useHtmlPreviewExtension, useHtmlWysiwygExtension } from './html'
+import { useEmojiPreviewExtension, useEmojiWysiwygExtension } from './emoji'
 import { captureSelectionContext, type EditorContext } from '../wysiwyg/selectionContext'
+
+export { useSourceEmojiCompletion } from './emoji/useSourceEmojiCompletion'
 
 /** 按稳定顺序注册 WYSIWYG Markdown 扩展。 */
 export function useWysiwygMarkdownExtensions(
@@ -35,7 +38,7 @@ export function useWysiwygMarkdownExtensions(
   const documentEditor = useTocWysiwygExtension(
     useFrontMatterWysiwygExtension(useGfmWysiwygExtension(useBaseWysiwygExtension(editor))),
   )
-  const baseEditor = useCalloutsWysiwygExtension(documentEditor)
+  const baseEditor = useEmojiWysiwygExtension(useCalloutsWysiwygExtension(documentEditor))
   const imageEditor = useImagesWysiwygExtension(baseEditor, {
     importFile: options.importImageFile,
     importImageSource: options.importImageSource,
@@ -70,7 +73,9 @@ export function createMarkdownPreview() {
   const documentMarkdown = useTocPreviewExtension(
     useFrontMatterPreviewExtension(useGfmPreviewExtension(createBasePreviewExtension())),
   )
-  const markdown = useHtmlPreviewExtension(useCalloutsPreviewExtension(documentMarkdown))
+  const markdown = useEmojiPreviewExtension(
+    useHtmlPreviewExtension(useCalloutsPreviewExtension(documentMarkdown)),
+  )
   const footnotesMarkdown = useFootnotesPreviewExtension(markdown)
   const mathMarkdown = useMathPreviewExtension(footnotesMarkdown)
   return useCodeBlockPreviewExtension(useMermaidPreviewExtension(mathMarkdown))

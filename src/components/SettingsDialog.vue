@@ -5,14 +5,26 @@
  * 使用原生 dialog 提供分类式的应用设置入口。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Columns2, Droplets, Image, Monitor, Moon, Sparkles, Sun, Type, X } from 'lucide-vue-next'
+import {
+  Braces,
+  Columns2,
+  Droplets,
+  Image,
+  Monitor,
+  Moon,
+  Sparkles,
+  Sun,
+  Type,
+  X,
+} from 'lucide-vue-next'
+import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
 
 type ViewMode = 'wysiwyg' | 'split'
 type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
 type FontScale = 'small' | 'medium' | 'large'
-type SettingsCategory = 'editor' | 'writing' | 'appearance' | 'images'
+type SettingsCategory = 'editor' | 'markdown' | 'writing' | 'appearance' | 'images'
 
 const props = defineProps<{
   open: boolean
@@ -21,7 +33,6 @@ const props = defineProps<{
   focusMode: boolean
   writingWidth: WritingWidth
   fontScale: FontScale
-  githubAlerts: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,13 +42,13 @@ const emit = defineEmits<{
   (e: 'update:focus-mode', value: boolean): void
   (e: 'update:writing-width', value: WritingWidth): void
   (e: 'update:font-scale', value: FontScale): void
-  (e: 'update:github-alerts', value: boolean): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const activeCategory = ref<SettingsCategory>('editor')
 const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }> = [
   { id: 'editor', label: '编辑', icon: Sparkles },
+  { id: 'markdown', label: 'Markdown 扩展语法', icon: Braces },
   { id: 'writing', label: '写作', icon: Type },
   { id: 'images', label: '图片', icon: Image },
   { id: 'appearance', label: '外观', icon: Droplets },
@@ -156,6 +167,52 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
           </section>
 
+          <section v-if="activeCategory === 'markdown'" class="lume-settings__section">
+            <div class="lume-settings__section-heading">
+              <h3 class="lume-settings__label">表情符号</h3>
+              <p class="lume-settings__hint">
+                将 :smile: 等短代码显示为表情符号。输入冒号和名称后按 Esc 可手动触发补全，用 ↑ / ↓
+                选择，按 Enter 或 Tab 确认。
+              </p>
+            </div>
+            <div class="lume-settings__options lume-settings__options--stacked">
+              <button
+                type="button"
+                class="lume-settings__option lume-settings__option--toggle"
+                role="switch"
+                :aria-checked="markdownPreferences.enabled.emoji"
+                :class="{ 'lume-settings__option--active': markdownPreferences.enabled.emoji }"
+                @click="markdownPreferences.enabled.emoji = !markdownPreferences.enabled.emoji"
+              >
+                <span class="lume-settings__option-copy">
+                  <strong>表情符号</strong>
+                  <small>{{ markdownPreferences.enabled.emoji ? '已启用' : '已关闭' }}</small>
+                </span>
+                <span class="lume-settings__check"></span>
+              </button>
+              <button
+                type="button"
+                class="lume-settings__option lume-settings__option--toggle"
+                role="switch"
+                :aria-checked="markdownPreferences.emojiCompletion === 'auto'"
+                :disabled="!markdownPreferences.enabled.emoji"
+                :class="{
+                  'lume-settings__option--active': markdownPreferences.emojiCompletion === 'auto',
+                }"
+                @click="
+                  markdownPreferences.emojiCompletion =
+                    markdownPreferences.emojiCompletion === 'auto' ? 'manual' : 'auto'
+                "
+              >
+                <span class="lume-settings__option-copy">
+                  <strong>自动触发表情符号补全</strong>
+                  <small>输入冒号和名称时自动显示建议</small>
+                </span>
+                <span class="lume-settings__check"></span>
+              </button>
+            </div>
+          </section>
+
           <section
             v-if="activeCategory === 'editor'"
             class="lume-settings__section lume-settings__section--divided"
@@ -205,7 +262,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
           </section>
 
           <section
-            v-if="activeCategory === 'editor'"
+            v-if="activeCategory === 'markdown'"
             class="lume-settings__section lume-settings__section--divided"
           >
             <div class="lume-settings__section-heading">
@@ -217,15 +274,19 @@ onBeforeUnmount(() => dialogRef.value?.close())
             </div>
             <button
               type="button"
-              class="lume-settings__option"
+              class="lume-settings__option lume-settings__option--toggle"
               role="switch"
-              :aria-checked="githubAlerts"
-              :class="{ 'lume-settings__option--active': githubAlerts }"
-              @click="emit('update:github-alerts', !githubAlerts)"
+              :aria-checked="markdownPreferences.enabled.githubAlerts"
+              :class="{ 'lume-settings__option--active': markdownPreferences.enabled.githubAlerts }"
+              @click="
+                markdownPreferences.enabled.githubAlerts = !markdownPreferences.enabled.githubAlerts
+              "
             >
               <span class="lume-settings__option-copy"
                 ><strong>GitHub 提示块样式</strong
-                ><small>{{ githubAlerts ? '已启用' : '已关闭' }}</small></span
+                ><small>{{
+                  markdownPreferences.enabled.githubAlerts ? '已启用' : '已关闭'
+                }}</small></span
               >
               <span class="lume-settings__check"></span>
             </button>
@@ -476,7 +537,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__sidebar {
-  width: 180px;
+  flex: 0 0 200px;
+  width: 200px;
   padding: var(--lume-space-4) var(--lume-space-3);
   border-right: 1px solid var(--lume-border-subtle);
   background: var(--lume-bg-surface-raised);
@@ -499,6 +561,10 @@ onBeforeUnmount(() => dialogRef.value?.close())
     background-color var(--lume-transition-fast),
     border-color var(--lume-transition-fast),
     color var(--lume-transition-fast);
+}
+
+.lume-settings__nav-item > svg {
+  flex-shrink: 0;
 }
 
 .lume-settings__nav-item:hover {
@@ -619,6 +685,17 @@ onBeforeUnmount(() => dialogRef.value?.close())
 .lume-settings__option:hover {
   border-color: var(--lume-border-strong);
   transform: translateY(-1px);
+}
+
+.lume-settings__option--toggle {
+  min-height: 86px;
+  padding-right: var(--lume-space-8);
+}
+
+.lume-settings__option:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
 }
 
 .lume-settings__option--active {

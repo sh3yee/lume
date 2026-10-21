@@ -7,6 +7,7 @@
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { useSourceImages } from '@/features/images/editor/useSourceImages'
+import { createMarkdownPreview, useSourceEmojiCompletion } from '../extensions'
 
 const props = defineProps<{
   syncRatio?: number
@@ -20,6 +21,11 @@ const { content, updateCursor } = useDocument()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 let isApplyingScrollSync = false
 const images = useSourceImages(textareaRef, (element) => syncCursor(element))
+const emoji = useSourceEmojiCompletion(
+  textareaRef,
+  (element) => syncCursor(element),
+  createMarkdownPreview(),
+)
 const { insertLocalImages, insertImage, replaceImageSources, setImageMetadata } = images
 defineExpose({
   focus: () => textareaRef.value?.focus(),
@@ -38,10 +44,12 @@ function handleInput(event: Event) {
   const element = event.target as HTMLTextAreaElement
   content.value = element.value
   syncCursor(element)
+  emoji.handleInput()
 }
 
 function handleScroll(event: Event) {
   const element = event.target as HTMLTextAreaElement
+  emoji.close()
   const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
   const ratio = maxScrollTop > 0 ? element.scrollTop / maxScrollTop : 0
   if (!isApplyingScrollSync) emit('scroll-ratio', ratio)
@@ -49,6 +57,7 @@ function handleScroll(event: Event) {
 
 function handleKeydown(event: KeyboardEvent) {
   images.handleKeydown(event)
+  if (emoji.handleKeydown(event)) return
   if (event.key !== 'Tab') return
   event.preventDefault()
   const element = event.target as HTMLTextAreaElement
@@ -62,6 +71,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 function handleCursorChange(event: Event) {
   syncCursor(event.target as HTMLTextAreaElement)
+  emoji.handleSelectionChange()
 }
 
 watch(
@@ -71,6 +81,7 @@ watch(
     if (!element || typeof ratio !== 'number' || !Number.isFinite(ratio)) return
     const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
     isApplyingScrollSync = true
+    emoji.close()
     element.scrollTop = ratio * maxScrollTop
     requestAnimationFrame(() => {
       isApplyingScrollSync = false
@@ -95,6 +106,9 @@ onMounted(() => {
       @keyup="handleCursorChange"
       @click="handleCursorChange"
       @keydown="handleKeydown"
+      @blur="emoji.close"
+      @compositionstart="emoji.handleCompositionStart"
+      @compositionend="emoji.handleCompositionEnd"
       @scroll="handleScroll"
       @paste="images.handlePaste"
       @drop="images.handleDrop"

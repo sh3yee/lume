@@ -10,7 +10,6 @@ export type FontScale = 'small' | 'medium' | 'large'
 
 const WRITING_WIDTH_KEY = 'lume-writing-width'
 const FONT_SCALE_KEY = 'lume-font-scale'
-const GITHUB_ALERTS_KEY = 'lume-github-alerts'
 
 function getInitialWritingWidth(): WritingWidth {
   const saved = localStorage.getItem(WRITING_WIDTH_KEY)
@@ -25,12 +24,10 @@ function getInitialFontScale(): FontScale {
 export function useWritingPreference() {
   const writingWidth = ref<WritingWidth>(getInitialWritingWidth())
   const fontScale = ref<FontScale>(getInitialFontScale())
-  const githubAlerts = ref(localStorage.getItem(GITHUB_ALERTS_KEY) !== 'false')
 
   function applyWritingPreferences() {
     document.documentElement.dataset.writingWidth = writingWidth.value
     document.documentElement.dataset.fontScale = fontScale.value
-    document.documentElement.dataset.githubAlerts = String(githubAlerts.value)
   }
 
   watch(
@@ -51,14 +48,5 @@ export function useWritingPreference() {
     { immediate: true },
   )
 
-  watch(
-    githubAlerts,
-    (value) => {
-      localStorage.setItem(GITHUB_ALERTS_KEY, String(value))
-      applyWritingPreferences()
-    },
-    { immediate: true },
-  )
-
-  return { writingWidth, fontScale, githubAlerts }
+  return { writingWidth, fontScale }
 }
