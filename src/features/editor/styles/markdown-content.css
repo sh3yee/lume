@@ -131,19 +131,52 @@
 }
 
 .lume-markdown-content blockquote {
-  margin: var(--lume-space-4) 0;
-  padding: var(--lume-space-3) var(--lume-space-5);
+  margin: var(--lume-space-5) 0;
+  padding: 0.625em 1em;
   border-left: 3px solid var(--lume-border-strong);
-  border-radius: var(--lume-radius-sm) var(--lume-radius-lg) var(--lume-radius-lg)
-    var(--lume-radius-sm);
-  background-color: var(--lume-chrome-bg);
+  border-radius: 0 var(--lume-radius-sm) var(--lume-radius-sm) 0;
+  background-color: color-mix(in srgb, var(--lume-text-secondary) 4%, transparent);
   color: var(--lume-text-secondary);
   font-style: italic;
+  overflow-wrap: anywhere;
 }
 
-.lume-markdown-content blockquote p {
-  margin: var(--lume-space-1) 0;
+.lume-markdown-content blockquote > p {
+  margin: 0.625em 0;
 }
+
+.lume-markdown-content blockquote > blockquote {
+  margin: 0.75em 0;
+  padding-block: 0.25em;
+  background-color: transparent;
+}
+
+.lume-markdown-content blockquote > :first-child {
+  margin-top: 0;
+}
+
+.lume-markdown-content blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Reveal the frame without delaying typing or hiding the caret. */
+.lume-markdown-content .ProseMirror blockquote {
+  animation: lume-quote-frame-in 180ms ease-out 100ms backwards;
+}
+
+@keyframes lume-quote-frame-in {
+  from {
+    border-left-color: transparent;
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lume-markdown-content .ProseMirror blockquote {
+    animation: none;
+  }
+}
+
 .lume-markdown-content code {
   padding: var(--lume-space-1) var(--lume-space-2);
   border: 1px solid var(--lume-code-border);
