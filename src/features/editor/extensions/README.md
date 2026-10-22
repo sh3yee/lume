@@ -27,6 +27,4 @@
 4. 重新打开文件，再次切换三个模式，确认内容保持一致。
 5. 验证空内容、嵌套内容、中文输入、撤销和重做等相关边界。
 
-KaTeX、Mermaid、脚注和代码语法高亮的测试内容、错误回退及性能清单参见 [`docs/markdown-extension-acceptance.md`](../../../../docs/markdown-extension-acceptance.md)。
-
-HTML 的统一渲染、行内编辑、块级源码和兼容范围参见 [`docs/html-support.md`](../../../../docs/html-support.md)。
+各类语法的操作方式、模式差异与兼容范围参见 [Markdown 语法与操作指南](../../../../docs/markdown-guide.zh-CN.md)，HTML 相关行为集中在其中的 [HTML 与嵌入内容](../../../../docs/markdown-guide.zh-CN.md#html-与嵌入内容) 一节。

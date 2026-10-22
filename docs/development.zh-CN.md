@@ -211,7 +211,8 @@ lume/
 - 工作区监听由 `services/workspace_watcher.rs` 的后台线程执行，统一发送 `lume://workspace-change` 批量事件。
 - 前端只在 `app/lifecycle/useWorkspaceLifecycle.ts` 订阅事件，侧栏显示状态不影响监听生命周期。
 - clean 文档可安全刷新；dirty 文档必须进入冲突流程，禁止静默覆盖。
-- 调整扫描上限或监听间隔后，需要同步更新 `workspace-performance.md` 并重新执行性能基线。
+- 当前监听间隔为 750 ms，最多扫描 5000 个条目，递归深度上限为 32；跳过符号链接，跟踪目录与 `.md`、`.markdown` 文件。
+- 调整扫描上限或监听间隔后，需检查大工作区的加载时间、外部变化延迟、连续输入流畅度与冲突处理；基线数据应记录环境和工作区规模。
 
 ## 提交规范
 

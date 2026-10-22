@@ -211,7 +211,8 @@ Design tokens are defined in `src/styles/tokens.css`. Themes are applied through
 - Workspace watching runs in a background thread in `services/workspace_watcher.rs` and sends batched `lume://workspace-change` events.
 - The frontend subscribes only in `app/lifecycle/useWorkspaceLifecycle.ts`. Sidebar visibility does not affect the watcher lifecycle.
 - Documents without unsaved changes can be refreshed safely. Documents with unsaved changes must enter conflict resolution and must never be silently overwritten.
-- When changing scanning limits or polling intervals, update `workspace-performance.md` and rerun the performance baseline.
+- The current polling interval is 750 ms, with a limit of 5000 entries and a maximum recursion depth of 32. The scanner skips symbolic links and tracks directories and `.md` / `.markdown` files.
+- When changing these limits or intervals, check large-workspace loading, external change latency, continuous typing, and conflict handling. Record the environment and workspace size with performance measurements.
 
 ## Commit Conventions
 

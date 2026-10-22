@@ -15,6 +15,7 @@
   <a href="#screenshots">Screenshots</a> ·
   <a href="#features">Features</a> ·
   <a href="#getting-started">Getting started</a> ·
+  <a href="docs/markdown-guide.md">Guide</a> ·
   <a href="https://github.com/sh3yee/lume/issues">Feedback</a>
 </p>
 
@@ -75,6 +76,8 @@ Screenshots show the current interface with a sample document and the Simplified
 - **Writing statistics** — Check words, characters, lines, and estimated reading time in the statistics panel; the status bar also shows cursor position.
 
 ## Markdown support
+
+For syntax examples, editing interactions, and differences between modes, see the [Markdown guide](docs/markdown-guide.md).
 
 | Content                   | What you can do                                                                                                   |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
