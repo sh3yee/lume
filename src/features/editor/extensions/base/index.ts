@@ -5,6 +5,7 @@ import {
   emphasisUnderscoreInputRule,
   insertHrInputRule,
   insertImageInputRule,
+  wrapInHeadingInputRule,
   remarkInlineLinkPlugin,
   remarkHtmlTransformer,
 } from '@milkdown/kit/preset/commonmark'
@@ -16,6 +17,7 @@ import { linkEditingPlugin, linkSourceSchema } from './linkEditing'
 import { linkDefinitionPlugin, referenceLinkSchema } from './referenceLinks'
 import { autoLinksPlugin, autoLinksRemark } from './autoLinks'
 import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
+import { headingInputPlugin } from './headingInput'
 
 /** 注册 CommonMark 基础语法。 */
 export function useBaseWysiwygExtension(editor: Editor) {
@@ -25,6 +27,7 @@ export function useBaseWysiwygExtension(editor: Editor) {
         (plugin) =>
           plugin !== insertHrInputRule &&
           plugin !== insertImageInputRule &&
+          plugin !== wrapInHeadingInputRule &&
           plugin !== emphasisStarInputRule &&
           plugin !== emphasisUnderscoreInputRule &&
           !remarkHtmlTransformer.includes(plugin) &&
@@ -32,6 +35,7 @@ export function useBaseWysiwygExtension(editor: Editor) {
       ),
     )
     .use(emphasisInputRule)
+    .use(headingInputPlugin)
     .use(preservedReferences)
     .use(autoLinksRemark)
     .use(referenceLinkSchema)

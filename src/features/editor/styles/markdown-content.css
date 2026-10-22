@@ -31,6 +31,14 @@
   font-weight: var(--lume-font-weight-semibold);
 }
 
+.lume-markdown-content .lume-heading-source-marker {
+  color: var(--lume-accent-default);
+  font-family: var(--lume-font-mono);
+  font-size: 0.875em;
+  font-weight: var(--lume-font-weight-regular);
+  font-style: normal;
+}
+
 .lume-markdown-content p {
   margin: var(--lume-space-4) 0;
 }

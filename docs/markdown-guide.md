@@ -91,7 +91,7 @@ Lists, tables, code, math, and HTML source editors have their own Enter behavior
 ###### A level-six heading
 ```
 
-- At the start of a paragraph, type one to six `#` characters followed by a space, then enter the heading text.
+- At the start of a paragraph, type one to six `#` characters followed by a space. The source remains visible with blue `#` markers. Enter the heading text, then press `Enter` at the end of the line to render the heading and continue in a new paragraph.
 - Right-click and choose **Convert current block → Convert to heading N** to change a paragraph or heading level.
 - Use `Ctrl+Alt+1` through `Ctrl+Alt+6` for the corresponding level.
 - Use `Ctrl+Alt+0` or **Convert to paragraph / Exit container** to return to ordinary text. Inside a list or quote, this first handles the surrounding container.
