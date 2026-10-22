@@ -6,8 +6,11 @@
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  color: var(--lume-text-primary);
+  color: var(--lume-accent-default);
   font-family: var(--lume-font-mono);
+  font-size: 0.875em;
+  font-weight: var(--lume-font-weight-regular);
+  font-style: normal;
   line-height: inherit;
   white-space: nowrap;
 }
@@ -28,10 +31,8 @@
   border-radius: var(--lume-radius-sm) 0 0 var(--lume-radius-sm);
   outline: none;
   background: var(--lume-bg-surface-raised);
-  color: var(--lume-text-primary);
-  font-family: var(--lume-font-mono);
-  font-size: var(--lume-font-size-sm);
-  font-weight: var(--lume-font-weight-regular);
+  color: inherit;
+  font: inherit;
   line-height: 24px;
   vertical-align: middle;
   transition:
@@ -41,7 +42,7 @@
 
 .lume-image-path__input:empty::before {
   content: attr(data-placeholder);
-  color: var(--lume-text-secondary);
+  color: color-mix(in srgb, var(--lume-accent-default) 60%, transparent);
   pointer-events: none;
 }
 
@@ -71,7 +72,7 @@
   border-left: 0;
   border-radius: 0 var(--lume-radius-sm) var(--lume-radius-sm) 0;
   background: var(--lume-bg-surface);
-  color: var(--lume-text-secondary);
+  color: var(--lume-accent-default);
   cursor: pointer;
   vertical-align: middle;
 }

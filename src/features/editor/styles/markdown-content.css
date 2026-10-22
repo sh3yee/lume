@@ -92,8 +92,7 @@
   overflow-wrap: anywhere;
 }
 
-.lume-markdown-content .lume-link-source--valid,
-.lume-markdown-content .lume-html-syntax {
+.lume-markdown-content .lume-link-source--valid {
   color: var(--lume-accent-default);
 }
 

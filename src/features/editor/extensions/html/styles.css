@@ -99,7 +99,12 @@
 }
 .lume-html-source {
   color: var(--lume-text-primary);
+  font: inherit;
+}
+.lume-html-source .lume-html-syntax {
+  color: var(--lume-accent-default);
   font-family: var(--lume-font-mono);
+  font-size: 0.875em;
   font-weight: var(--lume-font-weight-regular);
   font-style: normal;
 }
