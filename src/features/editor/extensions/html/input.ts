@@ -4,6 +4,7 @@ import {
   NodeSelection,
   Plugin,
   PluginKey,
+  TextSelection,
   type EditorState,
   type Transaction,
 } from '@milkdown/kit/prose/state'
@@ -106,6 +107,19 @@ export const htmlInputPlugin = $prose((ctx) => {
       })
       if (protectedSyntax) continue
       if (html.type === 'htmlInline') {
+        if (candidate.start <= end && candidate.end >= end) {
+          const raw = source.slice(html.position!.start.offset!, html.position!.end.offset!)
+          const node = state.schema.nodes.html_source.create(
+            { original: raw },
+            state.schema.text(raw),
+          )
+          tr.replaceWith(start, finish, node)
+          tr.setSelection(
+            TextSelection.create(tr.doc, start + 1 + Math.min(raw.length, end - candidate.start)),
+          )
+          converted = true
+          continue
+        }
         const open = html.open ?? ''
         const close = html.close ?? ''
         const content = tr.doc.slice(
@@ -127,7 +141,12 @@ export const htmlInputPlugin = $prose((ctx) => {
         tr.replaceWith(pos, $end.end() + 1, state.schema.nodes.html_block.create({ value: raw }))
         return tr.setSelection(NodeSelection.create(tr.doc, pos))
       }
-      tr.replaceWith(start, finish, state.schema.nodes.html.create({ value: raw }))
+      tr.replaceWith(
+        start,
+        finish,
+        state.schema.nodes.html_source.create({ original: raw }, state.schema.text(raw)),
+      )
+      tr.setSelection(TextSelection.create(tr.doc, start + 1 + raw.length))
       converted = true
     }
     return converted ? tr.setStoredMarks(state.storedMarks ?? []) : null

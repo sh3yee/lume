@@ -30,7 +30,8 @@ export const htmlInteraction = $prose((ctx) => {
   let editorView: EditorView | null = null
   const parseSource = (source: string) => {
     try {
-      const parsed = ctx.get(parserCtx)(source)
+      const prefix = 'lume '
+      const parsed = ctx.get(parserCtx)(prefix + source)
       const paragraph = parsed.firstChild
       if (parsed.childCount !== 1 || paragraph?.type.name !== 'paragraph') return null
       let complete = !source.trimStart().startsWith('<')
@@ -43,7 +44,7 @@ export const htmlInteraction = $prose((ctx) => {
         if (tag && (tag.closing || !tag.void)) unfinished = true
         else complete = true
       })
-      return complete && !unfinished ? paragraph.content : null
+      return complete && !unfinished ? paragraph.content.cut(prefix.length) : null
     } catch {
       // 未补全的 HTML 继续保留源码，不能在收起时丢失或转义用户输入。
       return null
@@ -93,6 +94,27 @@ export const htmlInteraction = $prose((ctx) => {
       }
     },
     props: {
+      handleTextInput(view, from, to, text) {
+        const { $from, empty } = view.state.selection
+        if (
+          !view.editable ||
+          view.composing ||
+          !text ||
+          !empty ||
+          from !== to ||
+          from !== $from.pos ||
+          $from.parent.type.name !== 'html_source' ||
+          $from.parentOffset !== $from.parent.content.size ||
+          !parseSource($from.parent.textContent)
+        )
+          return false
+        const pos = $from.after()
+        const tr = view.state.tr.insertText(text, pos, pos)
+        view.dispatch(
+          tr.setSelection(TextSelection.create(tr.doc, pos + text.length)).setStoredMarks([]),
+        )
+        return true
+      },
       decorations(state) {
         const decorations: Decoration[] = []
         state.doc.descendants((node, pos) => {

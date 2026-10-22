@@ -4,3 +4,9 @@
   text-decoration: none;
   cursor: text;
 }
+.lume-markdown-content .lume-inline-source {
+  color: var(--lume-accent-default);
+  font-family: var(--lume-font-mono);
+  font-style: italic;
+  white-space: pre-wrap;
+}

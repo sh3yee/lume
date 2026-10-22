@@ -1,6 +1,7 @@
 import { InputRule } from '@milkdown/kit/prose/inputrules'
 import { isHistoryTransaction } from '@milkdown/kit/prose/history'
-import type { Node } from '@milkdown/kit/prose/model'
+import { Fragment, type Node } from '@milkdown/kit/prose/model'
+import { insertInlineSource } from '../base/inlineSourceEditing'
 import { Plugin, PluginKey, TextSelection, type EditorState } from '@milkdown/kit/prose/state'
 import { Mapping } from '@milkdown/kit/prose/transform'
 import type { EditorView } from '@milkdown/kit/prose/view'
@@ -90,14 +91,12 @@ export const footnoteReferenceInputRule = $inputRule(
         const $start = state.doc.resolve(start)
         const before = $start.parent.textBetween(0, $start.parentOffset, undefined, '\ufffc')
         if (isEscaped(before, before.length)) return null
-        const definition = getFootnoteDefinitions(state.doc).get(normalizeFootnoteLabel(match[1]))
-        if (!definition) return null
         const reference = state.schema.nodes.footnote_reference.create(
           { label: match[1] },
           null,
           $start.marks(),
         )
-        return state.tr.replaceWith(start, end, reference)
+        return insertInlineSource(state.tr, start, end, match[0], Fragment.from(reference))
       },
       { inCodeMark: false },
     ),

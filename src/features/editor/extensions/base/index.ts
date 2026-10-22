@@ -4,6 +4,8 @@ import {
   createCodeBlockInputRule,
   emphasisStarInputRule,
   emphasisUnderscoreInputRule,
+  strongInputRule,
+  inlineCodeInputRule,
   insertHrInputRule,
   insertImageInputRule,
   wrapInHeadingInputRule,
@@ -11,7 +13,8 @@ import {
   remarkHtmlTransformer,
 } from '@milkdown/kit/preset/commonmark'
 import MarkdownIt from 'markdown-it'
-import { emphasisInputRule } from './emphasisInput'
+import { inlineSourceInputRule } from './inlineSourceInput'
+import { inlineSourceSchema, inlineSourceEditingPlugin } from './inlineSourceEditing'
 import { linkDefinitionSchema, preservedReferences } from './linkDefinitions'
 import { inlineLinkInputRule, linkDefinitionInputRule, referenceLinkInputRule } from './linkInput'
 import { linkEditingPlugin, linkSourceSchema } from './linkEditing'
@@ -32,11 +35,15 @@ export function useBaseWysiwygExtension(editor: Editor) {
           plugin !== wrapInHeadingInputRule &&
           plugin !== emphasisStarInputRule &&
           plugin !== emphasisUnderscoreInputRule &&
+          plugin !== strongInputRule &&
+          plugin !== inlineCodeInputRule &&
           !remarkHtmlTransformer.includes(plugin) &&
           !remarkInlineLinkPlugin.includes(plugin),
       ),
     )
-    .use(emphasisInputRule)
+    .use(inlineSourceSchema)
+    .use(inlineSourceInputRule)
+    .use(inlineSourceEditingPlugin)
     .use(headingInputPlugin)
     .use(preservedReferences)
     .use(autoLinksRemark)

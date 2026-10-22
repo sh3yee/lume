@@ -1,4 +1,6 @@
 import { language, t } from '@/app/i18n'
+import { serializerCtx } from '@milkdown/kit/core'
+import { openInlineSource } from '../extensions/base/inlineSourceEditing'
 import { watch } from 'vue'
 import type { ImageInputAttributes } from './imageInput'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
@@ -24,7 +26,7 @@ export function createImageNodeView(options: {
 }) {
   return $view(
     sizedImageSchema.node,
-    () => (node: ProseNode, view: EditorView, getPos: () => number | undefined) => {
+    (ctx) => (node: ProseNode, view: EditorView, getPos: () => number | undefined) => {
       const dom = document.createElement('span')
       const imageElement = document.createElement('img')
       const resizeHandle = document.createElement('span')
@@ -235,6 +237,18 @@ export function createImageNodeView(options: {
         const pos = getImagePos()
         event.preventDefault()
         event.stopPropagation()
+        if (view.editable && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+          view.dispatch(
+            openInlineSource(
+              view.state.tr,
+              pos,
+              pos + currentNode.nodeSize,
+              ctx.get(serializerCtx),
+            ),
+          )
+          view.focus()
+          return
+        }
         view.dispatch(
           view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)).scrollIntoView(),
         )

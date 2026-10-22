@@ -12,11 +12,17 @@ import { getLinkDefinitionSource } from './referenceLinks'
 const linkEditingKey = new PluginKey('lumeLinkEditing')
 
 // 展开和收起保留标签文字的位置映射，避免清掉这些文字已有的撤销记录。
-const replaceLinkPresentation = (tr: Transaction, from: number, to: number, content: Fragment) => {
+export const replaceLinkPresentation = (
+  tr: Transaction,
+  from: number,
+  to: number,
+  content: Fragment,
+) => {
   const previous = tr.doc.nodeAt(from)
-  const sourceNode = content.firstChild?.type.name === 'link_source' ? content.firstChild : null
-  const oldContent =
-    previous?.type.name === 'link_source' ? previous.content : tr.doc.slice(from, to).content
+  const isSource = (node: Node | null | undefined) =>
+    ['link_source', 'inline_source'].includes(node?.type.name ?? '')
+  const sourceNode = isSource(content.firstChild) ? content.firstChild : null
+  const oldContent = isSource(previous) ? previous!.content : tr.doc.slice(from, to).content
   const nextContent = sourceNode?.content ?? content
   let textOnly = true
   oldContent.forEach((node) => {
@@ -47,8 +53,7 @@ const replaceLinkPresentation = (tr: Transaction, from: number, to: number, cont
       text: longer.slice(offset),
     })
 
-  if (previous?.type.name === 'link_source')
-    tr.step(new ReplaceAroundStep(from, to, from + 1, to - 1, Slice.empty, 0))
+  if (isSource(previous)) tr.step(new ReplaceAroundStep(from, to, from + 1, to - 1, Slice.empty, 0))
   tr.removeMark(from, from + before.length)
   for (const gap of gaps.reverse()) {
     if (sourceNode) tr.insertText(gap.text, from + gap.from)
@@ -220,6 +225,10 @@ export const linkEditingPlugin = $prose((ctx) => {
         return true
       },
       handleDOMEvents: {
+        blur(view) {
+          if (view.editable) view.dispatch(view.state.tr.setMeta(linkEditingKey, 'blur'))
+          return false
+        },
         keydown(view, event) {
           modifierClick = false
           const handled = handleSourceKeyDown(view, event)
@@ -268,7 +277,12 @@ export const linkEditingPlugin = $prose((ctx) => {
       state.doc.descendants((node, pos) => {
         if (node.type.name !== 'link_source') return
         const { from, to } = state.selection
-        if (pos < from && to < pos + node.nodeSize) return false
+        if (
+          pos < from &&
+          to < pos + node.nodeSize &&
+          !transactions.some((transaction) => transaction.getMeta(linkEditingKey) === 'blur')
+        )
+          return false
         sources.push({
           from: pos,
           to: pos + node.nodeSize,

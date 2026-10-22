@@ -12,6 +12,8 @@ import remarkMath from 'remark-math'
 import { watch } from 'vue'
 import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 import { deleteMathBlock } from './commands'
+import { Fragment } from '@milkdown/kit/prose/model'
+import { insertInlineSource } from '../base/inlineSourceEditing'
 
 const mathRemarkPlugin = $remark('lumeMath', () => remarkMath)
 
@@ -349,7 +351,7 @@ export const blockMathSchema = $nodeSchema('math_block', () => ({
   },
 }))
 
-const mathInputPlugin = $prose(
+export const mathInputPlugin = $prose(
   (ctx) =>
     new Plugin({
       props: {
@@ -433,7 +435,13 @@ const mathInputPlugin = $prose(
           const delimiterLength = inlineMatch[0].length - inlineMatch[1].length
           const mathNode = inlineMathSchema.type(ctx).create({ value: inlineMatch[2] })
           view.dispatch(
-            state.tr.replaceWith(from - delimiterLength + 1, to, mathNode).scrollIntoView(),
+            insertInlineSource(
+              state.tr,
+              from - delimiterLength + 1,
+              to,
+              `$${inlineMatch[2]}$`,
+              Fragment.from(mathNode),
+            ).scrollIntoView(),
           )
           return true
         },

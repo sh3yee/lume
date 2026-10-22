@@ -1,10 +1,11 @@
 import { InputRule } from '@milkdown/kit/prose/inputrules'
-import { NodeSelection } from '@milkdown/kit/prose/state'
+import { Fragment } from '@milkdown/kit/prose/model'
+import { insertInlineSource } from '../extensions/base/inlineSourceEditing'
 import { $inputRule } from '@milkdown/kit/utils'
 import { parseMarkdownImageAt } from '@/utils/imageMarkdown'
 import { parseSizedImageHtml } from '@/utils/imageHtml'
 
-/** 图片语法闭合后立即建立节点，空地址由 NodeView 提供路径输入。 */
+/** 图片语法闭合后保留源码，光标移出后显示图片。 */
 export const imageSourceInputRule = $inputRule(
   () =>
     new InputRule(
@@ -32,8 +33,13 @@ export const imageSourceInputRule = $inputRule(
               alt: image.alt,
               title: image.title,
             })
-            const tr = state.tr.replaceWith(from, end, node)
-            return !image.src ? tr.setSelection(NodeSelection.create(tr.doc, from)) : tr
+            return insertInlineSource(
+              state.tr,
+              from,
+              end,
+              source.slice(offset),
+              Fragment.from(node),
+            )
           }
           offset += 2
         }
@@ -43,7 +49,7 @@ export const imageSourceInputRule = $inputRule(
     ),
 )
 
-/** HTML 图片标签闭合后建立图片节点，并保留宽高与缩放信息。 */
+/** HTML 图片标签同样保留源码编辑态，并保留宽高与缩放信息。 */
 export const imageHtmlInputRule = $inputRule(
   () =>
     new InputRule(
@@ -55,10 +61,12 @@ export const imageHtmlInputRule = $inputRule(
         if ((prefix.match(/\\+$/)?.[0].length ?? 0) % 2) return null
         const image = parseSizedImageHtml(match[0])
         if (!image) return null
-        return state.tr.replaceWith(
+        return insertInlineSource(
+          state.tr,
           start,
           end,
-          state.schema.nodes.image.create({ ...image, html: true }),
+          match[0],
+          Fragment.from(state.schema.nodes.image.create({ ...image, html: true })),
         )
       },
       { inCodeMark: false },

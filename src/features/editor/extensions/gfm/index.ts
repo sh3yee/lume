@@ -5,6 +5,7 @@ import {
   gfm,
   remarkGFMPlugin,
   wrapInTaskListInputRule,
+  strikethroughInputRule,
 } from '@milkdown/preset-gfm'
 import { bulletListSchema, orderedListSchema } from '@milkdown/kit/preset/commonmark'
 import type MarkdownIt from 'markdown-it'
@@ -154,7 +155,11 @@ const taskCheckboxes = $prose(
 export function useGfmWysiwygExtension(editor: Editor) {
   return editor
     .config((ctx) => ctx.set(remarkGFMPlugin.options.key, { singleTilde: false }))
-    .use(gfm.map((plugin) => (plugin === wrapInTaskListInputRule ? taskListInputRule : plugin)))
+    .use(
+      gfm
+        .filter((plugin) => plugin !== strikethroughInputRule)
+        .map((plugin) => (plugin === wrapInTaskListInputRule ? taskListInputRule : plugin)),
+    )
     .use(preservedBulletListSchema)
     .use(preservedOrderedListSchema)
     .use(taskListSchema)
