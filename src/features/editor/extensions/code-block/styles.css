@@ -242,4 +242,6 @@
 
 .lume-markdown-content .lume-code-fence-source {
   color: var(--lume-accent-default);
+  font-family: var(--lume-font-mono);
+  font-style: italic;
 }

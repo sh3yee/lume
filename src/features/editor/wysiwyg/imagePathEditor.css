@@ -10,7 +10,7 @@
   font-family: var(--lume-font-mono);
   font-size: 0.875em;
   font-weight: var(--lume-font-weight-regular);
-  font-style: normal;
+  font-style: italic;
   line-height: inherit;
   white-space: nowrap;
 }

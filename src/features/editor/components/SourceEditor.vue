@@ -247,6 +247,7 @@ onBeforeUnmount(() => {
 }
 .lume-source-editor__syntax {
   color: var(--lume-accent-default);
+  font-style: italic;
 }
 .lume-source-editor__textarea {
   position: relative;

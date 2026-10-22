@@ -36,7 +36,7 @@
   font-family: var(--lume-font-mono);
   font-size: 0.875em;
   font-weight: var(--lume-font-weight-regular);
-  font-style: normal;
+  font-style: italic;
 }
 
 .lume-markdown-content p {
@@ -102,6 +102,8 @@
 
 .lume-markdown-content .lume-link-source--valid {
   color: var(--lume-accent-default);
+  font-family: var(--lume-font-mono);
+  font-style: italic;
 }
 
 .lume-markdown-content .ProseMirror a,
