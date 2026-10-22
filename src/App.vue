@@ -303,11 +303,6 @@ useAppShortcuts({
   width: 100vw;
   overflow: hidden;
   background: var(--lume-app-background, var(--lume-bg-base));
-  background-image: radial-gradient(
-    ellipse at top right,
-    var(--lume-accent-subtle),
-    transparent 55%
-  );
 }
 
 .lume-app__body {

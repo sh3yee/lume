@@ -5,6 +5,7 @@
  * 展示所有已打开文档，支持切换、关闭、新建和打开文件。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { vLiquidGlass } from '@/ui/glass/directive'
 import { FileDown, FileText, Plus, X } from 'lucide-vue-next'
 import { useDocument, type DocumentDropPosition, type OpenDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
@@ -425,6 +426,7 @@ onBeforeUnmount(() => {
       <div
         v-for="document in documents"
         :key="document.id"
+        v-liquid-glass="document.id === activeDocumentId || document.id === draggedDocumentId"
         class="lume-tabs__tab"
         :data-document-id="document.id"
         :class="{
@@ -586,13 +588,11 @@ onBeforeUnmount(() => {
   transition:
     transform 140ms ease,
     background-color 120ms ease,
+    box-shadow 120ms ease,
     color 120ms ease;
 }
 
 .lume-tabs__tab--dragging {
-  z-index: 2;
-  background-color: var(--lume-bg-surface);
-  box-shadow: var(--lume-shadow-sm);
   cursor: grabbing;
   transition: none;
   will-change: transform;
@@ -603,19 +603,18 @@ onBeforeUnmount(() => {
 }
 
 .lume-tabs__tab--active,
-.lume-tabs__tab--active:hover {
+.lume-tabs__tab--active:hover,
+.lume-tabs__tab--dragging,
+.lume-tabs__tab--dragging:hover {
   z-index: 1;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--lume-bg-surface) 64%, transparent),
-    color-mix(in srgb, var(--lume-bg-surface-raised) 38%, transparent)
-  );
-  backdrop-filter: blur(18px) saturate(135%);
-  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  background: var(--lume-glass-reflection), var(--lume-glass-surface);
+  backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(0.4px);
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(0.4px);
   box-shadow:
-    inset 0 1px 0 var(--lume-side-glass-highlight),
-    inset 0 0 0 0.5px color-mix(in srgb, var(--lume-panel-border) 45%, transparent),
-    0 1px 3px rgb(24 42 70 / 4%);
+    inset 0 0 0 1px var(--lume-glass-highlight),
+    inset 0 1px 0 var(--lume-glass-rim),
+    inset 0 -1px 1px var(--lume-glass-depth),
+    0 2px 5px var(--lume-glass-shadow);
   color: var(--lume-text-primary);
 }
 
@@ -628,25 +627,14 @@ onBeforeUnmount(() => {
   font-weight: var(--lume-font-weight-medium);
 }
 
-.lume-tabs--single .lume-tabs__tab--active {
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  cursor: default;
-}
-
-.lume-tabs--single .lume-tabs__tab:hover {
-  background: color-mix(in srgb, var(--lume-text-secondary) 5%, transparent);
-}
-
 .lume-tabs--single
   .lume-tabs__tab:not(:hover):not(:focus-within)
   .lume-tabs__close:not(.lume-tabs__close--dirty) {
   opacity: 0;
 }
 
-.lume-tabs__tab--dragging {
+.lume-tabs__tab--dragging,
+.lume-tabs__tab--dragging:hover {
   z-index: 2;
 }
 

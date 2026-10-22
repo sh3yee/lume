@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** SideBar - 工作区文件列表与文件操作。 */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { vLiquidGlass } from '@/ui/glass/directive'
 import {
   ChevronRight,
   FilePlus2,
@@ -157,7 +158,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <aside class="lume-sidebar lume-side-glass" aria-label="文件">
+  <aside v-liquid-glass class="lume-sidebar lume-side-glass" aria-label="文件">
     <div class="lume-sidebar__content" @contextmenu="openFileContextMenu">
       <template v-if="workspacePath">
         <button

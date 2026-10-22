@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { vLiquidGlass } from '@/ui/glass/directive'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { useDocument } from '@/features/documents/model/useDocument'
 import {
@@ -163,6 +164,7 @@ onBeforeUnmount(() => {
 
 <template>
   <aside
+    v-liquid-glass
     ref="inspectorRef"
     class="lume-document-inspector lume-side-glass"
     :style="{ width: `${panelWidth}px` }"
