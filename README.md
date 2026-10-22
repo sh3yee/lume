@@ -1,149 +1,149 @@
-![Lume icon](docs/assets/logo.png)
+<p align="center">
+  <img src="docs/assets/logo.png" width="88" alt="Lume icon" />
+</p>
 
-# Lume
+<h1 align="center">Lume</h1>
 
-**English** | [简体中文](README.zh-CN.md)
+<p align="center"><strong>A quiet space for your words.</strong></p>
 
-**A calm, lightweight Markdown editor for local writing.**
+<p align="center">A desktop Markdown editor for personal writing, everyday notes, and local knowledge.</p>
 
-Keep your words on your own device. Bring your attention back to writing.
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
+
+<p align="center">
+  <a href="https://github.com/sh3yee/lume/releases">Download</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="https://github.com/sh3yee/lume/issues">Feedback</a>
+</p>
 
 ![Status: early development](https://img.shields.io/badge/status-early_development-d98b2b?style=flat-square)
 ![Local first](https://img.shields.io/badge/documents-local_first-4f7f6f?style=flat-square)
 ![Markdown](https://img.shields.io/badge/format-Markdown-5d6673?style=flat-square)
 
-[Screenshots](#screenshots) · [Highlights](#highlights) · [Markdown Support](#markdown-support) · [Images and Assets](#images-and-assets) · [Project Status](#project-status) · [Contributing](#contributing)
-
----
-
-## About Lume
-
-Lume is a desktop editor for personal writing and organizing local knowledge.
-
-It works directly with ordinary Markdown files. No account is required, your content stays in an open format, and you can keep organizing your documents the way you already do. From quick notes and study materials to long articles, Lume gives you a simple, comfortable place to write.
-
-> Your words belong to you. Open them anywhere, move them freely, and keep them readable for years.
+Lume works directly with ordinary Markdown files on your device. No account is required to write, and your documents remain readable and portable. Use it to capture an idea, organize reading notes, or work through a longer article at your own pace.
 
 ## Screenshots
 
-Choose a light, dark, or frosted glass theme to suit your surroundings and mood.
+**Write directly on the page.** Keep open documents on the left and your outline on the right, with room for the text in between.
 
-| Light                                           | Dark                                          | Frosted Glass                                           |
-| ----------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
-| ![Lume light theme](docs/assets/lume-light.png) | ![Lume dark theme](docs/assets/lume-dark.png) | ![Lume frosted glass theme](docs/assets/lume-glass.png) |
+![Lume light theme: WYSIWYG writing, document list, and heading outline](docs/assets/lume-light.jpg)
 
-## Highlights
+**Keep the Markdown in view.** Split view combines source highlighting and line numbers with a live preview and synchronized scrolling.
 
-| Feature                       | Description                                                                                                                                    |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| ✍️ **Focused writing**        | Focus mode hides the sidebar and document tabs. Adjust text width and font size to your preference.                                            |
-| 📄 **Local first**            | Open and save local Markdown files directly, without an account or online service.                                                             |
-| ✨ **Two editing modes**      | Switch between WYSIWYG editing and Markdown source with a live preview, with synchronized scrolling in split view.                             |
-| 🗂️ **Workspaces and tabs**    | Open local folders and manage documents in a file tree. Reorder tabs by dragging and see unsaved changes at a glance.                          |
-| 💾 **Autosave and conflicts** | Documents with a file path are saved automatically. External edits, renames, and deletions are detected, with choices for resolving conflicts. |
-| 🛟 **Session recovery**       | Open tabs and their contents are saved locally so you can continue writing when you reopen the app.                                            |
-| 🔎 **Find and navigate**      | Find, replace, and highlight matches in WYSIWYG mode. Jump to headings through the sidebar outline or an in-document table of contents.        |
-| ⌨️ **Command palette**        | Quickly create, open, and save documents, switch editing modes, and run image commands.                                                        |
-| 🌗 **Comfortable themes**     | Choose light, dark, system, or frosted glass appearance.                                                                                       |
-| 📊 **Writing statistics**     | Track word count, character count, estimated reading time, and cursor position.                                                                |
+![Lume split view: Markdown source alongside the rendered document](docs/assets/lume-split-view.jpg)
 
-## Markdown Support
+<details>
+<summary>Dark theme and preferences</summary>
 
-| Content                 | Current support                                                                                                 |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Basic formatting**    | Headings, paragraphs, bold, italic, blockquotes, ordered and unordered lists, horizontal rules, and inline code |
-| **GFM extensions**      | Tables, task lists, and strikethrough; table insertion and row and column editing in WYSIWYG mode               |
-| **Links and footnotes** | Inline links, reference links, and footnotes, with editing in the document                                      |
-| **Code blocks**         | Language selection and syntax highlighting                                                                      |
-| **Math**                | Inline and block equations rendered with KaTeX                                                                  |
-| **Diagrams**            | Mermaid diagram editing and rendering                                                                           |
-| **Document metadata**   | YAML front matter at the start of a document, editable in WYSIWYG mode                                          |
-| **Table of contents**   | A standalone `[toc]` marker generates a clickable list of document headings                                     |
-| **Alerts**              | GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` blocks                                        |
+Choose light, dark, or system appearance. Translucent side panels frame the writing area in both themes.
 
-WYSIWYG mode provides a selection toolbar and context menus for common formatting, block conversion, and content insertion. Source mode lets you edit Markdown directly while the preview renders supported extensions.
+![Lume dark theme with document navigation and outline](docs/assets/lume-dark.jpg)
 
-## Images and Assets
+Adjust language, typography, editing layout, Markdown extensions, and image preferences in one place.
 
-- **Flexible insertion**: Select local images, paste screenshots, drag and drop files, or use image URLs and Markdown syntax. Edit image paths inline.
-- **Image editing**: Change the source, alt text, and title; drag to resize, choose a scale preset, restore the original size, or set alignment.
-- **Asset organization**: Keep images in their original location or copy them to a chosen folder. Use relative paths, path escaping, and document-specific image roots. Copy or move images in batches, or download remote images.
-- **Optional uploads**: Configure an external uploader to upload local images. Use YAML metadata to choose image handling rules for individual documents.
+![Lume preferences: language and writing typography](docs/assets/lume-preferences.jpg)
 
-Configure insertion rules, path formatting, and uploaders under Preferences → Images. Local writing does not require an uploader.
+</details>
 
-## Keyboard Shortcuts
+Screenshots show the current interface with a sample document and the Simplified Chinese UI. An English UI is also available.
 
-| Action                                     | Windows / Linux           |
-| ------------------------------------------ | ------------------------- |
-| New document                               | `Ctrl+N` / `Ctrl+T`       |
-| Open file                                  | `Ctrl+O`                  |
-| Save / Save As                             | `Ctrl+S` / `Ctrl+Shift+S` |
-| Close current document                     | `Ctrl+W`                  |
-| Command palette                            | `Ctrl+P`                  |
-| Preferences                                | `Ctrl+,`                  |
-| Find and replace in the document (WYSIWYG) | `Ctrl+F`                  |
-| Insert image                               | `Ctrl+Shift+I`            |
+## Features
 
-On macOS, use `Command` instead of `Ctrl`.
+### Write the way you prefer
 
-## What You Can Use It For
+- **WYSIWYG editing** — Edit formatted text directly. Use Markdown input, the selection toolbar, or context menus to format and insert content.
+- **Source and live preview** — Switch to split view when you want to work with Markdown syntax and see the result alongside it.
+- **Focus mode** — Hide the file panel, outline, and document tabs to make more room for writing.
+- **Comfortable typography** — Choose the writing font, size, line spacing, and page width. Set interface fonts and outline size separately.
+- **Your preferred appearance** — Light, dark, and system themes, plus Simplified Chinese and English interfaces. Document tabs and the status bar can be hidden independently.
 
-- Capture ideas, journals, and everyday notes
-- Organize course notes, reading notes, and technical learning materials
-- Write blog posts, articles, and longer pieces
-- Manage Markdown documents that remain portable and readable over time
-- Write quietly without connecting to a cloud service
+### Keep your documents close
 
-## Design Principles
+- **Local folders as workspaces** — Browse a file tree and create, rename, move, or delete files and folders without leaving the app.
+- **Multiple documents** — Switch between tabs or the open-document list; drag tabs to reorder them and see which documents have unsaved changes.
+- **Autosave** — In the desktop app, documents with a save location are automatically written back to their files. Save new drafts once to choose a location.
+- **Session recovery** — Open documents and draft contents are stored locally so you can continue after reopening the app.
+- **External change handling** — Detect changes in the open workspace and choose how to handle conflicting edits or deleted files.
 
-| Principle                   | Meaning                                                                  |
-| --------------------------- | ------------------------------------------------------------------------ |
-| **Local first**             | Your content stays on your own device, under your control.               |
-| **Markdown first**          | Files stay open, readable, and portable.                                 |
-| **Writing first**           | The writing experience and clear expression come before adding features. |
-| **Simple and reliable**     | Clear interactions for everyday work.                                    |
-| **Progressive enhancement** | Add capabilities carefully on top of a stable foundation.                |
+### Find your place
 
-## Project Status
+- **Outline navigation** — Jump to headings from the right panel; drag either side panel to adjust its width.
+- **Document search** — Find, replace, and highlight text matches in WYSIWYG mode.
+- **Command palette** — Create, open, and save documents, switch views, toggle focus mode, and run image commands from the keyboard.
+- **Writing statistics** — Check words, characters, lines, and estimated reading time in the statistics panel; the status bar also shows cursor position.
 
-Lume is in early development. The current repository version is **0.6.0**. Local document editing, workspace file management, autosave, external conflict handling, and session recovery are implemented. Markdown extensions and image workflows continue to improve.
+## Markdown support
 
-The desktop app uses Tauri 2, Rust, Vue 3, and TypeScript. WYSIWYG editing is powered by Milkdown / ProseMirror, and split-view previews use markdown-it. Workspace management, automatic saves to source files, and local image asset handling require the desktop environment. Browser mode is intended for frontend development and a preview of the basic experience.
+| Content                   | What you can do                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Everyday formatting       | Headings, bold, italic, strikethrough, inline code, quotes, nested lists, and horizontal rules                    |
+| Tables and tasks          | Insert tables, edit rows and columns, set column alignment, and check off tasks in WYSIWYG mode                   |
+| Links and references      | Edit inline and reference links, follow heading anchors, and work with footnotes                                  |
+| Code                      | Choose a code language, edit with syntax highlighting, and copy a code block                                      |
+| Math                      | Write inline and block LaTeX equations and view their rendered form                                               |
+| Mermaid                   | Edit `mermaid` code blocks in WYSIWYG mode; render diagrams in split-view preview                                 |
+| Document structure        | Edit YAML front matter and insert a clickable heading list with a standalone `[toc]` marker                       |
+| Alerts                    | Use GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` blocks                                      |
+| Extra inline formatting   | Enable `==highlight==`, `H~2~O` subscripts, and `X^2^` superscripts in preferences                                |
+| Emoji and automatic links | Use emoji shortcodes and completion, and recognize plain URLs as links                                            |
+| HTML and media            | Work with supported inline HTML, HTML blocks, SVG, audio, video, and iframe embeds; edit the HTML source in place |
 
-Planned improvements include:
+Under **Preferences → Markdown**, you can choose which optional extensions to enable. Highlight, subscript, and superscript are off by default. Media playback and remote embeds depend on the system webview and the source website.
 
-- Find and replace in the source editor
-- Workspace search, full-text indexing, and quick open
-- Recent files and workspace history
-- General attachment management and relative-path insertion
-- Large-document performance and consistent interactions across editing modes
-- HTML and PDF export
+## Images and assets
 
-See the [Product and Development Roadmap](docs/roadmap.md) for details.
+Bring illustrations into your writing without interrupting the flow:
 
-## Contributing
+- Insert local images, paste screenshots, drag and drop image files, or use an image URL.
+- Edit the source, alt text, and title. Resize by dragging or choosing a scale preset, restore the original size, and set alignment.
+- Keep images where they are or copy them to a chosen asset folder. Use relative paths and document-specific image roots.
+- Copy or move document images in batches, or download remote images for local use.
+- Optionally configure an external uploader. Individual documents can override image handling through YAML metadata.
 
-Issues, feedback, and contributions are welcome. Interaction suggestions, wording improvements, and new use cases all help shape Lume.
+Set these rules under **Preferences → Images**. An uploader is optional; local writing and local images do not require one. Remote images, embeds, and uploaders use a network connection when used.
 
-- Read the [Development Guide](docs/development.md) before contributing.
-- See the [Product and Development Roadmap](docs/roadmap.md) for future plans.
-- When reporting a problem, include reproduction steps, your system environment, and relevant screenshots where possible.
+## Getting started
 
-## Current Notice
+1. Visit [Releases](https://github.com/sh3yee/lume/releases) and choose an installer for your system. Lume targets Windows, macOS (Apple Silicon and Intel), and Linux; check each release for available assets.
+2. Open an existing `.md` or `.markdown` file, create a document, or open a local folder as your workspace.
+3. Start writing in the default WYSIWYG mode. Use **Preferences → Editor** or the command palette to switch to source and preview.
+4. Save a new document to choose its file location. Subsequent edits to saved files are autosaved in the desktop app.
+5. Use the outline to navigate, or adjust typography and appearance in preferences to settle into your writing space.
 
-> Lume has not reached a stable release. Its interface, features, and documentation may change. Keep independent backups of important documents.
+Lume is a desktop application. The browser preview offers basic editing and download-based saving; workspace management, autosave to original files, and local asset processing require the desktop app.
+
+## Keyboard shortcuts
+
+| Action                        | Windows / Linux           |
+| ----------------------------- | ------------------------- |
+| New document                  | `Ctrl+N` / `Ctrl+T`       |
+| Open file                     | `Ctrl+O`                  |
+| Save / Save As                | `Ctrl+S` / `Ctrl+Shift+S` |
+| Close current document        | `Ctrl+W`                  |
+| Command palette               | `Ctrl+P`                  |
+| Preferences                   | `Ctrl+,`                  |
+| Toggle file panel             | `Ctrl+Shift+E`            |
+| Toggle outline and statistics | `Ctrl+Shift+O`            |
+| Find and replace (WYSIWYG)    | `Ctrl+F`                  |
+| Insert image                  | `Ctrl+Shift+I`            |
+
+On macOS, use `Command` instead of `Ctrl`. Focus mode and editing-mode switching are available in the command palette.
+
+## Status and feedback
+
+Lume is in early development; the current repository version is **0.6.0**. The interface and editing behavior continue to evolve. Keep independent backups of important documents; session recovery is a convenience, not a backup system.
+
+Workspace-wide full-text search, recent-file history, source-editor find and replace, and HTML / PDF export are not yet available. See the [roadmap](docs/roadmap.md) for planned work.
+
+Found a problem or have an idea? [Open an issue](https://github.com/sh3yee/lume/issues) with the steps to reproduce, your operating system, and a screenshot where helpful. Please remove private content from examples. Contributions are welcome; setup and development details live in the [development guide](docs/development.md).
 
 ## License
 
-This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+Lume is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Noncommercial use, modification, and redistribution are permitted under its terms. Commercial use requires a separate license from the author.
 
-- Personal learning, research, experimentation, hobby projects, and other noncommercial uses are permitted.
-- Modification and redistribution for noncommercial purposes are permitted, provided the license and required notices are retained.
-- **Commercial use of this project or derivative works is prohibited.**
-- Contact the project author for a separate commercial license.
-
-> Because the license restricts commercial use, this is a source-available project, not open-source software under the OSI definition.
+This is a source-available project with a noncommercial license.
 
 ---
 
