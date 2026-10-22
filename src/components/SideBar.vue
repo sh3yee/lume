@@ -360,7 +360,7 @@ onBeforeUnmount(() => {
   margin-bottom: 5px;
   padding: 0 10px;
   color: var(--lume-text-primary);
-  font-size: 12px;
+  font-size: var(--lume-font-size-sm);
   font-weight: var(--lume-font-weight-medium);
 }
 
@@ -384,7 +384,7 @@ onBeforeUnmount(() => {
 
 .lume-sidebar__file-name {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--lume-font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -396,7 +396,7 @@ onBeforeUnmount(() => {
 
 .lume-sidebar__dirty {
   color: var(--lume-accent-default);
-  font-size: 9px;
+  font-size: calc(var(--lume-font-size-xs) - 2px);
 }
 
 .lume-sidebar__chevron {
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
 .lume-sidebar__section-label {
   padding: 0 10px 6px;
   color: var(--lume-text-tertiary);
-  font-size: 11px;
+  font-size: var(--lume-font-size-xs);
   font-weight: var(--lume-font-weight-medium);
 }
 
@@ -445,7 +445,7 @@ onBeforeUnmount(() => {
 
 .lume-sidebar__empty-state strong {
   color: var(--lume-text-primary);
-  font-size: 15px;
+  font-size: var(--lume-font-size-md);
   font-weight: 600;
   letter-spacing: -0.15px;
 }

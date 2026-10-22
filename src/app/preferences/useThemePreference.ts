@@ -5,15 +5,15 @@
  */
 import { onBeforeUnmount, ref, watch } from 'vue'
 
-export type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
-export type ResolvedTheme = 'light' | 'dark' | 'glass'
+export type ThemePreference = 'system' | 'light' | 'dark'
+export type ResolvedTheme = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'lume-theme'
 
 /** 读取已保存的主题偏好，无有效记录时跟随系统。 */
 function getInitialTheme(): ThemePreference {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
-  return savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'glass' || savedTheme === 'system'
+  return savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'
     ? savedTheme
     : 'system'
 }

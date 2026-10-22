@@ -140,8 +140,8 @@ onMounted(() => {
   color: var(--lume-text-primary);
   caret-color: var(--lume-accent-default);
   font-family: var(--lume-font-mono, 'Cascadia Code', 'Fira Code', Consolas, monospace);
-  font-size: var(--lume-font-size-md);
-  line-height: 1.85;
+  font-size: var(--lume-writing-font-size, 15px);
+  line-height: var(--lume-writing-line-height, 1.65);
   letter-spacing: 0.1px;
   tab-size: 2;
   -moz-tab-size: 2;

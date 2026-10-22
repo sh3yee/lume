@@ -18,7 +18,10 @@ use commands::{
         lume_resolve_html_resource_path, lume_resolve_image_path,
         lume_store_clipboard_image, lume_transfer_image, lume_upload_image_files,
     },
-    system::{lume_health_check, lume_open_web_url, lume_reveal_file, lume_startup_file_paths},
+    system::{
+        lume_health_check, lume_list_system_fonts, lume_open_web_url, lume_reveal_file,
+        lume_startup_file_paths,
+    },
     workspace::{
         lume_create_workspace_entry, lume_delete_workspace_entry, lume_move_workspace_entry,
         lume_read_workspace, lume_rename_workspace_entry, lume_start_workspace_watcher,
@@ -41,6 +44,7 @@ pub fn run() {
             lume_create_workspace_entry,
             lume_delete_workspace_entry,
             lume_health_check,
+            lume_list_system_fonts,
             lume_open_web_url,
             lume_import_image_file,
             lume_materialize_staged_images,

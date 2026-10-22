@@ -65,15 +65,19 @@
     'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', 'Source Code Pro', 'Microsoft YaHei Mono',
     monospace;
 
-  /* 字号 */
-  --lume-font-size-xs: 11px;
-  --lume-font-size-sm: 13px;
-  --lume-font-size-base: 14px;
-  --lume-font-size-md: 15px;
-  --lume-font-size-lg: 17px;
-  --lume-font-size-xl: 20px;
-  --lume-font-size-2xl: 24px;
-  --lume-font-size-3xl: 30px;
+  --lume-interface-font: var(--lume-font-sans);
+  --lume-interface-font-size: 14px;
+  --lume-outline-font-size: var(--lume-interface-font-size);
+
+  /* 界面字号独立于正文排版。 */
+  --lume-font-size-xs: calc(var(--lume-interface-font-size) - 3px);
+  --lume-font-size-sm: calc(var(--lume-interface-font-size) - 1px);
+  --lume-font-size-base: var(--lume-interface-font-size);
+  --lume-font-size-md: calc(var(--lume-interface-font-size) + 1px);
+  --lume-font-size-lg: calc(var(--lume-interface-font-size) + 3px);
+  --lume-font-size-xl: calc(var(--lume-interface-font-size) + 6px);
+  --lume-font-size-2xl: calc(var(--lume-interface-font-size) + 10px);
+  --lume-font-size-3xl: calc(var(--lume-interface-font-size) + 16px);
 
   /* 行高 */
   --lume-line-height-tight: 1.25;
@@ -152,17 +156,6 @@
   --lume-writing-width: 980px;
 }
 
-:root[data-font-scale='small'] {
-  --lume-font-size-md: 14px;
-}
-
-:root[data-font-scale='medium'] {
-  --lume-font-size-md: 15px;
-}
-
-:root[data-font-scale='large'] {
-  --lume-font-size-md: 16px;
-}
 /* ===== 暗色主题 ===== */
 :root[data-theme='dark'] {
   --lume-bg-base: #171c28;
@@ -205,40 +198,4 @@
   --lume-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2);
   --lume-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.25);
   --lume-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.3);
-}
-/* ===== 液体玻璃主题 ===== */
-:root[data-theme='glass'] {
-  --lume-bg-base: rgba(239, 247, 255, 0.38);
-  --lume-bg-surface: rgba(255, 255, 255, 0.48);
-  --lume-bg-surface-raised: rgba(255, 255, 255, 0.32);
-  --lume-bg-overlay: rgba(247, 251, 255, 0.68);
-  --lume-chrome-bg: rgba(247, 250, 255, 0.76);
-  --lume-pane-bg: rgba(255, 255, 255, 0.82);
-  --lume-panel-border: rgba(164, 181, 205, 0.3);
-
-  --lume-text-primary: #172338;
-  --lume-text-secondary: #4b5e78;
-  --lume-text-tertiary: #73839a;
-  --lume-text-inverse: #ffffff;
-
-  --lume-border-subtle: rgba(255, 255, 255, 0.5);
-  --lume-border-default: rgba(119, 151, 184, 0.28);
-  --lume-border-strong: rgba(91, 126, 163, 0.42);
-
-  --lume-accent-default: #2671ff;
-  --lume-accent-hover: #1b60e6;
-  --lume-accent-active: #1752c7;
-  --lume-accent-subtle: rgba(38, 113, 255, 0.12);
-  --lume-accent-contrast: #ffffff;
-
-  --lume-code-bg: rgba(235, 242, 250, 0.5);
-  --lume-code-border: rgba(111, 140, 172, 0.24);
-
-  --lume-shadow-xs: 0 1px 2px rgba(54, 78, 106, 0.08);
-  --lume-shadow-sm: 0 4px 14px rgba(54, 78, 106, 0.1);
-  --lume-shadow-md: 0 10px 30px rgba(54, 78, 106, 0.12);
-  --lume-shadow-lg: 0 18px 45px rgba(54, 78, 106, 0.16);
-  --lume-shadow-xl: 0 24px 70px rgba(54, 78, 106, 0.2);
-
-  --lume-app-background: transparent;
 }

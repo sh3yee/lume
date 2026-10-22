@@ -48,7 +48,11 @@
       </div>
     </div>
 
-    <StatusBar :sidebar-visible="sidebarVisible && !focusMode" @toggle-sidebar="toggleSidebar" />
+    <StatusBar
+      v-if="statusBarEnabled"
+      :sidebar-visible="sidebarVisible && !focusMode"
+      @toggle-sidebar="toggleSidebar"
+    />
     <CommandPalette
       :open="commandPaletteOpen"
       :items="commandPaletteItems"
@@ -65,6 +69,10 @@
       :font-size="fontSize"
       :line-height="lineHeight"
       :tabs-enabled="tabsEnabled"
+      :status-bar-enabled="statusBarEnabled"
+      :interface-font="interfaceFont"
+      :interface-font-size="interfaceFontSize"
+      :outline-font-size="outlineFontSize"
       @close="settingsOpen = false"
       @update:view-mode="handleViewModeChange"
       @update:theme="themePreference = $event"
@@ -74,6 +82,10 @@
       @update:font-size="fontSize = $event"
       @update:line-height="lineHeight = $event"
       @update:tabs-enabled="tabsEnabled = $event"
+      @update:status-bar-enabled="statusBarEnabled = $event"
+      @update:interface-font="interfaceFont = $event"
+      @update:interface-font-size="interfaceFontSize = $event"
+      @update:outline-font-size="outlineFontSize = $event"
     />
     <UnsavedChangesDialog
       v-if="pendingCloseDocument"
@@ -124,7 +136,9 @@ import { useWindowPersistence } from '@/app/lifecycle/useWindowPersistence'
 import { useWorkspaceLifecycle } from '@/app/lifecycle/useWorkspaceLifecycle'
 import { useThemePreference } from '@/app/preferences/useThemePreference'
 import { useWritingPreference } from '@/app/preferences/useWritingPreference'
+import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { useTabsPreference } from '@/app/preferences/useTabsPreference'
+import { useStatusBarPreference } from '@/app/preferences/useStatusBarPreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
 import {
   useImageCommands,
@@ -177,7 +191,9 @@ const {
 } = useDocument()
 const { themePreference } = useThemePreference()
 const { writingWidth, writingFont, fontSize, lineHeight } = useWritingPreference()
+const { interfaceFont, interfaceFontSize, outlineFontSize } = useInterfacePreference()
 const { tabsEnabled } = useTabsPreference()
+const { statusBarEnabled } = useStatusBarPreference()
 const { message: fileDropMessage, dismissMessage, showMessage, getErrorMessage } = useAppFeedback()
 const imageCommands = useImageCommands({
   getEditor: () => (viewMode.value === 'wysiwyg' ? wysiwygPaneRef.value : sourceEditorRef.value),

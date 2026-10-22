@@ -1,4 +1,5 @@
 use crate::error::{LumeError, LumeResult};
+use crate::services::system_fonts;
 use serde::Serialize;
 use std::{path::Path, process::Command};
 
@@ -14,6 +15,14 @@ pub fn lume_health_check() -> LumeResult<HealthStatus> {
         status: "ok".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     })
+}
+
+#[tauri::command]
+pub async fn lume_list_system_fonts() -> LumeResult<Vec<String>> {
+    // 字体较多时，原生枚举放到阻塞线程，避免占用界面线程或异步执行器。
+    tauri::async_runtime::spawn_blocking(system_fonts::list_system_fonts)
+        .await
+        .map_err(|error| LumeError::Generic(format!("读取系统字体任务失败：{error}")))?
 }
 
 #[tauri::command]

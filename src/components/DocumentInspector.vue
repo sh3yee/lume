@@ -1,92 +1,42 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { useDocument } from '@/features/documents/model/useDocument'
 import {
   useDocumentOutline,
   type DocumentOutlineItem,
 } from '@/features/editor/composables/useDocumentOutline'
 
+interface OutlineNode {
+  item: DocumentOutlineItem
+  children: OutlineNode[]
+}
+
 const { activeDocument, stats } = useDocument()
 const { outlineItems, navigateToHeading } = useDocumentOutline()
+const { interfaceFont, interfaceFontSize, outlineFontSize } = useInterfacePreference()
+const inspectorRef = ref<HTMLElement | null>(null)
 const activePanel = ref<'outline' | 'stats'>('outline')
 const selectedHeading = ref<number | null>(null)
-const currentHeading = computed(() => selectedHeading.value ?? outlineItems.value[0]?.index ?? null)
 const viewportWidth = ref(window.innerWidth)
 const manualWidth = ref<number | null>(null)
 const measuredWidth = ref(220)
-const maxWidth = computed(() => Math.max(180, Math.min(420, Math.floor(viewportWidth.value * 0.4))))
-const panelWidth = computed(() =>
-  Math.max(180, Math.min(manualWidth.value ?? measuredWidth.value, maxWidth.value)),
-)
 let resizeStartX = 0
 let resizeStartWidth = 0
 const resizing = ref(false)
 let measureContext: CanvasRenderingContext2D | null = null
 
-function measureOutlineWidth() {
-  if (!measureContext) return
-  measureContext.font = `500 11px ${getComputedStyle(document.documentElement).getPropertyValue('--lume-font-sans')}`
-  measuredWidth.value = Math.min(
-    320,
-    Math.max(
-      220,
-      ...outlineRows.value.map(
-        ({ item, depth }) =>
-          Math.ceil(measureContext!.measureText(item.text).width) + depth * 20 + 40,
-      ),
-    ),
-  )
-}
-
-function updateViewportWidth() {
-  viewportWidth.value = window.innerWidth
-}
-
-function startResize(event: PointerEvent) {
-  if (event.button !== 0 || !event.isPrimary) return
-  resizeStartX = event.clientX
-  resizeStartWidth = panelWidth.value
-  resizing.value = true
-  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-  event.preventDefault()
-}
-
-function resizePanel(event: PointerEvent) {
-  if (!resizing.value) return
-  manualWidth.value = Math.max(
-    180,
-    Math.min(maxWidth.value, resizeStartWidth + resizeStartX - event.clientX),
-  )
-}
-
-function finishResize(event: PointerEvent) {
-  resizing.value = false
-  const handle = event.currentTarget as HTMLElement
-  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
-}
-
-function resizeWithKeyboard(event: KeyboardEvent) {
-  if (event.key === 'Home' || event.key === 'Enter') manualWidth.value = null
-  else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-    manualWidth.value = Math.max(
-      180,
-      Math.min(maxWidth.value, panelWidth.value + (event.key === 'ArrowLeft' ? 16 : -16)),
-    )
-  } else return
-  event.preventDefault()
-}
-
+const currentHeading = computed(() => selectedHeading.value ?? outlineItems.value[0]?.index ?? null)
+const maxWidth = computed(() => Math.max(180, Math.min(420, Math.floor(viewportWidth.value * 0.4))))
+const panelWidth = computed(() =>
+  Math.max(180, Math.min(manualWidth.value ?? measuredWidth.value, maxWidth.value)),
+)
 const statistics = computed(() => [
   { label: '字数', value: stats.value.words.toLocaleString() },
   { label: '字符', value: stats.value.chars.toLocaleString() },
   { label: '行数', value: stats.value.lines.toLocaleString() },
   { label: '阅读时长', value: `约 ${stats.value.readingTime} 分钟` },
 ])
-interface OutlineNode {
-  item: DocumentOutlineItem
-  children: OutlineNode[]
-}
-
 const outlineRows = computed(() => {
   const roots: OutlineNode[] = []
   const parents: OutlineNode[] = []
@@ -116,6 +66,64 @@ const outlineRows = computed(() => {
   return rows
 })
 
+const measureOutlineWidth = () => {
+  const context = measureContext
+  const headings = inspectorRef.value?.querySelectorAll<HTMLButtonElement>(
+    '.lume-document-inspector__heading',
+  )
+  if (!context || !headings?.length) return
+
+  let width = 220
+  headings.forEach((heading) => {
+    const style = getComputedStyle(heading)
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    const padding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight)
+    width = Math.max(
+      width,
+      Math.ceil(context.measureText(heading.textContent?.trim() || '').width + padding + 16),
+    )
+  })
+  measuredWidth.value = Math.min(320, width)
+}
+
+const updateViewportWidth = () => {
+  viewportWidth.value = window.innerWidth
+}
+
+const startResize = (event: PointerEvent) => {
+  if (event.button !== 0 || !event.isPrimary) return
+  resizeStartX = event.clientX
+  resizeStartWidth = panelWidth.value
+  resizing.value = true
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+const resizePanel = (event: PointerEvent) => {
+  if (!resizing.value) return
+  manualWidth.value = Math.max(
+    180,
+    Math.min(maxWidth.value, resizeStartWidth + resizeStartX - event.clientX),
+  )
+}
+
+const finishResize = (event: PointerEvent) => {
+  resizing.value = false
+  const handle = event.currentTarget as HTMLElement
+  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
+}
+
+const resizeWithKeyboard = (event: KeyboardEvent) => {
+  if (event.key === 'Home' || event.key === 'Enter') manualWidth.value = null
+  else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    manualWidth.value = Math.max(
+      180,
+      Math.min(maxWidth.value, panelWidth.value + (event.key === 'ArrowLeft' ? 16 : -16)),
+    )
+  } else return
+  event.preventDefault()
+}
+
 const handleHeadingClick = async (index: number) => {
   const target = outlineItems.value[index]
   if ((await navigateToHeading(index)) && outlineItems.value[index] === target) {
@@ -123,14 +131,11 @@ const handleHeadingClick = async (index: number) => {
   }
 }
 
-watch(outlineRows, measureOutlineWidth, { flush: 'post' })
-onMounted(() => {
-  measureContext = document.createElement('canvas').getContext('2d')
-  measureOutlineWidth()
-  window.addEventListener('resize', updateViewportWidth)
-})
-onBeforeUnmount(() => window.removeEventListener('resize', updateViewportWidth))
-
+watch(
+  [outlineRows, interfaceFont, interfaceFontSize, outlineFontSize, activePanel],
+  measureOutlineWidth,
+  { flush: 'post' },
+)
 watch(
   () => activeDocument.value?.id,
   () => {
@@ -141,10 +146,24 @@ watch(
 watch(outlineItems, () => {
   selectedHeading.value = null
 })
+
+onMounted(() => {
+  measureContext = document.createElement('canvas').getContext('2d')
+  measureOutlineWidth()
+  window.addEventListener('resize', updateViewportWidth)
+  document.fonts.addEventListener('loadingdone', measureOutlineWidth)
+  void document.fonts.ready.then(measureOutlineWidth)
+})
+onBeforeUnmount(() => {
+  measureContext = null
+  window.removeEventListener('resize', updateViewportWidth)
+  document.fonts.removeEventListener('loadingdone', measureOutlineWidth)
+})
 </script>
 
 <template>
   <aside
+    ref="inspectorRef"
     class="lume-document-inspector lume-side-glass"
     :style="{ width: `${panelWidth}px` }"
     aria-label="文档信息"
@@ -328,7 +347,7 @@ watch(outlineItems, () => {
   border-radius: var(--lume-radius-md);
   background: transparent;
   color: var(--lume-text-secondary);
-  font-size: var(--lume-font-size-xs);
+  font-size: var(--lume-outline-font-size);
   line-height: 1.6;
   text-align: left;
   text-overflow: ellipsis;

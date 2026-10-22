@@ -4,11 +4,11 @@
  *
  * 使用原生 dialog 提供分类式的应用设置入口。
  */
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Braces,
   Columns2,
-  Droplets,
+  Palette,
   Image,
   Monitor,
   Moon,
@@ -23,10 +23,16 @@ import {
   type MarkdownExtension,
 } from '@/app/preferences/useMarkdownPreference'
 import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
-import { WRITING_FONTS, type WritingFont } from '@/app/preferences/useWritingPreference'
+import type { WritingFont } from '@/app/preferences/useWritingPreference'
+import type { ThemePreference } from '@/app/preferences/useThemePreference'
+import { resolveFontFamily, type FontPreference } from '@/app/preferences/fontFamily'
+import { useSystemFonts, type FontOption } from '@/app/preferences/useSystemFonts'
+import { isTauri } from '@/platform/tauri/client'
+import InterfaceFontSettings from './InterfaceFontSettings.vue'
+import FontSelect from './FontSelect.vue'
+import SettingsSelect from './SettingsSelect.vue'
 
 type ViewMode = 'wysiwyg' | 'split'
-type ThemePreference = 'system' | 'light' | 'dark' | 'glass'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
 type SettingsCategory = 'general' | 'editor' | 'markdown' | 'appearance' | 'images'
 interface MarkdownSettingsGroup {
@@ -36,6 +42,17 @@ interface MarkdownSettingsGroup {
   extensions: Array<{ id: MarkdownExtension; label: string; description: string }>
 }
 
+const fontSizeOptions = Array.from({ length: 21 }, (_, index) => ({
+  value: index + 12,
+  label: `${index + 12} px`,
+}))
+const lineHeightOptions = [
+  { value: 1.4, label: '紧凑 · 1.4' },
+  { value: 1.65, label: '默认 · 1.65' },
+  { value: 1.8, label: '舒适 · 1.8' },
+  { value: 2, label: '宽松 · 2.0' },
+  { value: 2.4, label: '宽阔 · 2.4' },
+]
 const markdownSettingsGroups: MarkdownSettingsGroup[] = [
   {
     id: 'syntax',
@@ -97,6 +114,10 @@ const props = defineProps<{
   fontSize: number
   lineHeight: number
   tabsEnabled: boolean
+  statusBarEnabled: boolean
+  interfaceFont: FontPreference
+  interfaceFontSize: number
+  outlineFontSize: number
 }>()
 
 const emit = defineEmits<{
@@ -109,17 +130,41 @@ const emit = defineEmits<{
   (e: 'update:font-size', value: number): void
   (e: 'update:line-height', value: number): void
   (e: 'update:tabs-enabled', value: boolean): void
+  (e: 'update:status-bar-enabled', value: boolean): void
+  (e: 'update:interface-font', value: FontPreference): void
+  (e: 'update:interface-font-size', value: number): void
+  (e: 'update:outline-font-size', value: number): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const activeCategory = ref<SettingsCategory>('general')
+const {
+  options: systemFontOptions,
+  loading: fontsLoading,
+  error: fontsError,
+  ensureLoaded: ensureFontsLoaded,
+} = useSystemFonts()
 const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }> = [
   { id: 'general', label: '常规', icon: Type },
   { id: 'editor', label: '编辑', icon: Sparkles },
   { id: 'markdown', label: 'Markdown', icon: Braces },
   { id: 'images', label: '图片', icon: Image },
-  { id: 'appearance', label: '外观', icon: Droplets },
+  { id: 'appearance', label: '外观', icon: Palette },
 ]
+
+const fontOptions = computed(() => {
+  const options = [...systemFontOptions.value]
+  // 保留已保存或手动输入的字体，字体列表尚未读取时也能正确回显。
+  for (const value of [props.writingFont, props.interfaceFont]) {
+    if (!value.startsWith('local:') || options.some((option) => option.value === value)) continue
+    options.push({ value, label: value.slice(6) })
+  }
+  return options satisfies FontOption[]
+})
+const fontStatus = computed(() => {
+  if (fontsError.value) return fontsError.value
+  return fontsLoading.value ? '正在加载字体…' : ''
+})
 
 const handleResetTypography = () => {
   emit('update:writing-font', 'serif')
@@ -127,6 +172,14 @@ const handleResetTypography = () => {
   emit('update:line-height', 1.65)
   emit('update:writing-width', 'comfortable')
 }
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open && isTauri()) void ensureFontsLoaded()
+  },
+  { immediate: true },
+)
 
 watch(
   () => props.open,
@@ -265,6 +318,24 @@ onBeforeUnmount(() => dialogRef.value?.close())
               </span>
               <span class="lume-settings__check" aria-hidden="true"></span>
             </button>
+            <button
+              type="button"
+              class="lume-settings__option lume-settings__option--toggle"
+              :class="{ 'lume-settings__option--active': statusBarEnabled }"
+              role="switch"
+              :aria-checked="statusBarEnabled"
+              aria-label="显示状态栏"
+              aria-describedby="status-bar-setting-description"
+              @click="emit('update:status-bar-enabled', !statusBarEnabled)"
+            >
+              <span class="lume-settings__option-copy">
+                <strong>显示状态栏</strong>
+                <small id="status-bar-setting-description">
+                  在窗口底部显示行列位置、字数、字符数和阅读时长，默认开启。
+                </small>
+              </span>
+              <span class="lume-settings__check" aria-hidden="true"></span>
+            </button>
           </section>
 
           <template v-if="activeCategory === 'markdown'">
@@ -388,67 +459,39 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
           <section v-if="activeCategory === 'general'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">字体与排版</h3>
+              <h3 class="lume-settings__label">正文排版</h3>
               <p class="lume-settings__hint">
-                应用于正文编辑和预览，自动保存。字体未安装时使用系统替代字体。
+                只调整正文编辑和预览，自动保存。界面与大纲文字在“外观”中单独设置。
               </p>
             </div>
 
             <div class="lume-settings__options lume-settings__options--stacked">
-              <div class="lume-settings__inline-group">
-                <label class="lume-settings__inline-label" for="writing-font">正文字体</label>
-                <select
-                  id="writing-font"
-                  class="lume-settings__select"
-                  :value="writingFont"
-                  @change="
-                    emit(
-                      'update:writing-font',
-                      ($event.target as HTMLSelectElement).value as WritingFont,
-                    )
-                  "
-                >
-                  <option value="serif">默认衬线字体</option>
-                  <option value="sans">系统无衬线字体</option>
-                  <option value="song">宋体</option>
-                  <option value="kai">楷体</option>
-                  <option value="mono">等宽字体</option>
-                </select>
-              </div>
-              <div class="lume-settings__inline-group">
-                <label class="lume-settings__inline-label" for="writing-font-size">正文字号</label>
-                <select
-                  id="writing-font-size"
-                  class="lume-settings__select"
-                  :value="fontSize"
-                  @change="
-                    emit('update:font-size', Number(($event.target as HTMLSelectElement).value))
-                  "
-                >
-                  <option v-for="size in 21" :key="size" :value="size + 11">
-                    {{ size + 11 }} px
-                  </option>
-                </select>
-              </div>
-              <div class="lume-settings__inline-group">
-                <label class="lume-settings__inline-label" for="writing-line-height"
-                  >正文行距</label
-                >
-                <select
-                  id="writing-line-height"
-                  class="lume-settings__select"
-                  :value="lineHeight"
-                  @change="
-                    emit('update:line-height', Number(($event.target as HTMLSelectElement).value))
-                  "
-                >
-                  <option :value="1.4">紧凑 · 1.4</option>
-                  <option :value="1.65">默认 · 1.65</option>
-                  <option :value="1.8">舒适 · 1.8</option>
-                  <option :value="2">宽松 · 2.0</option>
-                  <option :value="2.4">宽阔 · 2.4</option>
-                </select>
-              </div>
+              <FontSelect
+                id="writing-font"
+                label="正文字体"
+                :value="writingFont"
+                :options="fontOptions"
+                :container="dialogRef"
+                :status="fontStatus"
+                @open="ensureFontsLoaded"
+                @change="emit('update:writing-font', $event)"
+              />
+              <SettingsSelect
+                id="writing-font-size"
+                label="正文字号"
+                :value="fontSize"
+                :options="fontSizeOptions"
+                :container="dialogRef"
+                @change="emit('update:font-size', $event)"
+              />
+              <SettingsSelect
+                id="writing-line-height"
+                label="正文行距"
+                :value="lineHeight"
+                :options="lineHeightOptions"
+                :container="dialogRef"
+                @change="emit('update:line-height', $event)"
+              />
               <div class="lume-settings__inline-group">
                 <span class="lume-settings__inline-label">正文宽度</span>
                 <div class="lume-settings__mini-options" role="radiogroup" aria-label="正文宽度">
@@ -497,7 +540,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
             <p
               class="lume-settings__font-preview"
               :style="{
-                fontFamily: WRITING_FONTS[writingFont],
+                fontFamily: resolveFontFamily(writingFont),
                 fontSize: `${fontSize}px`,
                 lineHeight,
               }"
@@ -512,9 +555,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
           <section v-if="activeCategory === 'appearance'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
               <h3 class="lume-settings__label">外观主题</h3>
-              <p class="lume-settings__hint">
-                选择舒适的界面配色，毛玻璃主题会朦胧透出窗口后方内容。
-              </p>
+              <p class="lume-settings__hint">选择浅色、深色，或自动跟随系统外观。</p>
             </div>
 
             <div class="lume-settings__theme-options" role="radiogroup" aria-label="外观主题">
@@ -551,19 +592,22 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 <Moon :size="17" :stroke-width="1.6" />
                 <span>深色</span>
               </button>
-              <button
-                class="lume-settings__theme-option"
-                :class="{ 'lume-settings__theme-option--active': theme === 'glass' }"
-                type="button"
-                role="radio"
-                :aria-checked="theme === 'glass'"
-                @click="emit('update:theme', 'glass')"
-              >
-                <Droplets :size="17" :stroke-width="1.6" />
-                <span>毛玻璃</span>
-              </button>
             </div>
           </section>
+
+          <InterfaceFontSettings
+            v-if="activeCategory === 'appearance'"
+            :font="interfaceFont"
+            :font-size="interfaceFontSize"
+            :outline-font-size="outlineFontSize"
+            :font-options="fontOptions"
+            :container="dialogRef"
+            :font-status="fontStatus"
+            @open-fonts="ensureFontsLoaded"
+            @update:font="emit('update:interface-font', $event)"
+            @update:font-size="emit('update:interface-font-size', $event)"
+            @update:outline-font-size="emit('update:outline-font-size', $event)"
+          />
 
           <ImageSettingsPanel v-if="activeCategory === 'images'" />
 
@@ -578,24 +622,6 @@ onBeforeUnmount(() => dialogRef.value?.close())
 </template>
 
 <style scoped>
-.lume-settings__select {
-  min-width: 150px;
-  max-width: 100%;
-  padding: 7px 10px;
-  border: 1px solid var(--lume-border-default);
-  border-radius: var(--lume-radius-md);
-  background: var(--lume-bg-surface);
-  color: var(--lume-text-primary);
-  font: inherit;
-  font-size: var(--lume-font-size-sm);
-  color-scheme: light dark;
-}
-
-.lume-settings__select:focus-visible {
-  outline: 2px solid var(--lume-accent-default);
-  outline-offset: 2px;
-}
-
 .lume-settings__font-preview {
   margin: 12px 0;
   padding: 16px;
@@ -630,11 +656,13 @@ onBeforeUnmount(() => dialogRef.value?.close())
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: calc(100vh - 40px);
   background-color: var(--lume-bg-surface);
 }
 
 .lume-settings__header {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   padding: var(--lume-space-5) var(--lume-space-7);
@@ -692,7 +720,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
 .lume-settings__body {
   display: flex;
-  min-height: 420px;
+  min-height: 0;
   height: 420px;
 }
 
@@ -700,6 +728,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
   flex: 0 0 152px;
   width: 152px;
   padding: var(--lume-space-4) var(--lume-space-3);
+  overflow-y: auto;
   border-right: 1px solid var(--lume-border-subtle);
   background: var(--lume-bg-surface-raised);
 }

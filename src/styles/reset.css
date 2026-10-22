@@ -20,7 +20,7 @@ body,
 }
 
 body {
-  font-family: var(--lume-font-sans);
+  font-family: var(--lume-interface-font);
   font-size: var(--lume-font-size-base);
   line-height: var(--lume-line-height-normal);
   color: var(--lume-text-primary);
@@ -53,9 +53,15 @@ a:hover {
   color: var(--lume-accent-hover);
 }
 
-button {
+button,
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
+}
+
+button {
   color: inherit;
   background: none;
   border: none;

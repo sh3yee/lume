@@ -56,10 +56,22 @@ defineExpose({ focus })
       <span class="lume-find-replace__count">
         {{ matchCount > 0 ? `${activeIndex + 1} / ${matchCount}` : '0 / 0' }}
       </span>
-      <button type="button" title="上一个" aria-label="上一个" :disabled="matchCount === 0" @click="emit('move', -1, query)">
+      <button
+        type="button"
+        title="上一个"
+        aria-label="上一个"
+        :disabled="matchCount === 0"
+        @click="emit('move', -1, query)"
+      >
         <ChevronUp :size="14" :stroke-width="2" />
       </button>
-      <button type="button" title="下一个" aria-label="下一个" :disabled="matchCount === 0" @click="emit('move', 1, query)">
+      <button
+        type="button"
+        title="下一个"
+        aria-label="下一个"
+        :disabled="matchCount === 0"
+        @click="emit('move', 1, query)"
+      >
         <ChevronDown :size="14" :stroke-width="2" />
       </button>
       <button type="button" title="关闭" aria-label="关闭" @click="emit('close')">
@@ -73,10 +85,18 @@ defineExpose({ focus })
         type="text"
         placeholder="替换"
       />
-      <button type="button" :disabled="matchCount === 0" @click="emit('replace', query, replacement)">
+      <button
+        type="button"
+        :disabled="matchCount === 0"
+        @click="emit('replace', query, replacement)"
+      >
         替换
       </button>
-      <button type="button" :disabled="matchCount === 0" @click="emit('replaceAll', query, replacement)">
+      <button
+        type="button"
+        :disabled="matchCount === 0"
+        @click="emit('replaceAll', query, replacement)"
+      >
         全部替换
       </button>
     </div>
@@ -98,7 +118,11 @@ defineExpose({ focus })
   border-radius: 12px;
   background-color: color-mix(in srgb, var(--lume-bg-overlay) 82%, transparent);
   color: var(--lume-text-secondary);
-  box-shadow: 0 18px 48px rgb(0 0 0 / 16%), 0 2px 8px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 18%);
+  font-family: var(--lume-interface-font);
+  box-shadow:
+    0 18px 48px rgb(0 0 0 / 16%),
+    0 2px 8px rgb(0 0 0 / 8%),
+    inset 0 1px 0 rgb(255 255 255 / 18%);
   backdrop-filter: blur(28px) saturate(1.35);
 }
 
@@ -117,20 +141,22 @@ defineExpose({ focus })
   border-radius: 7px;
   background-color: color-mix(in srgb, var(--lume-bg-surface-raised) 86%, transparent);
   color: var(--lume-text-primary);
-  font-size: 13px;
+  font-size: var(--lume-font-size-sm);
   box-shadow: inset 0 1px 2px rgb(0 0 0 / 5%);
 }
 
 .lume-find-replace__input:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--lume-accent-default) 72%, var(--lume-border-subtle));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lume-accent-default) 16%, transparent), inset 0 1px 2px rgb(0 0 0 / 5%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--lume-accent-default) 16%, transparent),
+    inset 0 1px 2px rgb(0 0 0 / 5%);
 }
 
 .lume-find-replace__count {
   width: 52px;
   color: var(--lume-text-tertiary);
-  font-size: 12px;
+  font-size: calc(var(--lume-font-size-base) - 2px);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -146,7 +172,7 @@ defineExpose({ focus })
   border-radius: 7px;
   background: transparent;
   color: var(--lume-text-secondary);
-  font-size: 13px;
+  font-size: var(--lume-font-size-sm);
   cursor: default;
 }
 

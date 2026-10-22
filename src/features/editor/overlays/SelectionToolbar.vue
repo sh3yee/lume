@@ -233,6 +233,6 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: calc(var(--lume-font-size-base) - 2px);
 }
 </style>

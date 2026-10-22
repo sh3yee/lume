@@ -56,7 +56,9 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'ArrowDown' || event.key === 'Tab') {
     event.preventDefault()
     if (event.shiftKey && event.key === 'Tab') {
-      activeIndex.value = (activeIndex.value - 1 + Math.max(filteredItems.value.length, 1)) % Math.max(filteredItems.value.length, 1)
+      activeIndex.value =
+        (activeIndex.value - 1 + Math.max(filteredItems.value.length, 1)) %
+        Math.max(filteredItems.value.length, 1)
       return
     }
     activeIndex.value = (activeIndex.value + 1) % Math.max(filteredItems.value.length, 1)
@@ -65,7 +67,9 @@ function handleKeydown(event: KeyboardEvent) {
 
   if (event.key === 'ArrowUp') {
     event.preventDefault()
-    activeIndex.value = (activeIndex.value - 1 + Math.max(filteredItems.value.length, 1)) % Math.max(filteredItems.value.length, 1)
+    activeIndex.value =
+      (activeIndex.value - 1 + Math.max(filteredItems.value.length, 1)) %
+      Math.max(filteredItems.value.length, 1)
     return
   }
 
@@ -83,7 +87,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 <template>
   <Teleport to="body">
     <div v-if="open" class="lume-command-palette" @mousedown="emit('close')">
-      <div class="lume-command-palette__panel" role="dialog" aria-modal="true" aria-label="命令面板" @mousedown.stop>
+      <div
+        class="lume-command-palette__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="命令面板"
+        @mousedown.stop
+      >
         <div class="lume-command-palette__header">
           <input
             ref="inputRef"
@@ -129,6 +139,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
   justify-content: center;
   padding-top: 110px;
   background: rgba(12, 12, 12, 0.24);
+  font-family: var(--lume-interface-font);
   backdrop-filter: blur(8px);
 }
 
@@ -201,7 +212,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 .lume-command-palette__hint {
   color: var(--lume-text-tertiary);
-  font-size: 11px;
+  font-size: var(--lume-font-size-xs);
 }
 
 .lume-command-palette__empty {

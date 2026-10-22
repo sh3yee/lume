@@ -12,8 +12,8 @@
   background: var(--lume-bg-surface);
   color: var(--lume-text-primary);
   box-shadow: 0 8px 28px rgb(0 0 0 / 16%);
-  font-family: var(--lume-font-sans);
-  font-size: 13px;
+  font-family: var(--lume-interface-font);
+  font-size: var(--lume-font-size-sm);
   line-height: 1.5;
 }
 
@@ -55,5 +55,5 @@
   padding: 6px 8px 2px;
   border-top: 1px solid var(--lume-border-default);
   color: var(--lume-text-tertiary);
-  font-size: 11px;
+  font-size: var(--lume-font-size-xs);
 }

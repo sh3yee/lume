@@ -10,6 +10,7 @@
   border-radius: 9px;
   background-color: color-mix(in srgb, var(--lume-bg-overlay) 88%, transparent);
   color: var(--lume-text-secondary);
+  font-family: var(--lume-interface-font);
   box-shadow:
     0 8px 22px rgb(0 0 0 / 12%),
     0 1px 2px rgb(0 0 0 / 10%);
@@ -46,7 +47,7 @@
   background-color: var(--lume-bg-overlay);
   color: var(--lume-text-primary);
   box-shadow: 0 4px 12px rgb(0 0 0 / 14%);
-  font-size: 12px;
+  font-size: calc(var(--lume-font-size-base) - 2px);
   font-weight: var(--lume-font-weight-normal);
   line-height: 1.4;
   pointer-events: none;
