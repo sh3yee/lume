@@ -76,7 +76,7 @@ export const getSelectionToolbarModel = (
             : selection.isRowSelection()
               ? t('选中 {0} 行', rect.bottom - rect.top)
               : t('选中 {0} × {1} 单元格', rect.bottom - rect.top, rect.right - rect.left)
-        : t('表格 · 第 {0} 行 / 第 {1} 列', rect.top + 1, rect.left + 1)
+        : t('表格')
     placement = selection instanceof CellSelection ? 'range' : 'block'
     ids = [
       ...(selection instanceof CellSelection ? ['copy'] : []),

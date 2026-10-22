@@ -372,7 +372,6 @@ export const en = {
   '选中 {0} 列': '{0} selected columns',
   '选中 {0} 行': '{0} selected rows',
   '选中 {0} × {1} 单元格': '{0} × {1} selected cells',
-  '表格 · 第 {0} 行 / 第 {1} 列': 'Table · Row {0} / Column {1}',
   整个文档: 'Entire document',
   混合选区: 'Mixed selection',
   源码节点: 'Source node',
