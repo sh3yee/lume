@@ -2,7 +2,7 @@
 /**
  * TitleBar - 标题栏
  *
- * 显示当前文档、编辑模式与常用操作，并提供窗口拖拽区域。
+ * 显示当前文档与常用操作，并提供窗口拖拽区域。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Check, Copy, FileText, Minus, MoreHorizontal, Square, X } from 'lucide-vue-next'
@@ -20,10 +20,9 @@ interface MenuItem {
 }
 
 const MENU_WIDTH = { window: 168, document: 248 }
-const MENU_HEIGHT = { window: 106, document: 202 }
+const MENU_HEIGHT = { window: 106, document: 170 }
 
 const props = defineProps<{
-  viewMode: 'wysiwyg' | 'split'
   sidebarVisible: boolean
   inspectorVisible: boolean
 }>()
@@ -34,7 +33,6 @@ const emit = defineEmits<{
   'save-file': []
   'toggle-sidebar': []
   'toggle-inspector': []
-  'update:view-mode': [mode: 'wysiwyg' | 'split']
 }>()
 
 const { currentFileName, currentFilePath, isDirty } = useFileOps()
@@ -58,12 +56,6 @@ const menuItems = computed<MenuItem[]>(() => {
     ]
   }
   return [
-    {
-      id: 'split-view',
-      label: '分栏预览',
-      checked: props.viewMode === 'split',
-      action: () => emit('update:view-mode', props.viewMode === 'split' ? 'wysiwyg' : 'split'),
-    },
     { id: 'save', label: '保存', hint: 'Ctrl+S', action: () => emit('save-file') },
     {
       id: 'sidebar',

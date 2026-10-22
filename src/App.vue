@@ -1,10 +1,8 @@
 <template>
   <div class="lume-app" :class="{ 'lume-app--focus': focusMode }">
     <TitleBar
-      :view-mode="viewMode"
       :sidebar-visible="sidebarVisible && !focusMode"
       :inspector-visible="inspectorVisible && !focusMode"
-      @update:view-mode="handleViewModeChange"
       @toggle-sidebar="toggleSidebar"
       @toggle-inspector="handleToggleInspector"
       @open-command-palette="commandPalette.open"
