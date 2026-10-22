@@ -4,7 +4,7 @@
  *
  * 当前使用原生 textarea，后续可在保持 Document Store 边界不变的情况下替换为 CodeMirror 6。
  */
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { useSourceImages } from '@/features/images/editor/useSourceImages'
 import { createMarkdownPreview, useSourceEmojiCompletion } from '../extensions'
@@ -19,6 +19,13 @@ const emit = defineEmits<{
 
 const { content, updateCursor } = useDocument()
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const mirrorRef = ref<HTMLElement | null>(null)
+const lineHeights = ref<number[]>([])
+const scrollTop = ref(0)
+const lines = computed(() => content.value.split('\n'))
+let resizeObserver: ResizeObserver | null = null
+let styleObserver: MutationObserver | null = null
+let measureFrame = 0
 let isApplyingScrollSync = false
 const images = useSourceImages(textareaRef, (element) => syncCursor(element))
 const emoji = useSourceEmojiCompletion(
@@ -49,10 +56,26 @@ function handleInput(event: Event) {
 
 function handleScroll(event: Event) {
   const element = event.target as HTMLTextAreaElement
+  scrollTop.value = element.scrollTop
   emoji.close()
   const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
   const ratio = maxScrollTop > 0 ? element.scrollTop / maxScrollTop : 0
   if (!isApplyingScrollSync) emit('scroll-ratio', ratio)
+}
+
+const measureLines = () => {
+  const textarea = textareaRef.value
+  const mirror = mirrorRef.value
+  if (!textarea || !mirror) return
+  const style = getComputedStyle(textarea)
+  mirror.style.width = `${textarea.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)}px`
+  lineHeights.value = Array.from(mirror.children, (line) => line.getBoundingClientRect().height)
+  scrollTop.value = textarea.scrollTop
+}
+
+const scheduleMeasureLines = () => {
+  cancelAnimationFrame(measureFrame)
+  measureFrame = requestAnimationFrame(measureLines)
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -83,19 +106,49 @@ watch(
     isApplyingScrollSync = true
     emoji.close()
     element.scrollTop = ratio * maxScrollTop
+    scrollTop.value = element.scrollTop
     requestAnimationFrame(() => {
       isApplyingScrollSync = false
     })
   },
 )
 
+watch(content, scheduleMeasureLines, { flush: 'post' })
+
 onMounted(() => {
   if (textareaRef.value) syncCursor(textareaRef.value)
+  resizeObserver = new ResizeObserver(scheduleMeasureLines)
+  if (textareaRef.value) resizeObserver.observe(textareaRef.value)
+  styleObserver = new MutationObserver(scheduleMeasureLines)
+  styleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
+  document.fonts.addEventListener('loadingdone', scheduleMeasureLines)
+  scheduleMeasureLines()
+})
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  styleObserver?.disconnect()
+  cancelAnimationFrame(measureFrame)
+  document.fonts.removeEventListener('loadingdone', scheduleMeasureLines)
 })
 </script>
 
 <template>
   <section class="lume-source-editor">
+    <div class="lume-source-editor__gutter" aria-hidden="true">
+      <div :style="{ transform: `translateY(${-scrollTop}px)` }">
+        <div
+          v-for="(_, index) in lines"
+          :key="index"
+          :style="{ height: lineHeights[index] ? `${lineHeights[index]}px` : undefined }"
+        >
+          {{ index + 1 }}
+        </div>
+      </div>
+    </div>
+    <div ref="mirrorRef" class="lume-source-editor__mirror" aria-hidden="true">
+      <div v-for="(line, index) in lines" :key="index">{{ line || '\u200b' }}</div>
+    </div>
     <textarea
       ref="textareaRef"
       class="lume-source-editor__textarea"
@@ -118,6 +171,7 @@ onMounted(() => {
 
 <style scoped>
 .lume-source-editor {
+  position: relative;
   flex: 1;
   display: flex;
   min-width: 0;
@@ -128,11 +182,37 @@ onMounted(() => {
   background-color: var(--lume-pane-bg);
   box-shadow: var(--lume-shadow-xs);
 }
+.lume-source-editor__gutter,
+.lume-source-editor__mirror {
+  font-family: var(--lume-font-mono, 'Cascadia Code', 'Fira Code', Consolas, monospace);
+  font-size: var(--lume-writing-font-size, 15px);
+  line-height: var(--lume-writing-line-height, 1.65);
+  letter-spacing: 0.1px;
+  tab-size: 2;
+}
+.lume-source-editor__gutter {
+  flex-shrink: 0;
+  min-width: 3ch;
+  padding: var(--lume-space-7) 12px var(--lume-space-7) 16px;
+  overflow: hidden;
+  color: var(--lume-text-tertiary);
+  text-align: right;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.lume-source-editor__mirror {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
 .lume-source-editor__textarea {
   flex: 1;
   width: 100%;
   height: 100%;
-  padding: var(--lume-space-7);
+  min-width: 0;
+  padding: var(--lume-space-7) var(--lume-space-7) var(--lume-space-7) 4px;
   border: none;
   outline: none;
   resize: none;

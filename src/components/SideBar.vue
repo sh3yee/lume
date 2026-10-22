@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** SideBar - 工作区文件列表与文件操作。 */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { vLiquidGlass } from '@/ui/glass/directive'
 import {
   ChevronRight,
@@ -44,6 +45,19 @@ const contextEntry = ref<WorkspaceEntry | null>(null)
 const createKind = ref<'file' | 'directory' | null>(null)
 const createName = ref('')
 const createInput = ref<HTMLInputElement | null>(null)
+const sidebarRef = ref<HTMLElement | null>(null)
+const { interfaceFont, interfaceFontSize } = useInterfacePreference()
+const manualWidth = ref<number | null>(null)
+const measuredWidth = ref(228)
+const viewportWidth = ref(window.innerWidth)
+const resizing = ref(false)
+let resizeStartX = 0
+let resizeStartWidth = 0
+
+const maxWidth = computed(() => Math.max(200, Math.min(420, viewportWidth.value * 0.4)))
+const panelWidth = computed(() =>
+  Math.max(200, Math.min(manualWidth.value ?? measuredWidth.value, maxWidth.value)),
+)
 
 const standaloneFiles = computed(() =>
   documents.value.filter((item) => {
@@ -55,6 +69,72 @@ const standaloneFiles = computed(() =>
 const hasFileContent = computed(
   () => Boolean(workspacePath.value) || standaloneFiles.value.length > 0,
 )
+
+const measureSidebarWidth = () => {
+  const rows = sidebarRef.value?.querySelectorAll<HTMLElement>(
+    '.lume-sidebar__file, .lume-sidebar__workspace-root',
+  )
+  let width = 228
+  rows?.forEach((row) => {
+    const style = getComputedStyle(row)
+    let contentWidth = 0
+    for (const child of row.children) {
+      if (child.tagName === 'SPAN') {
+        const range = document.createRange()
+        range.selectNodeContents(child)
+        contentWidth += range.getBoundingClientRect().width
+      } else contentWidth += child.getBoundingClientRect().width
+    }
+    // 包含层级缩进、图标间距、内容区留白和滚动条余量。
+    width = Math.max(
+      width,
+      contentWidth +
+        Number.parseFloat(style.paddingLeft) +
+        Number.parseFloat(style.paddingRight) +
+        (Number.parseFloat(style.columnGap) || 0) * Math.max(0, row.children.length - 1) +
+        36,
+    )
+  })
+  measuredWidth.value = Math.min(320, Math.ceil(width))
+}
+
+const handleViewportResize = () => {
+  viewportWidth.value = window.innerWidth
+}
+
+const handleResizeStart = (event: PointerEvent) => {
+  if (event.button !== 0 || !event.isPrimary) return
+  resizeStartX = event.clientX
+  resizeStartWidth = panelWidth.value
+  resizing.value = true
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+const handleResizeMove = (event: PointerEvent) => {
+  if (!resizing.value) return
+  manualWidth.value = Math.max(
+    200,
+    Math.min(maxWidth.value, resizeStartWidth + event.clientX - resizeStartX),
+  )
+}
+
+const handleResizeEnd = (event: PointerEvent) => {
+  resizing.value = false
+  const handle = event.currentTarget as HTMLElement
+  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
+}
+
+const handleResizeKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Home' || event.key === 'Enter') manualWidth.value = null
+  else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    manualWidth.value = Math.max(
+      200,
+      Math.min(maxWidth.value, panelWidth.value + (event.key === 'ArrowRight' ? 16 : -16)),
+    )
+  } else return
+  event.preventDefault()
+}
 
 async function selectFile() {
   await openFile()
@@ -146,19 +226,56 @@ async function confirmCreate() {
   if (kind === 'file') await openWorkspaceFile(path)
 }
 
+watch(
+  [visibleWorkspaceEntries, standaloneFiles, workspaceName, interfaceFont, interfaceFontSize],
+  measureSidebarWidth,
+  { flush: 'post' },
+)
+
 onMounted(() => {
+  measureSidebarWidth()
+  window.addEventListener('resize', handleViewportResize)
+  document.fonts.addEventListener('loadingdone', measureSidebarWidth)
+  void document.fonts.ready.then(measureSidebarWidth)
   window.addEventListener('pointerdown', closeContextMenu)
   window.addEventListener('blur', closeContextMenu)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleViewportResize)
+  document.fonts.removeEventListener('loadingdone', measureSidebarWidth)
   window.removeEventListener('pointerdown', closeContextMenu)
   window.removeEventListener('blur', closeContextMenu)
 })
 </script>
 
 <template>
-  <aside v-liquid-glass class="lume-sidebar lume-side-glass" aria-label="文件">
+  <aside
+    v-liquid-glass
+    ref="sidebarRef"
+    class="lume-sidebar lume-side-glass"
+    :style="{ width: `${panelWidth}px` }"
+    aria-label="文件"
+  >
+    <div
+      class="lume-sidebar__resize"
+      :class="{ 'lume-sidebar__resize--active': resizing }"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="调整文件栏宽度"
+      :aria-valuenow="panelWidth"
+      :aria-valuemin="200"
+      :aria-valuemax="maxWidth"
+      tabindex="0"
+      title="拖动调整宽度，双击恢复自适应"
+      @pointerdown="handleResizeStart"
+      @pointermove="handleResizeMove"
+      @pointerup="handleResizeEnd"
+      @pointercancel="handleResizeEnd"
+      @lostpointercapture="resizing = false"
+      @dblclick="manualWidth = null"
+      @keydown="handleResizeKeydown"
+    ></div>
     <div class="lume-sidebar__content" @contextmenu="openFileContextMenu">
       <template v-if="workspacePath">
         <button
@@ -305,14 +422,30 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lume-sidebar {
-  width: var(--lume-sidebar-width);
   min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--lume-chrome-bg, var(--lume-bg-surface));
-  border-right: 1px solid var(--lume-panel-border, var(--lume-border-subtle));
+  border-right: 0;
   flex-shrink: 0;
   overflow: hidden;
+}
+
+.lume-sidebar__resize {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 0 auto;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.lume-sidebar__resize:hover,
+.lume-sidebar__resize:focus-visible,
+.lume-sidebar__resize--active {
+  background: var(--lume-accent-subtle);
+  box-shadow: inset -2px 0 var(--lume-accent-default);
+  outline: none;
 }
 
 .lume-sidebar__workspace-root:focus-visible {

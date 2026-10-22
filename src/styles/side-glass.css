@@ -1,6 +1,6 @@
 /* 中性透明材质；只处理表面，不改变面板的尺寸和形状。 */
 :root {
-  --lume-app-background: #f0f0f0;
+  --lume-app-background: #fff;
   --lume-glass-surface: rgb(255 255 255 / 16%);
   --lume-glass-overlay: rgb(255 255 255 / 38%);
   --lume-glass-highlight: rgb(255 255 255 / 55%);
@@ -19,7 +19,7 @@
 }
 
 :root[data-theme='dark'] {
-  --lume-app-background: #191919;
+  --lume-app-background: #1e2533;
   --lume-glass-surface: rgb(255 255 255 / 4%);
   --lume-glass-overlay: rgb(25 25 25 / 38%);
   --lume-glass-highlight: rgb(255 255 255 / 12%);
@@ -50,16 +50,14 @@
   border-color: var(--lume-glass-edge);
 }
 
-/* 反光与接缝的明暗层始终可见，纯色背景下也能辨认玻璃厚度。 */
+/* 两侧接缝只绘制一条淡线，避免边框与高光叠成双线。 */
 .lume-side-glass::before {
   position: absolute;
   z-index: 1;
   inset: 0;
   box-shadow:
     inset 0 1px var(--lume-glass-rim),
-    inset -1px 0 var(--lume-glass-rim),
-    inset -3px 0 3px -2px var(--lume-glass-depth),
-    inset -12px 0 18px -18px var(--lume-glass-depth);
+    inset -1px 0 var(--lume-glass-edge);
   content: '';
   pointer-events: none;
 }
@@ -67,9 +65,7 @@
 .lume-document-inspector.lume-side-glass::before {
   box-shadow:
     inset 0 1px var(--lume-glass-rim),
-    inset 1px 0 var(--lume-glass-rim),
-    inset 3px 0 3px -2px var(--lume-glass-depth),
-    inset 12px 0 18px -18px var(--lume-glass-depth);
+    inset 1px 0 var(--lume-glass-edge);
 }
 
 /* 浮层覆盖正文时增加轻度磨砂，避免两层文字相互干扰。 */
