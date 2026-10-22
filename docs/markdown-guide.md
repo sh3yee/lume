@@ -4,7 +4,7 @@
 
 This guide follows the categories in [Typora's Markdown reference](https://support.typora.io/zh/Markdown-Reference/) and describes **the syntax, editing interactions, and commands currently implemented in Lume**. The categories follow Typora; the operations described here are specific to Lume.
 
-Applies to repository version **0.6.0**. Reviewed on October 22, 2026.
+Applies to repository version **0.7.0**. Reviewed on October 22, 2026.
 
 [Editing modes and common operations](#editing-modes-and-common-operations) · [Block elements](#block-elements) · [Inline elements](#inline-elements) · [HTML and embedded content](#html-and-embedded-content) · [Keyboard shortcuts](#keyboard-shortcuts) · [Current limitations](#current-limitations)
 
