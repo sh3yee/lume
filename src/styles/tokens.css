@@ -130,7 +130,7 @@
   --lume-titlebar-height: 42px;
   --lume-sidebar-width: 228px;
   --lume-sidebar-collapsed-width: 48px;
-  --lume-statusbar-height: 32px;
+  --lume-statusbar-height: 26px;
   --lume-editor-max-width: 760px;
   --lume-preview-max-width: var(--lume-writing-width, 820px);
 

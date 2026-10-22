@@ -63,6 +63,7 @@ const emit = defineEmits<{
   background: var(--lume-chrome-bg);
   border-top: 1px solid var(--lume-border-subtle);
   font-size: var(--lume-font-size-xs);
+  line-height: var(--lume-line-height-tight);
   color: var(--lume-text-tertiary);
   user-select: none;
   flex-shrink: 0;
@@ -89,8 +90,8 @@ const emit = defineEmits<{
 }
 
 .lume-statusbar__sidebar-trigger {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
