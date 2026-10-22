@@ -85,6 +85,7 @@ export const getSelectionToolbarModel = (
       'alignColumnLeft',
       'alignColumnCenter',
       'alignColumnRight',
+      'deleteTable',
     ]
   } else if (['mixed', 'all'].includes(context.target)) {
     title = context.target === 'all' ? t('整个文档') : t('混合选区')

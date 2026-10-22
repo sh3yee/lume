@@ -66,6 +66,7 @@ const icons: Record<string, typeof Bold> = {
   copyCode: Copy,
   editCodeLanguage: Code,
   deleteNode: Trash2,
+  deleteTable: Trash2,
 }
 const props = defineProps<{
   model: SelectionToolbarModel

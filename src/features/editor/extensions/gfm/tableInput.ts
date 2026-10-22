@@ -40,7 +40,7 @@ export const tableInputPlugin = $prose(
       props: {
         handleKeyDown(view, event) {
           if (
-            event.key !== 'Enter' ||
+            (event.key !== 'Enter' && event.key !== 'Backspace') ||
             event.isComposing ||
             view.composing ||
             event.shiftKey ||
@@ -53,6 +53,23 @@ export const tableInputPlugin = $prose(
 
           const { state } = view
           const { $from, empty } = state.selection
+          if (event.key === 'Backspace') {
+            if (!empty) return false
+            for (let depth = $from.depth; depth > 0; depth -= 1) {
+              const node = $from.node(depth)
+              if (node.type.name !== 'table') continue
+              // 图片、公式等行内对象也算内容，避免误删。
+              if (node.textBetween(0, node.content.size, '', '\ufffc')) return false
+              event.preventDefault()
+              view.dispatch(
+                closeHistory(
+                  state.tr.delete($from.before(depth), $from.after(depth)),
+                ).scrollIntoView(),
+              )
+              return true
+            }
+            return false
+          }
           if (
             !empty ||
             $from.parent.type.name !== 'paragraph' ||
