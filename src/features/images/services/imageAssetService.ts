@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { clearStagedImages, materializeStagedImages } from '@/platform/tauri/images'
 import { getDocumentImageOptions } from '../model/imageSettings'
 import {
@@ -30,7 +31,7 @@ export async function prepareDocumentImages(
     documentId,
     getDocumentImageOptions(content, 'local'),
   )
-  if (assets.length !== sources.length) throw new Error('暂存图片迁移结果不完整。')
+  if (assets.length !== sources.length) throw new Error(t('暂存图片迁移结果不完整。'))
   return replaceMarkdownImageSources(
     content,
     new Map(sources.map((source, index) => [source, assets[index]!.markdownPath])),

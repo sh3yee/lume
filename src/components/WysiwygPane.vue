@@ -6,6 +6,7 @@
  * 编辑器负责 Markdown 快捷输入、选区、撤销历史和输入法兼容，
  * 组件只负责与 useDocument 同步 Markdown 和光标状态。
  */
+import { language, t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Check } from 'lucide-vue-next'
 import { editorViewCtx, parserCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
@@ -248,7 +249,7 @@ const setImageMetadata = (key: 'typora-copy-images-to' | 'typora-root-url', valu
 
 const handleImageError = (event: Event) => {
   if (!disposed)
-    commandError.value = String((event as CustomEvent<unknown>).detail ?? '图片操作失败')
+    commandError.value = String((event as CustomEvent<unknown>).detail ?? t('图片操作失败'))
 }
 
 defineExpose({
@@ -326,6 +327,14 @@ function handleNativeImageDrop(event: Event) {
     })
   })
 }
+
+watch(language, () => {
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    view.updateState(view.state)
+    selectionControls.schedule(view)
+  })
+})
 
 onMounted(async () => {
   if (!editorRef.value) return
@@ -505,7 +514,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="lume-wysiwyg-pane">
     <div v-if="commandError" class="lume-wysiwyg-pane__error" role="alert">
-      {{ commandError }} <button type="button" @click="commandError = ''">关闭</button>
+      {{ commandError }} <button type="button" @click="commandError = ''">{{ t('关闭') }}</button>
     </div>
     <div
       ref="editorRef"

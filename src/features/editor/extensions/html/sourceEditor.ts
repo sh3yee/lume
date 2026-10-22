@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { html } from '@codemirror/lang-html'
 import { defaultHighlightStyle, ensureSyntaxTree, syntaxHighlighting } from '@codemirror/language'
@@ -69,7 +70,7 @@ export const createHtmlSourceEditor = (
         html({ selfClosingTags: true }),
         highlighting.of(highlight()),
         EditorView.lineWrapping,
-        EditorView.contentAttributes.of({ 'aria-label': 'HTML 源码', spellcheck: 'false' }),
+        EditorView.contentAttributes.of({ 'aria-label': t('HTML 源码'), spellcheck: 'false' }),
         EditorState.transactionFilter.of((tr) =>
           tr.docChanged && !synchronizing && !view.editable ? [] : tr,
         ),

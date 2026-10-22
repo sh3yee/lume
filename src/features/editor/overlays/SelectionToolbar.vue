@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { computed, nextTick, ref, watch } from 'vue'
 import {
   Bold,
@@ -170,7 +171,7 @@ watch(
     ref="root"
     class="lume-floating-toolbar lume-selection-toolbar"
     role="toolbar"
-    :aria-label="`${model.title}操作`"
+    :aria-label="t('{0}操作', model.title)"
     :data-editor-overlay="overlayId"
     :style="{ left: `${position.x}px`, top: `${position.y}px` }"
     @pointerdown.stop="handlePointerDown"
@@ -199,8 +200,8 @@ watch(
       <span class="lume-floating-toolbar__separator" role="separator"></span>
       <button
         type="button"
-        aria-label="更多操作"
-        data-tooltip="更多操作"
+        :aria-label="t('更多操作')"
+        :data-tooltip="t('更多操作')"
         :tabindex="tabstopIndex === model.items.length ? 0 : -1"
         aria-haspopup="menu"
         :aria-expanded="expandedId === 'more'"

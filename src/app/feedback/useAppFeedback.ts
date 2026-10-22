@@ -3,6 +3,7 @@
  *
  * 统一管理需要在应用壳展示的短时消息。
  */
+import { t } from '@/app/i18n'
 import { onBeforeUnmount, ref } from 'vue'
 
 export function useAppFeedback() {
@@ -24,7 +25,7 @@ export function useAppFeedback() {
   function getErrorMessage(error: unknown) {
     if (error instanceof Error) return error.message
     if (error && typeof error === 'object' && 'message' in error) return String(error.message)
-    return String(error || '未知错误')
+    return String(error || t('未知错误'))
   }
 
   onBeforeUnmount(dismissMessage)

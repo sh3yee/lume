@@ -1,3 +1,5 @@
+import { language, t } from '@/app/i18n'
+import { watch } from 'vue'
 import type { Editor } from '@milkdown/kit/core'
 import type { Node as AstNode } from '@milkdown/kit/transformer'
 import type { Node } from '@milkdown/kit/prose/model'
@@ -44,7 +46,7 @@ export const tocSchema = $nodeSchema('toc', () => ({
   group: 'block',
   atom: true,
   parseDOM: [{ tag: 'nav[data-toc]' }],
-  toDOM: () => ['nav', { 'data-toc': '', class: 'lume-toc', 'aria-label': '目录' }, '目录'],
+  toDOM: () => ['nav', { 'data-toc': '', class: 'lume-toc', 'aria-label': t('目录') }, t('目录')],
   parseMarkdown: {
     match: (node) => node.type === 'toc',
     runner: (state, _node, type) => state.addNode(type),
@@ -72,18 +74,19 @@ export const tocView = $prose(
             dom.className = 'lume-toc'
             dom.dataset.toc = ''
             dom.contentEditable = 'false'
-            dom.setAttribute('aria-label', '目录')
+            dom.setAttribute('aria-label', t('目录'))
             const render = () => {
+              dom.setAttribute('aria-label', t('目录'))
               const headings = collectHeadings(view.state.doc)
               dom.replaceChildren()
               if (!headings.length) {
-                dom.textContent = '目录 · 添加标题后自动生成'
+                dom.textContent = t('目录 · 添加标题后自动生成')
                 return
               }
               headings.forEach((heading) => {
                 const button = document.createElement('button')
                 button.type = 'button'
-                button.textContent = heading.text || '无标题'
+                button.textContent = heading.text || t('无标题')
                 button.className = `lume-toc-entry md-toc-h${heading.level}`
                 button.style.paddingInlineStart = `${(heading.level - 1) * 1.25}em`
                 button.addEventListener('click', () => {
@@ -101,12 +104,16 @@ export const tocView = $prose(
             const refresh = () => render()
             dom.addEventListener('lume-toc-refresh', refresh)
             render()
+            const stopLanguageWatch = watch(language, render)
             return {
               dom,
               ignoreMutation: () => true,
               stopEvent: (event) =>
                 event.target instanceof Element && !!event.target.closest('button'),
-              destroy: () => dom.removeEventListener('lume-toc-refresh', refresh),
+              destroy: () => {
+                stopLanguageWatch()
+                dom.removeEventListener('lume-toc-refresh', refresh)
+              },
             }
           },
         },
@@ -158,7 +165,7 @@ export function useTocPreviewExtension(markdown: MarkdownIt) {
   })
   markdown.renderer.rules.toc = (tokens, i) => {
     const headings = tokens[i].meta as { text: string; level: number; id: string }[]
-    return `<nav class="lume-toc" data-toc="" aria-label="目录">${headings.map((h) => `<a class="lume-toc-entry md-toc-h${h.level}" style="padding-inline-start:${(h.level - 1) * 1.25}em" href="#${h.id}">${markdown.utils.escapeHtml(h.text || '无标题')}</a>`).join('') || '目录 · 添加标题后自动生成'}</nav>\n`
+    return `<nav class="lume-toc" data-toc="" aria-label="${t('目录')}">${headings.map((h) => `<a class="lume-toc-entry md-toc-h${h.level}" style="padding-inline-start:${(h.level - 1) * 1.25}em" href="#${h.id}">${markdown.utils.escapeHtml(h.text || t('无标题'))}</a>`).join('') || t('目录 · 添加标题后自动生成')}</nav>\n`
   }
   return markdown
 }

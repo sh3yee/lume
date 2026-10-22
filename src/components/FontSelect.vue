@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { computed, ref } from 'vue'
 import { resolveFontFamily, type FontPreference } from '@/app/preferences/fontFamily'
 import { useRecentFonts } from '@/app/preferences/useRecentFonts'
@@ -36,7 +37,7 @@ const recentOptions = computed<FontOption[]>(() =>
         value,
         label: value.startsWith('local:')
           ? value.slice(6)
-          : (PRESET_FONT_OPTIONS.find((option) => option.value === value)?.label ?? value),
+          : (PRESET_FONT_OPTIONS.value.find((option) => option.value === value)?.label ?? value),
       },
   ),
 )
@@ -46,7 +47,8 @@ const allOptions = computed<FontOption[]>(() => {
     value: props.value,
     label: props.value.startsWith('local:')
       ? props.value.slice(6)
-      : (PRESET_FONT_OPTIONS.find((option) => option.value === props.value)?.label ?? props.value),
+      : (PRESET_FONT_OPTIONS.value.find((option) => option.value === props.value)?.label ??
+        props.value),
   }
   for (const option of [...recentOptions.value, current]) {
     if (!options.some((candidate) => candidate.value === option.value)) options.push(option)
@@ -58,21 +60,21 @@ const visibleOptions = computed<GroupedFontOption[]>(() => {
   if (showAll.value) {
     return allOptions.value.map((option) => ({
       ...option,
-      group: PRESET_FONT_OPTIONS.some((preset) => preset.value === option.value)
-        ? '默认字体'
-        : '系统字体',
+      group: PRESET_FONT_OPTIONS.value.some((preset) => preset.value === option.value)
+        ? t('默认字体')
+        : t('系统字体'),
     }))
   }
 
   const options: GroupedFontOption[] = []
-  const suggested = [...recentOptions.value, ...PRESET_FONT_OPTIONS]
+  const suggested = [...recentOptions.value, ...PRESET_FONT_OPTIONS.value]
   const current = allOptions.value.find((option) => option.value === props.value)
   if (current && !suggested.some((option) => option.value === current.value)) {
-    options.push({ ...current, group: '当前字体' })
+    options.push({ ...current, group: t('当前字体') })
   }
   for (const [group, candidates] of [
-    ['最近使用', recentOptions.value],
-    ['常用字体', PRESET_FONT_OPTIONS],
+    [t('最近使用'), recentOptions.value],
+    [t('常用字体'), PRESET_FONT_OPTIONS.value],
   ] as const) {
     for (const option of candidates) {
       if (!options.some((candidate) => candidate.value === option.value))
@@ -107,7 +109,7 @@ const handleSelect = (value: FontPreference) => {
     :options="visibleOptions"
     :container="container"
     searchable
-    search-placeholder="输入字体名称"
+    :search-placeholder="t('输入字体名称')"
     :max-menu-height="360"
     :create-option="createFontOption"
     @open="handleOpen"
@@ -123,13 +125,13 @@ const handleSelect = (value: FontPreference) => {
           class="lume-font-select__sample"
           :style="{ fontFamily: resolveFontFamily(option.value) }"
           aria-hidden="true"
-          >Aa 字</span
+          >{{ t('Aa 字') }}</span
         >
       </span>
     </template>
     <template #footer>
       <span v-if="status" class="lume-font-select__hint" role="status">{{ status }}</span>
-      <span v-if="query.trim()" class="lume-font-select__hint">按 Enter 确认字体</span>
+      <span v-if="query.trim()" class="lume-font-select__hint">{{ t('按 Enter 确认字体') }}</span>
       <button
         v-else
         class="lume-font-select__browse"
@@ -137,7 +139,7 @@ const handleSelect = (value: FontPreference) => {
         @pointerdown.prevent
         @click="showAll = !showAll"
       >
-        {{ showAll ? '返回常用字体' : '浏览全部字体' }}
+        {{ showAll ? t('返回常用字体') : t('浏览全部字体') }}
       </button>
     </template>
   </SettingsSelect>

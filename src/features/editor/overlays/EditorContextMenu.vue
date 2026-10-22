@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { computed, nextTick, ref } from 'vue'
 import type { ContextMenuItem } from './contextMenuTypes'
 import { constrainOverlayPosition } from './overlayPosition'
@@ -90,7 +91,7 @@ defineExpose({ focusFirstItem, getBounds })
     ref="menu"
     class="lume-editor-context-menu"
     role="menu"
-    aria-label="编辑区操作"
+    :aria-label="t('编辑区操作')"
     :data-editor-overlay="overlayId"
     :style="{ left: `${position.x}px`, top: `${position.y}px` }"
     @contextmenu.prevent

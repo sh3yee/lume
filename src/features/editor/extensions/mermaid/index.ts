@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { type Editor } from '@milkdown/kit/core'
 import type MarkdownIt from 'markdown-it'
 import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
@@ -70,7 +71,7 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
       bindFunctions?.(diagram)
     } catch (error) {
       diagram.classList.add('lume-mermaid--error')
-      diagram.title = error instanceof Error ? error.message : 'Mermaid 图表渲染失败'
+      diagram.title = error instanceof Error ? error.message : t('Mermaid 图表渲染失败')
     }
   }
 }

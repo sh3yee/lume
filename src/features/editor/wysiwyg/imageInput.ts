@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model'
 import { closeHistory } from '@milkdown/kit/prose/history'
 import {
@@ -87,7 +88,7 @@ function replaceImageSources(fragment: Fragment, sources: Map<string, string>): 
 }
 
 function reportImageError(error: unknown) {
-  const message = error instanceof Error ? error.message : '无法导入图片。'
+  const message = error instanceof Error ? error.message : t('无法导入图片。')
   window.dispatchEvent(new CustomEvent('lume:image-error', { detail: message }))
 }
 

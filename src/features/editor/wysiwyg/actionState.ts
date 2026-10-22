@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { ContextMenuItem } from '../overlays/contextMenuTypes'
 import { getEditorCommand } from './editorCommands'
@@ -108,18 +109,19 @@ export const getActionState = (
         ? 'mixed'
         : false
   }
-  if (!editable && !copyActions.has(id)) return { disabled: true, active, reason: '当前内容只读' }
+  if (!editable && !copyActions.has(id))
+    return { disabled: true, active, reason: t('当前内容只读') }
   return {
     disabled: !enabled,
     active,
     reason: enabled
       ? undefined
       : active === true
-        ? '已经是此状态'
+        ? t('已经是此状态')
         : id === 'deleteRow'
-          ? '必须保留表头和至少一行正文'
+          ? t('必须保留表头和至少一行正文')
           : ['mixed', 'all'].includes(context.target)
-            ? '请缩小选区后操作此类内容'
-            : '当前目标或结构不支持此操作',
+            ? t('请缩小选区后操作此类内容')
+            : t('当前目标或结构不支持此操作'),
   }
 }

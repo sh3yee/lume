@@ -4,6 +4,7 @@
  *
  * 关闭标签前明确提示用户，取消时保留会话暂存，确认时丢弃并关闭。
  */
+import { t } from '@/app/i18n'
 defineProps<{
   fileName: string
 }>()
@@ -27,22 +28,23 @@ const emit = defineEmits<{
         @keydown.esc="emit('cancel')"
       >
         <div class="lume-unsaved__message">
-          <h2 id="unsaved-title" class="lume-unsaved__title">放弃未保存的修改？</h2>
+          <h2 id="unsaved-title" class="lume-unsaved__title">{{ t('放弃未保存的修改？') }}</h2>
           <p id="unsaved-description" class="lume-unsaved__description">
-            关闭 <strong class="lume-unsaved__filename">{{ fileName }}</strong> 后，修改将无法恢复。
+            {{ t('关闭') }} <strong class="lume-unsaved__filename">{{ fileName }}</strong>
+            {{ t('后，修改将无法恢复。') }}
           </p>
         </div>
 
         <div class="lume-unsaved__actions">
           <button class="lume-unsaved__button" type="button" autofocus @click="emit('cancel')">
-            取消
+            {{ t('取消') }}
           </button>
           <button
             class="lume-unsaved__button lume-unsaved__button--danger"
             type="button"
             @click="emit('confirm')"
           >
-            放弃修改
+            {{ t('放弃修改') }}
           </button>
         </div>
       </section>
@@ -118,7 +120,9 @@ const emit = defineEmits<{
   color: var(--lume-text-secondary);
   font-size: var(--lume-font-size-sm);
   cursor: pointer;
-  transition: border-color var(--lume-transition-fast), background-color var(--lume-transition-fast);
+  transition:
+    border-color var(--lume-transition-fast),
+    background-color var(--lume-transition-fast);
 }
 
 .lume-unsaved__button:hover {

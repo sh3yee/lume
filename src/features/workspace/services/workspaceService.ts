@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { isTauri } from '@/platform/tauri/client'
 import {
   createWorkspaceEntry,
@@ -31,7 +32,7 @@ export function loadWorkspaceEntries(path: string) {
 }
 
 export async function selectWorkspace() {
-  if (!isTauri()) throw new Error('工作区目录仅在桌面应用中可用')
+  if (!isTauri()) throw new Error(t('工作区目录仅在桌面应用中可用'))
   return selectWorkspaceDirectory()
 }
 
@@ -57,7 +58,7 @@ export function readWorkspaceDocument(path: string) {
 
 export { listenWorkspaceChanges, startWorkspaceWatcher, stopWorkspaceWatcher }
 
-export function getWorkspaceErrorMessage(error: unknown, fallback = '无法读取工作区') {
+export function getWorkspaceErrorMessage(error: unknown, fallback = t('无法读取工作区')) {
   if (error instanceof Error) return error.message
   if (typeof error === 'string' && error.trim()) return error
   if (error && typeof error === 'object' && 'message' in error) return String(error.message)

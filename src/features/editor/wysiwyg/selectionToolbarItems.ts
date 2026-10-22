@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { AllSelection, TextSelection, type EditorState } from '@milkdown/kit/prose/state'
 import { CellSelection, selectedRect } from '@milkdown/kit/prose/tables'
 import type { ContextMenuItem } from '../overlays/contextMenuTypes'
@@ -36,31 +37,31 @@ export const getSelectionToolbarModel = (
   let placement: SelectionToolbarModel['placement'] = 'range'
   if (context.target === 'text') {
     title = context.containers.includes('table')
-      ? '单元格文字'
+      ? t('单元格文字')
       : context.containers.includes('list_item')
-        ? '列表文字'
+        ? t('列表文字')
         : context.containers.includes('blockquote')
-          ? '引用文字'
+          ? t('引用文字')
           : context.blockTypes?.length === 1 && context.blockTypes[0].startsWith('heading')
             ? `H${context.blockTypes[0].slice(-1)}`
             : context.blockTypes && context.blockTypes.length > 1
-              ? '多块文字'
-              : '文字'
+              ? t('多块文字')
+              : t('文字')
     ids = ['bold', 'italic', 'strike', 'inlineCode', 'setLink', 'copy']
   } else if (context.target === 'inlineCode') {
-    title = '行内代码'
+    title = t('行内代码')
     ids = ['copy', 'inlineCode']
   } else if (objectSelected && context.target === 'image') {
     if (!context.node?.node.attrs.src) return null
-    title = '图片'
+    title = t('图片')
     placement = 'object'
     ids = ['editImage', 'imageLeft', 'imageCenter', 'imageRight', 'resetImageSize']
   } else if (objectSelected && context.target === 'math') {
-    title = '公式'
+    title = t('公式')
     placement = 'object'
     ids = context.node?.node.type.name === 'math_block' ? ['copyMath'] : ['editMath', 'copyMath']
   } else if (context.target === 'code') {
-    title = objectSelected ? '代码块' : '选中代码'
+    title = objectSelected ? t('代码块') : t('选中代码')
     placement = objectSelected ? 'object' : 'range'
     ids = objectSelected ? ['copyCode', 'editCodeLanguage'] : ['copy']
   } else if (tableSelected) {
@@ -69,13 +70,13 @@ export const getSelectionToolbarModel = (
     title =
       selection instanceof CellSelection
         ? selection.isRowSelection() && selection.isColSelection()
-          ? '整个表格'
+          ? t('整个表格')
           : selection.isColSelection()
-            ? `选中 ${rect.right - rect.left} 列`
+            ? t('选中 {0} 列', rect.right - rect.left)
             : selection.isRowSelection()
-              ? `选中 ${rect.bottom - rect.top} 行`
-              : `选中 ${rect.bottom - rect.top} × ${rect.right - rect.left} 单元格`
-        : `表格 · 第 ${rect.top + 1} 行 / 第 ${rect.left + 1} 列`
+              ? t('选中 {0} 行', rect.bottom - rect.top)
+              : t('选中 {0} × {1} 单元格', rect.bottom - rect.top, rect.right - rect.left)
+        : t('表格 · 第 {0} 行 / 第 {1} 列', rect.top + 1, rect.left + 1)
     placement = selection instanceof CellSelection ? 'range' : 'block'
     ids = [
       ...(selection instanceof CellSelection ? ['copy'] : []),
@@ -86,15 +87,15 @@ export const getSelectionToolbarModel = (
       'alignColumnRight',
     ]
   } else if (['mixed', 'all'].includes(context.target)) {
-    title = context.target === 'all' ? '整个文档' : '混合选区'
+    title = context.target === 'all' ? t('整个文档') : t('混合选区')
     ids = ['copy', 'cut']
   } else if (objectSelected && ['source', 'footnote', 'rule'].includes(context.target)) {
     title =
       context.target === 'source'
-        ? '源码节点'
+        ? t('源码节点')
         : context.target === 'footnote'
-          ? `脚注 ${context.node?.node.attrs.label ?? ''}`
-          : '分割线'
+          ? t('脚注 {0}', context.node?.node.attrs.label ?? '')
+          : t('分割线')
     placement = 'object'
     ids =
       context.target === 'footnote'
@@ -104,7 +105,7 @@ export const getSelectionToolbarModel = (
           : ['paragraphBefore', 'paragraphAfter']
   } else if (objectSelected) {
     const table = context.node?.node.type.name === 'table'
-    title = table ? '整个表格' : '整个块'
+    title = table ? t('整个表格') : t('整个块')
     placement = 'object'
     ids = table ? ['copy', 'cut', 'paragraphBefore', 'paragraphAfter', 'deleteNode'] : ['copy']
   } else return null

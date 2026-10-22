@@ -3,6 +3,7 @@
  *
  * 区分拖入编辑器的图片与拖入应用的 Markdown 文件，并串行处理文件打开任务。
  */
+import { t } from '@/app/i18n'
 import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import { onFileDragDrop, type FileDragDropEvent } from '@/platform/tauri/window'
 import { isTauri } from '@/platform/tauri/client'
@@ -27,10 +28,10 @@ export function useFileDrop(
     const result = await openFilesFromPaths(paths)
     if (result.rejected.length === 0) return
 
-    const prefix = result.opened > 0 ? `已打开 ${result.opened} 个文件；` : ''
+    const prefix = result.opened > 0 ? t('已打开 {0} 个文件；', result.opened) : ''
     const firstError = result.rejected[0].message
     const remaining =
-      result.rejected.length > 1 ? `，另有 ${result.rejected.length - 1} 个文件未打开` : ''
+      result.rejected.length > 1 ? t('，另有 {0} 个文件未打开', result.rejected.length - 1) : ''
     showMessage(`${prefix}${firstError}${remaining}`)
   }
 
@@ -38,7 +39,7 @@ export function useFileDrop(
     fileDragPaths.value = []
     fileDropQueue = fileDropQueue
       .then(() => handleDroppedFiles(paths))
-      .catch(() => showMessage('打开拖入文件失败'))
+      .catch(() => showMessage(t('打开拖入文件失败')))
   }
 
   function isImagePath(path: string) {

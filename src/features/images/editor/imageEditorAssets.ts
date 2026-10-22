@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { isTauri } from '@/platform/tauri/client'
 import { normalizeImageSourceInput } from '@/utils/imageSource'
 import {
@@ -26,7 +27,7 @@ function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('读取图片失败'))
+    reader.onerror = () => reject(reader.error ?? new Error(t('读取图片失败')))
     reader.readAsDataURL(file)
   })
 }
@@ -76,7 +77,7 @@ export const importEditorImageSource = async (
     return importEditorImagePath(src, documentPath, documentId, content)
   const options = getDocumentImageOptions(content, 'remote')
   if (options.insertAction === 'upload') {
-    if (!options.uploader?.program) throw new Error('请先在偏好设置 → 图片中配置上传工具。')
+    if (!options.uploader?.program) throw new Error(t('请先在偏好设置 → 图片中配置上传工具。'))
     return (await uploadImageFiles([src], documentPath, documentId, options.uploader, options))[0]
       .markdownPath
   }

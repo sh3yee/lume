@@ -1,4 +1,5 @@
 <script setup lang="ts" generic="T extends string | number">
+import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Check, ChevronDown } from 'lucide-vue-next'
 
@@ -339,10 +340,10 @@ onBeforeUnmount(() => {
             role="combobox"
             aria-autocomplete="list"
             aria-expanded="true"
-            :aria-label="`搜索${label}`"
+            :aria-label="t('搜索{0}', label)"
             :aria-controls="`${id}-listbox`"
             :aria-activedescendant="activeDescendant"
-            :placeholder="searchPlaceholder ?? '搜索选项'"
+            :placeholder="searchPlaceholder ?? t('搜索选项')"
             @keydown="handleSearchKeydown"
           />
         </div>
@@ -383,7 +384,7 @@ onBeforeUnmount(() => {
           </template>
         </div>
         <p v-if="filteredOptions.length === 0" class="lume-settings-select__empty">
-          没有匹配的选项
+          {{ t('没有匹配的选项') }}
         </p>
         <div v-if="$slots.footer" class="lume-settings-select__footer">
           <slot name="footer" />

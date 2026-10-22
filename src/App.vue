@@ -109,6 +109,7 @@
  * 组合标题栏、文件栏、编辑区、文档信息栏和状态栏。
  * 默认采用所见即所得（WYSIWYG）模式，用户直接在渲染结果上编辑。
  */
+import { t } from '@/app/i18n'
 import TitleBar from '@components/TitleBar.vue'
 import DocumentTabs from '@components/DocumentTabs.vue'
 import DocumentInspector from '@components/DocumentInspector.vue'
@@ -254,7 +255,7 @@ async function handleCloseWindow() {
     (completed: boolean) => {
       if (!completed) return
       void closeApplicationWindow().catch((error: unknown) => {
-        showMessage(`关闭失败：${getErrorMessage(error)}`)
+        showMessage(t('关闭失败：{0}', getErrorMessage(error)))
       })
     },
   )
@@ -267,7 +268,7 @@ async function saveCurrentFile(saveAs = false) {
     wysiwygPaneRef.value?.flushPendingMarkdown?.()
     await saveFile(saveAs)
   } catch (error) {
-    showMessage(`保存失败：${getErrorMessage(error)}`)
+    showMessage(t('保存失败：{0}', getErrorMessage(error)))
   }
 }
 

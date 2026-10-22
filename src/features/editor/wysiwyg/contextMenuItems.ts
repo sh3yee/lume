@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import type { ContextMenuItem } from '../overlays/contextMenuTypes'
 import { getActionState } from './actionState'
@@ -15,170 +16,172 @@ export const getContextMenuGroups = (
   })
   const groups: ContextMenuItem[][] = []
   if (hasSelectedContent(context))
-    groups.push([item('copy', '复制所选内容'), item('cut', '剪切所选内容')])
+    groups.push([item('copy', t('复制所选内容')), item('cut', t('剪切所选内容'))])
   if (context.target === 'text')
     groups.push([
-      item('bold', '加粗'),
-      item('italic', '斜体'),
-      item('strike', '删除线'),
-      item('inlineCode', '行内代码'),
-      item('setLink', '设置所选文字链接'),
-      item('clearFormatting', '清除所选文字格式'),
+      item('bold', t('加粗')),
+      item('italic', t('斜体')),
+      item('strike', t('删除线')),
+      item('inlineCode', t('行内代码')),
+      item('setLink', t('设置所选文字链接')),
+      item('clearFormatting', t('清除所选文字格式')),
     ])
-  if (context.target === 'inlineCode') groups.push([item('inlineCode', '取消行内代码')])
+  if (context.target === 'inlineCode') groups.push([item('inlineCode', t('取消行内代码'))])
   if (context.link)
     groups.push([
-      item('openLink', '打开链接'),
-      item('copyLink', '复制链接地址'),
-      item('editLink', '编辑当前链接地址'),
-      item('removeLink', '移除当前链接'),
+      item('openLink', t('打开链接')),
+      item('copyLink', t('复制链接地址')),
+      item('editLink', t('编辑当前链接地址')),
+      item('removeLink', t('移除当前链接')),
     ])
   if (context.target === 'image')
     groups.push([
-      item('editImage', '替换图片 / 编辑说明'),
-      item('copyImageAddress', '复制图片地址'),
-      item('copyImageMarkdown', '复制图片 Markdown'),
-      item('moveImageTo', '移动 / 重命名图片…'),
-      item('copyImageTo', '复制图片到…'),
-      item('uploadImage', '上传图片'),
+      item('editImage', t('替换图片 / 编辑说明')),
+      item('copyImageAddress', t('复制图片地址')),
+      item('copyImageMarkdown', t('复制图片 Markdown')),
+      item('moveImageTo', t('移动 / 重命名图片…')),
+      item('copyImageTo', t('复制图片到…')),
+      item('uploadImage', t('上传图片')),
       {
         id: 'imageSize',
-        label: '缩放图片',
+        label: t('缩放图片'),
         children: [25, 33, 50, 67, 80, 100, 125, 150, 200].map((zoom) =>
           item(`imageZoom${zoom}`, `${zoom}%`),
         ),
       },
       {
         id: 'imageAlign',
-        label: '图片对齐',
+        label: t('图片对齐'),
         children: [
-          item('imageLeft', '左对齐'),
-          item('imageCenter', '居中'),
-          item('imageRight', '右对齐'),
+          item('imageLeft', t('左对齐')),
+          item('imageCenter', t('居中')),
+          item('imageRight', t('右对齐')),
         ],
       },
-      item('resetImageSize', '恢复图片尺寸'),
-      item('deleteNode', '移除图片引用'),
-      item('deleteImageFile', '删除图片及原文件…'),
+      item('resetImageSize', t('恢复图片尺寸')),
+      item('deleteNode', t('移除图片引用')),
+      item('deleteImageFile', t('删除图片及原文件…')),
     ])
   if (context.target === 'math')
     groups.push([
-      ...(context.node?.node.type.name === 'math_block' ? [] : [item('editMath', '编辑公式源码')]),
-      item('copyMath', '复制公式源码'),
-      item('deleteNode', '删除当前公式'),
+      ...(context.node?.node.type.name === 'math_block'
+        ? []
+        : [item('editMath', t('编辑公式源码'))]),
+      item('copyMath', t('复制公式源码')),
+      item('deleteNode', t('删除当前公式')),
     ])
   if (context.target === 'code')
     groups.push([
-      item('copyCode', '复制整块代码'),
-      item('editCodeLanguage', '设置代码语言'),
-      item('paragraphBefore', '在代码前插入段落'),
-      item('paragraphAfter', '在代码后插入段落'),
+      item('copyCode', t('复制整块代码')),
+      item('editCodeLanguage', t('设置代码语言')),
+      item('paragraphBefore', t('在代码前插入段落')),
+      item('paragraphAfter', t('在代码后插入段落')),
     ])
   if (['source', 'footnote'].includes(context.target))
     groups.push([
       ...(context.node?.node.type.name === 'footnote_reference'
-        ? [item('gotoFootnote', '跳转 / 编辑脚注定义')]
+        ? [item('gotoFootnote', t('跳转 / 编辑脚注定义'))]
         : []),
-      item('copySource', '复制节点 Markdown'),
+      item('copySource', t('复制节点 Markdown')),
       item(
         'editSource',
-        context.node?.node.type.name.startsWith('html') ? '编辑 HTML 源码' : '在源码模式编辑',
+        context.node?.node.type.name.startsWith('html') ? t('编辑 HTML 源码') : t('在源码模式编辑'),
       ),
     ])
   if (context.target === 'rule')
     groups.push([
-      item('paragraphBefore', '在分割线前插入段落'),
-      item('paragraphAfter', '在分割线后插入段落'),
-      item('deleteNode', '删除分割线'),
+      item('paragraphBefore', t('在分割线前插入段落')),
+      item('paragraphAfter', t('在分割线后插入段落')),
+      item('deleteNode', t('删除分割线')),
     ])
   if (context.target === 'block' && context.kind === 'node')
     groups.push([
-      item('paragraphBefore', '在所选块前插入段落'),
-      item('paragraphAfter', '在所选块后插入段落'),
+      item('paragraphBefore', t('在所选块前插入段落')),
+      item('paragraphAfter', t('在所选块后插入段落')),
       item(
         'deleteNode',
-        context.node?.node.type.name === 'table' ? '删除整个表格' : '删除整个所选块',
+        context.node?.node.type.name === 'table' ? t('删除整个表格') : t('删除整个所选块'),
       ),
     ])
   if (context.containers.includes('table'))
     groups.push([
       {
         id: 'tableActions',
-        label: '当前表格 / 所选行列',
+        label: t('当前表格 / 所选行列'),
         children: [
-          item('rowBefore', '上方插入行'),
-          item('rowAfter', '下方插入行'),
-          item('deleteRow', '删除所选行'),
-          item('colBefore', '左侧插入列'),
-          item('colAfter', '右侧插入列'),
-          item('deleteColumn', '删除所选列'),
-          item('alignColumnLeft', '整列左对齐'),
-          item('alignColumnCenter', '整列居中'),
-          item('alignColumnRight', '整列右对齐'),
-          item('deleteTable', '删除整个表格'),
+          item('rowBefore', t('上方插入行')),
+          item('rowAfter', t('下方插入行')),
+          item('deleteRow', t('删除所选行')),
+          item('colBefore', t('左侧插入列')),
+          item('colAfter', t('右侧插入列')),
+          item('deleteColumn', t('删除所选列')),
+          item('alignColumnLeft', t('整列左对齐')),
+          item('alignColumnCenter', t('整列居中')),
+          item('alignColumnRight', t('整列右对齐')),
+          item('deleteTable', t('删除整个表格')),
         ],
       },
     ])
   if (context.containers.includes('list_item') && ['block', 'text'].includes(context.target))
     groups.push([
-      item('toggleTask', '切换当前任务项状态'),
-      item('indentList', '增加所选项缩进'),
-      item('outdentList', '减少所选项缩进 / 退出列表'),
+      item('toggleTask', t('切换当前任务项状态')),
+      item('indentList', t('增加所选项缩进')),
+      item('outdentList', t('减少所选项缩进 / 退出列表')),
     ])
   if (['text', 'block'].includes(context.target))
     groups.push([
       {
         id: 'convert',
-        label: context.selection.empty ? '转换当前块' : '所选块 / 容器操作',
+        label: context.selection.empty ? t('转换当前块') : t('所选块 / 容器操作'),
         children: [
-          item('paragraph', '转为正文 / 退出所在容器'),
+          item('paragraph', t('转为正文 / 退出所在容器')),
           ...Array.from({ length: 6 }, (_, index) =>
-            item(`heading${index + 1}`, `转为 ${index + 1} 级标题`),
+            item(`heading${index + 1}`, t('转为 {0} 级标题', index + 1)),
           ),
           item(
             'bulletList',
             context.containers.includes('list_item')
-              ? '整个列表改为无序列表'
-              : '所选块转为无序列表',
+              ? t('整个列表改为无序列表')
+              : t('所选块转为无序列表'),
           ),
           item(
             'orderedList',
             context.containers.includes('list_item')
-              ? '整个列表改为有序列表'
-              : '所选块转为有序列表',
+              ? t('整个列表改为有序列表')
+              : t('所选块转为有序列表'),
           ),
-          item('blockquote', '所选块转为引用'),
+          item('blockquote', t('所选块转为引用')),
         ],
       },
       {
         id: 'insert',
-        label: '在当前块后插入',
+        label: t('在当前块后插入'),
         children: [
-          item('insertHr', '分割线'),
-          item('insertCode', '代码块'),
-          item('insertTable', '表格'),
-          item('insertImageAfter', '图片'),
-          item('insertFrontMatter', 'YAML 元数据（文首）'),
-          item('insertToc', '目录'),
+          item('insertHr', t('分割线')),
+          item('insertCode', t('代码块')),
+          item('insertTable', t('表格')),
+          item('insertImageAfter', t('图片')),
+          item('insertFrontMatter', t('YAML 元数据（文首）')),
+          item('insertToc', t('目录')),
           {
             id: 'insertCallout',
-            label: '提示块',
+            label: t('提示块'),
             children: [
-              item('insertNote', 'Note · 说明'),
-              item('insertTip', 'Tip · 技巧'),
-              item('insertImportant', 'Important · 重要'),
-              item('insertWarning', 'Warning · 警告'),
-              item('insertCaution', 'Caution · 注意'),
+              item('insertNote', t('Note · 说明')),
+              item('insertTip', t('Tip · 技巧')),
+              item('insertImportant', t('Important · 重要')),
+              item('insertWarning', t('Warning · 警告')),
+              item('insertCaution', t('Caution · 注意')),
             ],
           },
         ],
       },
     ])
   groups.push([
-    item('paste', context.target === 'code' ? '粘贴纯文本' : '粘贴'),
-    item('undo', '撤销'),
-    item('redo', '重做'),
-    item('selectAll', context.target === 'code' ? '全选代码' : '全选'),
+    item('paste', context.target === 'code' ? t('粘贴纯文本') : t('粘贴')),
+    item('undo', t('撤销')),
+    item('redo', t('重做')),
+    item('selectAll', context.target === 'code' ? t('全选代码') : t('全选')),
   ])
   return editable
     ? groups

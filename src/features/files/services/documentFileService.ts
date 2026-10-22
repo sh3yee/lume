@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { isTauri } from '@/platform/tauri/client'
 import { readDroppedMarkdownFile } from '@/platform/tauri/files'
 import { prepareDocumentImages } from '@/features/images/services/imageAssetService'
@@ -14,7 +15,7 @@ const MAX_DROPPED_FILES = 20
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'message' in error) return String(error.message)
-  return '读取失败'
+  return t('读取失败')
 }
 
 export async function selectDocumentFile() {
@@ -27,7 +28,7 @@ export async function readDroppedDocuments(paths: string[]) {
   const limitedPaths = paths.slice(0, MAX_DROPPED_FILES)
 
   if (paths.length > MAX_DROPPED_FILES) {
-    result.rejected.push({ path: '', message: `单次最多打开 ${MAX_DROPPED_FILES} 个文件` })
+    result.rejected.push({ path: '', message: t('单次最多打开 {0} 个文件', MAX_DROPPED_FILES) })
   }
   for (const path of limitedPaths) {
     try {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /** SideBar - 标签与工作区资源管理器。 */
+import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { vLiquidGlass } from '@/ui/glass/directive'
@@ -171,7 +172,7 @@ async function renameSelectedEntry() {
   const entry = contextEntry.value
   closeContextMenu()
   if (!entry) return
-  const name = window.prompt('输入新名称', entry.name)?.trim()
+  const name = window.prompt(t('输入新名称'), entry.name)?.trim()
   if (name && name !== entry.name) await renameWorkspaceEntry(entry.path, name)
 }
 
@@ -179,14 +180,14 @@ async function moveSelectedEntry() {
   const entry = contextEntry.value
   closeContextMenu()
   if (!entry || !workspacePath.value) return
-  const directory = window.prompt('输入工作区内的目标目录完整路径', workspacePath.value)?.trim()
+  const directory = window.prompt(t('输入工作区内的目标目录完整路径'), workspacePath.value)?.trim()
   if (directory) await moveWorkspaceEntry(entry.path, directory)
 }
 
 async function deleteSelectedEntry() {
   const entry = contextEntry.value
   closeContextMenu()
-  if (!entry || !window.confirm(`确定删除“${entry.name}”吗？此操作无法撤销。`)) return
+  if (!entry || !window.confirm(t('确定删除“{0}”吗？此操作无法撤销。', entry.name))) return
   await deleteWorkspaceEntry(entry.path)
 }
 
@@ -259,19 +260,19 @@ onBeforeUnmount(() => {
     v-liquid-glass
     class="lume-sidebar lume-side-glass"
     :style="{ width: `${panelWidth}px` }"
-    aria-label="文件"
+    :aria-label="t('文件')"
   >
     <div
       class="lume-sidebar__resize"
       :class="{ 'lume-sidebar__resize--active': resizing }"
       role="separator"
       aria-orientation="vertical"
-      aria-label="调整文件栏宽度"
+      :aria-label="t('调整文件栏宽度')"
       :aria-valuenow="panelWidth"
       :aria-valuemin="200"
       :aria-valuemax="maxWidth"
       tabindex="0"
-      title="拖动调整宽度，双击恢复自适应"
+      :title="t('拖动调整宽度，双击恢复自适应')"
       @pointerdown="handleResizeStart"
       @pointermove="handleResizeMove"
       @pointerup="handleResizeEnd"
@@ -281,12 +282,22 @@ onBeforeUnmount(() => {
       @keydown="handleResizeKeydown"
     ></div>
     <div class="lume-sidebar__toolbar">
-      <span>资源管理器</span>
+      <span>{{ t('资源管理器') }}</span>
       <div class="lume-sidebar__toolbar-actions">
-        <button type="button" title="打开文件" aria-label="打开文件" @click="selectFile">
+        <button
+          type="button"
+          :title="t('打开文件')"
+          :aria-label="t('打开文件')"
+          @click="selectFile"
+        >
           <FileText :size="16" :stroke-width="1.6" />
         </button>
-        <button type="button" title="打开文件夹" aria-label="打开文件夹" @click="selectWorkspace">
+        <button
+          type="button"
+          :title="t('打开文件夹')"
+          :aria-label="t('打开文件夹')"
+          @click="selectWorkspace"
+        >
           <FolderOpen :size="16" :stroke-width="1.6" />
         </button>
       </div>
@@ -305,7 +316,7 @@ onBeforeUnmount(() => {
             :size="14"
             :stroke-width="1.7"
           />
-          <span>标签</span>
+          <span>{{ t('标签') }}</span>
         </button>
         <div v-if="openEditorsExpanded" class="lume-sidebar__editor-list">
           <div
@@ -322,13 +333,17 @@ onBeforeUnmount(() => {
             >
               <FileText :size="16" :stroke-width="1.5" />
               <span class="lume-sidebar__file-name">{{ item.name }}</span>
-              <span v-if="item.isDirty" class="lume-sidebar__dirty" aria-label="未保存"></span>
+              <span
+                v-if="item.isDirty"
+                class="lume-sidebar__dirty"
+                :aria-label="t('未保存')"
+              ></span>
             </button>
             <button
               class="lume-sidebar__editor-close"
               type="button"
-              :title="`关闭 ${item.name}`"
-              :aria-label="`关闭 ${item.name}`"
+              :title="t('关闭 {0}', item.name)"
+              :aria-label="t('关闭 {0}', item.name)"
               @click="requestCloseDocument(item.id)"
             >
               <X :size="14" :stroke-width="1.7" />
@@ -343,114 +358,106 @@ onBeforeUnmount(() => {
         aria-hidden="true"
       ></div>
       <template v-if="workspacePath">
-            <div
-              class="lume-sidebar__workspace-header"
-              @contextmenu.stop="openFileContextMenu($event)"
-            >
-              <button
-                class="lume-sidebar__workspace-root"
-                type="button"
-                :title="workspacePath"
-                :aria-expanded="workspaceExpanded"
-                @click="workspaceExpanded = !workspaceExpanded"
-                @contextmenu.stop="openFileContextMenu($event)"
-              >
-                <ChevronRight
-                  class="lume-sidebar__section-chevron"
-                  :class="{ 'lume-sidebar__section-chevron--expanded': workspaceExpanded }"
-                  :size="14"
-                  :stroke-width="1.7"
-                />
-                <FolderOpen :size="16" :stroke-width="1.6" />
-                <span>{{ workspaceName }}</span>
-              </button>
-              <button
-                class="lume-sidebar__workspace-close"
-                type="button"
-                title="关闭工作区"
-                aria-label="关闭工作区"
-                @click="handleCloseWorkspace"
-              >
-                <X :size="14" :stroke-width="1.7" />
-              </button>
-            </div>
+        <div class="lume-sidebar__workspace-header" @contextmenu.stop="openFileContextMenu($event)">
+          <button
+            class="lume-sidebar__workspace-root"
+            type="button"
+            :title="workspacePath"
+            :aria-expanded="workspaceExpanded"
+            @click="workspaceExpanded = !workspaceExpanded"
+            @contextmenu.stop="openFileContextMenu($event)"
+          >
+            <ChevronRight
+              class="lume-sidebar__section-chevron"
+              :class="{ 'lume-sidebar__section-chevron--expanded': workspaceExpanded }"
+              :size="14"
+              :stroke-width="1.7"
+            />
+            <FolderOpen :size="16" :stroke-width="1.6" />
+            <span>{{ workspaceName }}</span>
+          </button>
+          <button
+            class="lume-sidebar__workspace-close"
+            type="button"
+            :title="t('关闭工作区')"
+            :aria-label="t('关闭工作区')"
+            @click="handleCloseWorkspace"
+          >
+            <X :size="14" :stroke-width="1.7" />
+          </button>
+        </div>
 
-            <div v-if="workspaceExpanded && workspaceLoading" class="lume-sidebar__placeholder">
-              <p>正在读取工作区…</p>
-            </div>
-            <template v-else-if="workspaceExpanded">
-              <button
-                v-for="entry in visibleWorkspaceEntries"
-                :key="entry.path"
-                class="lume-sidebar__file"
-                :class="{
-                  'lume-sidebar__file--active':
-                    !entry.isDirectory && entry.path === activeDocument?.path,
-                }"
-                :style="{ paddingLeft: `${12 + entry.depth * 14}px` }"
-                type="button"
-                :title="entry.path"
-                @click="
-                  entry.isDirectory ? toggleDirectory(entry.path) : openWorkspaceFile(entry.path)
-                "
-                @contextmenu.stop="openFileContextMenu($event, entry)"
-              >
-                <ChevronRight
-                  v-if="entry.isDirectory"
-                  class="lume-sidebar__chevron"
-                  :class="{ 'lume-sidebar__chevron--expanded': expandedPaths.has(entry.path) }"
-                  :size="14"
-                  :stroke-width="1.7"
-                />
-                <Folder v-if="entry.isDirectory" :size="16" :stroke-width="1.5" />
-                <FileText v-else :size="16" :stroke-width="1.5" />
-                <span class="lume-sidebar__file-name">{{ entry.name }}</span>
-              </button>
-              <div
-                v-if="workspaceEntries.length === 0 && !workspaceError"
-                class="lume-sidebar__placeholder"
-              >
-                <p>没有 Markdown 文件</p>
-              </div>
-            </template>
+        <div v-if="workspaceExpanded && workspaceLoading" class="lume-sidebar__placeholder">
+          <p>{{ t('正在读取工作区…') }}</p>
+        </div>
+        <template v-else-if="workspaceExpanded">
+          <button
+            v-for="entry in visibleWorkspaceEntries"
+            :key="entry.path"
+            class="lume-sidebar__file"
+            :class="{
+              'lume-sidebar__file--active':
+                !entry.isDirectory && entry.path === activeDocument?.path,
+            }"
+            :style="{ paddingLeft: `${12 + entry.depth * 14}px` }"
+            type="button"
+            :title="entry.path"
+            @click="entry.isDirectory ? toggleDirectory(entry.path) : openWorkspaceFile(entry.path)"
+            @contextmenu.stop="openFileContextMenu($event, entry)"
+          >
+            <ChevronRight
+              v-if="entry.isDirectory"
+              class="lume-sidebar__chevron"
+              :class="{ 'lume-sidebar__chevron--expanded': expandedPaths.has(entry.path) }"
+              :size="14"
+              :stroke-width="1.7"
+            />
+            <Folder v-if="entry.isDirectory" :size="16" :stroke-width="1.5" />
+            <FileText v-else :size="16" :stroke-width="1.5" />
+            <span class="lume-sidebar__file-name">{{ entry.name }}</span>
+          </button>
+          <div
+            v-if="workspaceEntries.length === 0 && !workspaceError"
+            class="lume-sidebar__placeholder"
+          >
+            <p>{{ t('没有 Markdown 文件') }}</p>
+          </div>
+        </template>
       </template>
 
       <button
         v-if="!workspacePath"
         class="lume-sidebar__open-folder"
         type="button"
-        title="打开文件夹"
-        aria-label="打开文件夹"
+        :title="t('打开文件夹')"
+        :aria-label="t('打开文件夹')"
         @click="selectWorkspace"
       >
         <FolderOpen :size="18" :stroke-width="1.5" aria-hidden="true" />
-        <span>打开文件夹</span>
+        <span>{{ t('打开文件夹') }}</span>
       </button>
 
-          <div
-            v-if="workspacePath && workspaceExpanded && createKind"
-            class="lume-sidebar__create-row"
-          >
-            <FilePlus2 v-if="createKind === 'file'" :size="15" />
-            <FolderPlus v-else :size="15" />
-            <input
-              ref="createInput"
-              v-model="createName"
-              :placeholder="createKind === 'file' ? '文件名.md' : '文件夹名称'"
-              @keydown.enter.prevent="confirmCreate"
-              @keydown.esc.prevent="cancelCreate"
-              @blur="cancelCreate"
-            />
-            <button
-              type="button"
-              title="取消"
-              aria-label="取消新建"
-              @mousedown.prevent
-              @click="cancelCreate"
-            >
-              <X :size="13" />
-            </button>
-          </div>
+      <div v-if="workspacePath && workspaceExpanded && createKind" class="lume-sidebar__create-row">
+        <FilePlus2 v-if="createKind === 'file'" :size="15" />
+        <FolderPlus v-else :size="15" />
+        <input
+          ref="createInput"
+          v-model="createName"
+          :placeholder="createKind === 'file' ? t('文件名.md') : t('文件夹名称')"
+          @keydown.enter.prevent="confirmCreate"
+          @keydown.esc.prevent="cancelCreate"
+          @blur="cancelCreate"
+        />
+        <button
+          type="button"
+          :title="t('取消')"
+          :aria-label="t('取消新建')"
+          @mousedown.prevent
+          @click="cancelCreate"
+        >
+          <X :size="13" />
+        </button>
+      </div>
       <p v-if="workspaceError" class="lume-sidebar__error">{{ workspaceError }}</p>
     </div>
     <Teleport to="body">
@@ -464,18 +471,18 @@ onBeforeUnmount(() => {
       >
         <button type="button" role="menuitem" @click="startCreate('file')">
           <FilePlus2 :size="15" />
-          <span>新建文件</span>
+          <span>{{ t('新建文件') }}</span>
         </button>
         <button type="button" role="menuitem" @click="startCreate('directory')">
           <FolderPlus :size="15" />
-          <span>新建文件夹</span>
+          <span>{{ t('新建文件夹') }}</span>
         </button>
         <template v-if="contextEntry">
           <button type="button" role="menuitem" @click="renameSelectedEntry">
-            <Pencil :size="15" /><span>重命名</span>
+            <Pencil :size="15" /><span>{{ t('重命名') }}</span>
           </button>
           <button type="button" role="menuitem" @click="moveSelectedEntry">
-            <Move :size="15" /><span>移动到…</span>
+            <Move :size="15" /><span>{{ t('移动到…') }}</span>
           </button>
           <button
             class="lume-sidebar__danger-action"
@@ -483,7 +490,7 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click="deleteSelectedEntry"
           >
-            <Trash2 :size="15" /><span>删除</span>
+            <Trash2 :size="15" /><span>{{ t('删除') }}</span>
           </button>
         </template>
       </div>

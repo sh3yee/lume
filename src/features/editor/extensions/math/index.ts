@@ -1,3 +1,4 @@
+import { language, t } from '@/app/i18n'
 import { type Editor } from '@milkdown/kit/core'
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model'
 import { NodeSelection } from '@milkdown/kit/prose/state'
@@ -34,7 +35,7 @@ function createBlockMathNodeView(
     if (!value.trim()) {
       const placeholder = document.createElement('span')
       placeholder.className = 'lume-math__placeholder'
-      placeholder.textContent = editing ? '公式预览' : '数学公式 · 点击编辑'
+      placeholder.textContent = editing ? t('公式预览') : t('数学公式 · 点击编辑')
       target.replaceChildren(placeholder)
       return
     }
@@ -95,8 +96,8 @@ function createBlockMathNodeView(
     source = document.createElement('textarea')
     source.className = 'lume-math__source'
     source.value = String(currentNode.attrs.value ?? '')
-    source.setAttribute('aria-label', '公式源码')
-    source.placeholder = '在此输入 LaTeX 公式'
+    source.setAttribute('aria-label', t('公式源码'))
+    source.placeholder = t('在此输入 LaTeX 公式')
     source.rows = 1
     source.spellcheck = false
     preview = document.createElement('div')
@@ -172,8 +173,8 @@ function createBlockMathNodeView(
     const done = document.createElement('button')
     done.type = 'button'
     done.className = 'lume-math__done'
-    done.setAttribute('aria-label', '完成公式编辑')
-    done.title = '完成编辑（Ctrl/⌘ + Enter）'
+    done.setAttribute('aria-label', t('完成公式编辑'))
+    done.title = t('完成编辑（Ctrl/⌘ + Enter）')
     const check = document.createElement('span')
     check.className = 'lume-math__check'
     check.setAttribute('aria-hidden', 'true')
@@ -204,6 +205,20 @@ function createBlockMathNodeView(
   })
   render()
 
+  const stopLanguageWatch = watch(language, () => {
+    if (!editing) render()
+    if (source && preview) {
+      source.setAttribute('aria-label', t('公式源码'))
+      source.placeholder = t('在此输入 LaTeX 公式')
+      renderPreview(preview, source.value)
+    }
+    const done = dom.querySelector<HTMLButtonElement>('.lume-math__done')
+    if (done) {
+      done.setAttribute('aria-label', t('完成公式编辑'))
+      done.title = t('完成编辑（Ctrl/⌘ + Enter）')
+    }
+  })
+
   return {
     dom,
     update(updated) {
@@ -228,6 +243,7 @@ function createBlockMathNodeView(
       return true
     },
     destroy() {
+      stopLanguageWatch()
       source = null
       preview = null
     },

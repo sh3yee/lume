@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /** 查找替换浮层：管理输入、焦点和键盘交互，不直接依赖编辑器内核。 */
+import { t } from '@/app/i18n'
 import { nextTick, ref } from 'vue'
 import { ChevronDown, ChevronUp, X } from 'lucide-vue-next'
 
@@ -50,7 +51,7 @@ defineExpose({ focus })
         v-model="query"
         class="lume-find-replace__input"
         type="text"
-        placeholder="查找"
+        :placeholder="t('查找')"
         @input="emit('find', query)"
       />
       <span class="lume-find-replace__count">
@@ -58,8 +59,8 @@ defineExpose({ focus })
       </span>
       <button
         type="button"
-        title="上一个"
-        aria-label="上一个"
+        :title="t('上一个')"
+        :aria-label="t('上一个')"
         :disabled="matchCount === 0"
         @click="emit('move', -1, query)"
       >
@@ -67,14 +68,14 @@ defineExpose({ focus })
       </button>
       <button
         type="button"
-        title="下一个"
-        aria-label="下一个"
+        :title="t('下一个')"
+        :aria-label="t('下一个')"
         :disabled="matchCount === 0"
         @click="emit('move', 1, query)"
       >
         <ChevronDown :size="14" :stroke-width="2" />
       </button>
-      <button type="button" title="关闭" aria-label="关闭" @click="emit('close')">
+      <button type="button" :title="t('关闭')" :aria-label="t('关闭')" @click="emit('close')">
         <X :size="14" :stroke-width="2" />
       </button>
     </div>
@@ -83,21 +84,21 @@ defineExpose({ focus })
         v-model="replacement"
         class="lume-find-replace__input"
         type="text"
-        placeholder="替换"
+        :placeholder="t('替换')"
       />
       <button
         type="button"
         :disabled="matchCount === 0"
         @click="emit('replace', query, replacement)"
       >
-        替换
+        {{ t('替换') }}
       </button>
       <button
         type="button"
         :disabled="matchCount === 0"
         @click="emit('replaceAll', query, replacement)"
       >
-        全部替换
+        {{ t('全部替换') }}
       </button>
     </div>
   </div>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { t } from '@/app/i18n'
 import { resolveFontFamily, type FontPreference } from '@/app/preferences/fontFamily'
 import type { FontOption } from '@/app/preferences/useSystemFonts'
 import FontSelect from './FontSelect.vue'
@@ -8,10 +10,6 @@ const interfaceFontSizeOptions = Array.from({ length: 9 }, (_, index) => ({
   value: index + 12,
   label: `${index + 12} px`,
 }))
-const outlineFontSizeOptions = [
-  { value: 0, label: '跟随界面字号' },
-  ...Array.from({ length: 13 }, (_, index) => ({ value: index + 12, label: `${index + 12} px` })),
-]
 
 defineProps<{
   font: FontPreference
@@ -29,6 +27,11 @@ const emit = defineEmits<{
   'open-fonts': []
 }>()
 
+const outlineFontSizeOptions = computed(() => [
+  { value: 0, label: t('跟随界面字号') },
+  ...Array.from({ length: 13 }, (_, index) => ({ value: index + 12, label: `${index + 12} px` })),
+])
+
 const handleResetInterface = () => {
   emit('update:font', 'sans')
   emit('update:font-size', 14)
@@ -39,15 +42,15 @@ const handleResetInterface = () => {
 <template>
   <section class="lume-interface-font-settings">
     <div class="lume-interface-font-settings__heading">
-      <h3 class="lume-interface-font-settings__label">界面文字</h3>
+      <h3 class="lume-interface-font-settings__label">{{ t('界面文字') }}</h3>
       <p class="lume-interface-font-settings__hint">
-        调整菜单、标签栏、文件栏等界面文字，不改变正文排版。大纲可单独设置字号。
+        {{ t('调整菜单、标签栏、文件栏等界面文字，不改变正文排版。大纲可单独设置字号。') }}
       </p>
     </div>
     <div class="lume-interface-font-settings__options">
       <FontSelect
         id="interface-font"
-        label="界面字体"
+        :label="t('界面字体')"
         :value="font"
         :options="fontOptions"
         :container="container"
@@ -57,7 +60,7 @@ const handleResetInterface = () => {
       />
       <SettingsSelect
         id="interface-font-size"
-        label="界面字号"
+        :label="t('界面字号')"
         :value="fontSize"
         :options="interfaceFontSizeOptions"
         :container="container"
@@ -65,7 +68,7 @@ const handleResetInterface = () => {
       />
       <SettingsSelect
         id="outline-font-size"
-        label="大纲字号"
+        :label="t('大纲字号')"
         :value="outlineFontSize"
         :options="outlineFontSizeOptions"
         :container="container"
@@ -76,11 +79,11 @@ const handleResetInterface = () => {
       class="lume-interface-font-settings__preview"
       :style="{ fontFamily: resolveFontFamily(font), fontSize: `${fontSize}px` }"
     >
-      界面文字预览 · 文件、菜单和标签<br />
-      <span :style="{ fontSize: `${outlineFontSize || fontSize}px` }">大纲标题预览</span>
+      {{ t('界面文字预览 · 文件、菜单和标签') }}<br />
+      <span :style="{ fontSize: `${outlineFontSize || fontSize}px` }">{{ t('大纲标题预览') }}</span>
     </p>
     <button class="lume-interface-font-settings__reset" type="button" @click="handleResetInterface">
-      恢复默认界面文字
+      {{ t('恢复默认界面文字') }}
     </button>
   </section>
 </template>

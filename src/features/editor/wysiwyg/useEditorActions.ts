@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { nextTick, shallowRef } from 'vue'
 import { editorViewCtx, remarkCtx, serializerCtx, type Editor } from '@milkdown/kit/core'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
@@ -63,7 +64,7 @@ export const useEditorActions = (options: {
       await navigator.clipboard.writeText(text)
       return true
     } catch {
-      options.onError('无法写入系统剪贴板。')
+      options.onError(t('无法写入系统剪贴板。'))
       return false
     }
   }
@@ -72,15 +73,15 @@ export const useEditorActions = (options: {
     const link = id === 'editLink' ? (target.link?.mark.attrs ?? {}) : {}
     const forms: Record<string, PropertyForm> = {
       editImage: {
-        title: '编辑图片',
+        title: t('编辑图片'),
         fields: [
-          { key: 'src', label: '图片地址', value: String(attrs.src ?? ''), required: true },
-          { key: 'alt', label: '图片说明', value: String(attrs.alt ?? '') },
-          { key: 'title', label: '标题', value: String(attrs.title ?? '') },
+          { key: 'src', label: t('图片地址'), value: String(attrs.src ?? ''), required: true },
+          { key: 'alt', label: t('图片说明'), value: String(attrs.alt ?? '') },
+          { key: 'title', label: t('标题'), value: String(attrs.title ?? '') },
         ],
       },
       editMath: {
-        title: '编辑公式源码',
+        title: t('编辑公式源码'),
         fields: [
           {
             key: 'value',
@@ -92,14 +93,14 @@ export const useEditorActions = (options: {
         ],
       },
       editCodeLanguage: {
-        title: '设置代码语言',
-        fields: [{ key: 'language', label: '语言标记', value: String(attrs.language ?? '') }],
+        title: t('设置代码语言'),
+        fields: [{ key: 'language', label: t('语言标记'), value: String(attrs.language ?? '') }],
       },
       editLink: {
-        title: '设置链接',
+        title: t('设置链接'),
         fields: [
-          { key: 'href', label: '链接地址', value: String(link.href ?? ''), required: true },
-          { key: 'title', label: '标题', value: String(link.title ?? '') },
+          { key: 'href', label: t('链接地址'), value: String(link.href ?? ''), required: true },
+          { key: 'title', label: t('标题'), value: String(link.title ?? '') },
         ],
       },
     }
@@ -132,7 +133,9 @@ export const useEditorActions = (options: {
         .execute(id, [String(target.node.node.attrs.src ?? '')], snapshot)
         .then((updated) => {
           if (updated && options.isActive())
-            options.onSuccess?.(id === 'deleteImageFile' ? '图片及原文件已删除' : '图片路径已更新')
+            options.onSuccess?.(
+              id === 'deleteImageFile' ? t('图片及原文件已删除') : t('图片路径已更新'),
+            )
         })
         .catch((error: unknown) =>
           options.onError(error instanceof Error ? error.message : String(error)),
@@ -141,7 +144,7 @@ export const useEditorActions = (options: {
     }
     if (id === 'copyMath' && target.node) {
       void copyText(String(target.node.node.attrs.value ?? '')).then((copied) => {
-        if (copied && options.isActive()) options.onSuccess?.('公式源码已复制')
+        if (copied && options.isActive()) options.onSuccess?.(t('公式源码已复制'))
       })
       return
     }
@@ -246,7 +249,7 @@ export const useEditorActions = (options: {
       else if (id === 'openLink' && target.link)
         void options.onOpenLink(String(target.link.mark.attrs.href)).catch((error: unknown) => {
           if (options.isActive())
-            options.onError(error instanceof Error ? error.message : '无法打开链接。')
+            options.onError(error instanceof Error ? error.message : t('无法打开链接。'))
         })
       else if (id === 'removeLink' && target.link)
         view.dispatch(view.state.tr.removeMark(target.link.from, target.link.to, target.link.mark))
@@ -283,7 +286,7 @@ export const useEditorActions = (options: {
             view.dispatch(tr),
           )
         )
-          options.onError('找不到对应的脚注定义。')
+          options.onError(t('找不到对应的脚注定义。'))
       } else if (id === 'deleteNode' && node) {
         const tr =
           node.node.type.name === 'math_block'
@@ -347,12 +350,12 @@ export const useEditorActions = (options: {
         values.src !== undefined ? /^(?:javascript|vbscript):/i : /^(?:javascript|vbscript|data):/i
       if (address !== undefined && (!address.trim() || invalidProtocol.test(address.trim()))) {
         if (propertyForm.value)
-          propertyForm.value = { ...propertyForm.value, error: '请输入有效的图片或链接地址。' }
+          propertyForm.value = { ...propertyForm.value, error: t('请输入有效的图片或链接地址。') }
         return
       }
       if (action === 'editCodeLanguage' && /\s/.test(values.language)) {
         if (propertyForm.value)
-          propertyForm.value = { ...propertyForm.value, error: '语言标记不能包含空白。' }
+          propertyForm.value = { ...propertyForm.value, error: t('语言标记不能包含空白。') }
         return
       }
       let tr = view.state.tr

@@ -4,6 +4,7 @@
  *
  * 显示当前文档与常用操作，并提供窗口拖拽区域。
  */
+import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Check, Copy, FileText, Minus, MoreHorizontal, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
@@ -46,35 +47,35 @@ const contextMenuPosition = ref({ x: 0, y: 0 })
 const menuItems = computed<MenuItem[]>(() => {
   if (contextMenuKind.value === 'window') {
     return [
-      { id: 'minimize', label: '最小化', action: runMinimize },
+      { id: 'minimize', label: t('最小化'), action: runMinimize },
       {
         id: 'maximize',
-        label: isMaximized.value ? '还原' : '最大化',
+        label: isMaximized.value ? t('还原') : t('最大化'),
         action: handleToggleMaximize,
       },
-      { id: 'close', label: '关闭应用', action: () => emit('close-window') },
+      { id: 'close', label: t('关闭应用'), action: () => emit('close-window') },
     ]
   }
   return [
-    { id: 'save', label: '保存', hint: 'Ctrl+S', action: () => emit('save-file') },
+    { id: 'save', label: t('保存'), hint: 'Ctrl+S', action: () => emit('save-file') },
     {
       id: 'sidebar',
-      label: '文件栏',
+      label: t('文件栏'),
       hint: 'Ctrl+Shift+E',
       checked: props.sidebarVisible,
       action: () => emit('toggle-sidebar'),
     },
     {
       id: 'inspector',
-      label: '大纲与统计',
+      label: t('大纲与统计'),
       hint: 'Ctrl+Shift+O',
       checked: props.inspectorVisible,
       action: () => emit('toggle-inspector'),
     },
-    { id: 'settings', label: '偏好设置', hint: 'Ctrl+,', action: () => emit('open-settings') },
+    { id: 'settings', label: t('偏好设置'), hint: 'Ctrl+,', action: () => emit('open-settings') },
     {
       id: 'commands',
-      label: '命令面板',
+      label: t('命令面板'),
       hint: 'Ctrl+P',
       action: () => emit('open-command-palette'),
     },
@@ -200,7 +201,7 @@ onBeforeUnmount(() => {
         data-tauri-drag-region
       >
         <span class="lume-titlebar__status-dot"></span>
-        {{ isDirty ? '未保存' : currentFilePath ? '已保存' : '本地草稿' }}
+        {{ isDirty ? t('未保存') : currentFilePath ? t('已保存') : t('本地草稿') }}
       </span>
     </div>
 
@@ -211,8 +212,8 @@ onBeforeUnmount(() => {
         ref="moreButton"
         class="lume-titlebar__tool lume-titlebar__more"
         type="button"
-        title="更多操作"
-        aria-label="更多操作"
+        :title="t('更多操作')"
+        :aria-label="t('更多操作')"
         aria-haspopup="menu"
         :aria-expanded="contextMenuOpen && contextMenuKind === 'document'"
         :aria-controls="
@@ -230,8 +231,8 @@ onBeforeUnmount(() => {
       <button
         class="lume-titlebar__window-control"
         type="button"
-        title="最小化"
-        aria-label="最小化窗口"
+        :title="t('最小化')"
+        :aria-label="t('最小化窗口')"
         @click="runMinimize"
       >
         <Minus :size="16" :stroke-width="1.5" />
@@ -240,8 +241,8 @@ onBeforeUnmount(() => {
       <button
         class="lume-titlebar__window-control"
         type="button"
-        :title="isMaximized ? '还原' : '最大化'"
-        :aria-label="isMaximized ? '还原窗口' : '最大化窗口'"
+        :title="isMaximized ? t('还原') : t('最大化')"
+        :aria-label="isMaximized ? t('还原窗口') : t('最大化窗口')"
         @click="handleToggleMaximize"
       >
         <Copy v-if="isMaximized" :size="14" :stroke-width="1.5" />
@@ -251,8 +252,8 @@ onBeforeUnmount(() => {
       <button
         class="lume-titlebar__window-control lume-titlebar__window-control--close"
         type="button"
-        title="关闭"
-        aria-label="关闭应用"
+        :title="t('关闭')"
+        :aria-label="t('关闭应用')"
         @click="emit('close-window')"
       >
         <X :size="17" :stroke-width="1.5" />
@@ -267,7 +268,7 @@ onBeforeUnmount(() => {
       ref="contextMenu"
       class="lume-titlebar__context-menu"
       role="menu"
-      :aria-label="contextMenuKind === 'window' ? '窗口操作' : '更多操作'"
+      :aria-label="contextMenuKind === 'window' ? t('窗口操作') : t('更多操作')"
       :style="{
         left: contextMenuPosition.x + 'px',
         top: contextMenuPosition.y + 'px',

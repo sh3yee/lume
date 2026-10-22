@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vLiquidGlass } from '@/ui/glass/directive'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
@@ -33,10 +34,10 @@ const panelWidth = computed(() =>
   Math.max(180, Math.min(manualWidth.value ?? measuredWidth.value, maxWidth.value)),
 )
 const statistics = computed(() => [
-  { label: '字数', value: stats.value.words.toLocaleString() },
-  { label: '字符', value: stats.value.chars.toLocaleString() },
-  { label: '行数', value: stats.value.lines.toLocaleString() },
-  { label: '阅读时长', value: `约 ${stats.value.readingTime} 分钟` },
+  { label: t('字数'), value: stats.value.words.toLocaleString() },
+  { label: t('字符'), value: stats.value.chars.toLocaleString() },
+  { label: t('行数'), value: stats.value.lines.toLocaleString() },
+  { label: t('阅读时长'), value: t('约 {0} 分钟', stats.value.readingTime) },
 ])
 const outlineRows = computed(() => {
   const roots: OutlineNode[] = []
@@ -176,19 +177,19 @@ onBeforeUnmount(() => {
     ref="inspectorRef"
     class="lume-document-inspector lume-side-glass"
     :style="{ width: `${panelWidth}px` }"
-    aria-label="文档信息"
+    :aria-label="t('文档信息')"
   >
     <div
       class="lume-document-inspector__resize"
       :class="{ 'lume-document-inspector__resize--active': resizing }"
       role="separator"
       aria-orientation="vertical"
-      aria-label="调整大纲宽度"
+      :aria-label="t('调整大纲宽度')"
       :aria-valuenow="panelWidth"
       :aria-valuemin="180"
       :aria-valuemax="maxWidth"
       tabindex="0"
-      title="拖动调整宽度，双击恢复自适应"
+      :title="t('拖动调整宽度，双击恢复自适应')"
       @pointerdown="startResize"
       @pointermove="resizePanel"
       @pointerup="finishResize"
@@ -197,7 +198,7 @@ onBeforeUnmount(() => {
       @dblclick="manualWidth = null"
       @keydown="resizeWithKeyboard"
     ></div>
-    <div class="lume-document-inspector__tabs" aria-label="文档信息视图">
+    <div class="lume-document-inspector__tabs" :aria-label="t('文档信息视图')">
       <button
         class="lume-document-inspector__tab"
         :class="{ 'lume-document-inspector__tab--active': activePanel === 'outline' }"
@@ -205,7 +206,7 @@ onBeforeUnmount(() => {
         :aria-pressed="activePanel === 'outline'"
         @click="activePanel = 'outline'"
       >
-        大纲
+        {{ t('大纲') }}
       </button>
       <button
         class="lume-document-inspector__tab"
@@ -214,14 +215,14 @@ onBeforeUnmount(() => {
         :aria-pressed="activePanel === 'stats'"
         @click="activePanel = 'stats'"
       >
-        统计
+        {{ t('统计') }}
       </button>
     </div>
 
     <nav
       v-if="activePanel === 'outline'"
       class="lume-document-inspector__content"
-      aria-label="文档大纲"
+      :aria-label="t('文档大纲')"
     >
       <div v-if="outlineItems.length" class="lume-document-inspector__outline">
         <button
@@ -234,7 +235,7 @@ onBeforeUnmount(() => {
           }"
           :style="{ '--outline-depth': depth }"
           type="button"
-          :title="item.text || '无标题'"
+          :title="item.text || t('无标题')"
           :aria-current="currentHeading === item.index ? 'location' : undefined"
           @click="handleHeadingClick(item.index)"
         >
@@ -249,16 +250,16 @@ onBeforeUnmount(() => {
             :style="{ '--guide-depth': guideIndex }"
             aria-hidden="true"
           ></span>
-          {{ item.text || '无标题' }}
+          {{ item.text || t('无标题') }}
         </button>
       </div>
       <div v-else class="lume-document-inspector__empty">
-        <p>暂无大纲</p>
-        <span>添加标题后在此显示</span>
+        <p>{{ t('暂无大纲') }}</p>
+        <span>{{ t('添加标题后在此显示') }}</span>
       </div>
     </nav>
 
-    <section v-else class="lume-document-inspector__content" aria-label="文档统计">
+    <section v-else class="lume-document-inspector__content" :aria-label="t('文档统计')">
       <dl class="lume-document-inspector__statistics">
         <div v-for="item in statistics" :key="item.label">
           <dt>{{ item.label }}</dt>

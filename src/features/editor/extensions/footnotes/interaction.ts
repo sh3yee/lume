@@ -1,3 +1,4 @@
+import { language, t } from '@/app/i18n'
 import { Plugin } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
@@ -21,8 +22,8 @@ export const footnoteInteractionPlugin = $prose(
             const description = definition?.textBetween(0, definition.content.size, '\n', ' ')
             decorations.push(
               Decoration.node(pos, pos + node.nodeSize, {
-                title: description || '脚注尚未填写内容',
-                'aria-label': `脚注 ${node.attrs.label}，Ctrl/Cmd + 单击跳转到定义`,
+                title: description || t('脚注尚未填写内容'),
+                'aria-label': t('脚注 {0}，Ctrl/Cmd + 单击跳转到定义', node.attrs.label),
               }),
             )
           })
@@ -48,8 +49,8 @@ export const footnoteInteractionPlugin = $prose(
                   button.className = 'lume-footnote-backref'
                   button.contentEditable = 'false'
                   button.textContent = '↩'
-                  button.title = '返回脚注引用'
-                  button.setAttribute('aria-label', `返回脚注 ${node.attrs.label} 的引用`)
+                  button.title = t('返回脚注引用')
+                  button.setAttribute('aria-label', t('返回脚注 {0} 的引用', node.attrs.label))
                   button.addEventListener('mousedown', (event) => event.preventDefault())
                   button.addEventListener('click', (event) => {
                     event.preventDefault()
@@ -58,7 +59,11 @@ export const footnoteInteractionPlugin = $prose(
                   })
                   return button
                 },
-                { key: `footnote-backref-${label}`, side: 1, stopEvent: () => true },
+                {
+                  key: `footnote-backref-${label}-${language.value}`,
+                  side: 1,
+                  stopEvent: () => true,
+                },
               ),
             )
           }

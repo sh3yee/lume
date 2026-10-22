@@ -114,6 +114,10 @@
   user-select: none;
 }
 
+.lume-markdown-content dl.lume-footnote-empty > dd > p:lang(en)::before {
+  content: 'Enter footnote content';
+}
+
 .lume-markdown-content .lume-footnote-backref {
   margin-left: 0.5ch;
   padding: 0 0.15em;

@@ -25,3 +25,7 @@
   content: 'Mermaid 图表渲染失败，已保留源代码';
   font-size: var(--lume-font-size-sm);
 }
+
+.lume-markdown-content .lume-mermaid--error:lang(en)::before {
+  content: 'Mermaid rendering failed. Source code is preserved.';
+}

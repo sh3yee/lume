@@ -3,6 +3,7 @@
  *
  * 管理打开文档、活动标签、内容、光标和关闭流程；文件 IO 与会话存储由外部模块负责。
  */
+import { t } from '@/app/i18n'
 import { computed, ref } from 'vue'
 import { calculateDocumentStats } from './documentStats'
 import type {
@@ -60,7 +61,7 @@ let documentSequence = 0
 
 function createDocumentRecord(
   content = '',
-  name = '未命名文档',
+  name = t('未命名文档'),
   path: string | null = null,
 ): OpenDocument {
   documentSequence += 1

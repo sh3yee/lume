@@ -4,6 +4,7 @@
  *
  * 展示所有已打开文档，支持切换、关闭、新建和打开文件。
  */
+import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vLiquidGlass } from '@/ui/glass/directive'
 import { FileDown, FileText, Plus, X } from 'lucide-vue-next'
@@ -12,11 +13,6 @@ import { useFileOps } from '@composables/useFileOps'
 import { revealFileInFolder } from '@/platform/tauri/files'
 
 const DRAG_THRESHOLD = 4
-const revealFileLabel = /Mac/i.test(navigator.platform)
-  ? '在 Finder 中显示'
-  : /Win/i.test(navigator.platform)
-    ? '在资源管理器中显示'
-    : '在文件管理器中显示'
 
 const props = withDefaults(
   defineProps<{
@@ -53,6 +49,14 @@ let suppressNextClick = false
 let tabLayouts: Array<{ id: string; centerX: number }> = []
 let resizeObserver: ResizeObserver | null = null
 
+const revealFileLabel = computed(() =>
+  /Mac/i.test(navigator.platform)
+    ? t('在 Finder 中显示')
+    : /Win/i.test(navigator.platform)
+      ? t('在资源管理器中显示')
+      : t('在文件管理器中显示'),
+)
+
 const contextDocumentIndex = computed(() =>
   contextDocument.value
     ? documents.value.findIndex((document) => document.id === contextDocument.value?.id)
@@ -66,7 +70,7 @@ const markdownDropPaths = computed(() =>
 const fileDropLabel = computed(() => {
   if (markdownDropPaths.value.length === 0) return null
   if (markdownDropPaths.value.length > 1) {
-    return `${markdownDropPaths.value.length} 个 Markdown`
+    return t('{0} 个 Markdown', markdownDropPaths.value.length)
   }
   return markdownDropPaths.value[0].split(/[\\/]/).pop() || 'Markdown'
 })
@@ -169,7 +173,7 @@ function copyTextFallback(text: string) {
   textarea.select()
   const copied = document.execCommand('copy')
   textarea.remove()
-  if (!copied) throw new Error('浏览器拒绝复制文件路径')
+  if (!copied) throw new Error(t('浏览器拒绝复制文件路径'))
 }
 
 async function copyFilePath() {
@@ -412,13 +416,13 @@ onBeforeUnmount(() => {
   <nav
     class="lume-tabs"
     :class="{ 'lume-tabs--single': documents.length === 1 }"
-    aria-label="打开的文档"
+    :aria-label="t('打开的文档')"
   >
     <div
       ref="tabList"
       class="lume-tabs__list"
       role="tablist"
-      aria-label="打开的文档"
+      :aria-label="t('打开的文档')"
       aria-orientation="horizontal"
       @scroll="closeContextMenu"
       @wheel="handleTabWheel"
@@ -450,7 +454,7 @@ onBeforeUnmount(() => {
           type="button"
           role="tab"
           :aria-selected="document.id === activeDocumentId"
-          :aria-label="`${document.name}${document.isDirty ? '，未保存' : ''}`"
+          :aria-label="`${document.name}${document.isDirty ? t('，未保存') : ''}`"
           aria-controls="lume-document-panel"
           :tabindex="document.id === activeDocumentId ? 0 : -1"
           @keydown="handleTabKeydown($event, document.id)"
@@ -468,7 +472,7 @@ onBeforeUnmount(() => {
           :class="{ 'lume-tabs__close--dirty': document.isDirty }"
           type="button"
           :tabindex="document.id === activeDocumentId ? 0 : -1"
-          :aria-label="`关闭 ${document.name}${document.isDirty ? '（未保存）' : ''}`"
+          :aria-label="t('关闭 {0}{1}', document.name, document.isDirty ? t('（未保存）') : '')"
           @click.stop="requestClose(document)"
           @pointerdown.stop
         >
@@ -485,8 +489,8 @@ onBeforeUnmount(() => {
     <button
       class="lume-tabs__new"
       type="button"
-      title="新建文档 (Ctrl+N)"
-      aria-label="新建文档"
+      :title="t('新建文档 (Ctrl+N)')"
+      :aria-label="t('新建文档')"
       @click="newFile"
     >
       <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -499,14 +503,14 @@ onBeforeUnmount(() => {
       ref="contextMenu"
       class="lume-tabs__context-menu"
       role="menu"
-      :aria-label="`${contextDocument.name} 标签操作`"
+      :aria-label="t('{0} 标签操作', contextDocument.name)"
       :style="{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }"
       @contextmenu.prevent
       @keydown="handleContextMenuKeydown"
       @pointerdown.stop
     >
       <button type="button" role="menuitem" @click="closeContextDocument">
-        <span>关闭</span>
+        <span>{{ t('关闭') }}</span>
       </button>
       <button
         type="button"
@@ -514,7 +518,7 @@ onBeforeUnmount(() => {
         :disabled="!canCloseOtherDocuments"
         @click="closeOtherDocuments"
       >
-        <span>关闭其他标签</span>
+        <span>{{ t('关闭其他标签') }}</span>
       </button>
       <button
         type="button"
@@ -522,11 +526,11 @@ onBeforeUnmount(() => {
         :disabled="!canCloseLeftDocuments"
         @click="closeLeftDocuments"
       >
-        <span>关闭左侧标签</span>
+        <span>{{ t('关闭左侧标签') }}</span>
       </button>
       <div class="lume-tabs__context-separator" role="separator"></div>
       <button type="button" role="menuitem" :disabled="!contextDocument.path" @click="copyFilePath">
-        <span>复制文件路径</span>
+        <span>{{ t('复制文件路径') }}</span>
       </button>
       <button
         type="button"

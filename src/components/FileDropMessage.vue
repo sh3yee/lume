@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { TriangleAlert, X } from 'lucide-vue-next'
 
 defineProps<{
@@ -15,7 +16,12 @@ const emit = defineEmits<{
     <div v-if="message" class="lume-file-drop-message" role="status">
       <TriangleAlert :size="16" :stroke-width="1.8" />
       <span>{{ message }}</span>
-      <button type="button" title="关闭提示" aria-label="关闭提示" @click="emit('dismiss')">
+      <button
+        type="button"
+        :title="t('关闭提示')"
+        :aria-label="t('关闭提示')"
+        @click="emit('dismiss')"
+      >
         <X :size="15" :stroke-width="1.8" />
       </button>
     </div>

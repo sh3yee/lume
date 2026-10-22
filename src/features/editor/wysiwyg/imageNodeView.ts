@@ -1,3 +1,5 @@
+import { language, t } from '@/app/i18n'
+import { watch } from 'vue'
 import type { ImageInputAttributes } from './imageInput'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { NodeSelection } from '@milkdown/kit/prose/state'
@@ -47,7 +49,10 @@ export function createImageNodeView(options: {
       dom.contentEditable = 'false'
       imageElement.draggable = false
       resizeHandle.className = 'lume-image-resizer__handle'
-      resizeHandle.title = '拖动调整图片大小'
+      resizeHandle.title = t('拖动调整图片大小')
+      const stopLanguageWatch = watch(language, () => {
+        resizeHandle.title = t('拖动调整图片大小')
+      })
       dom.append(imageElement, resizeHandle, pathEditor.dom)
 
       const applyZoom = () => {
@@ -290,6 +295,7 @@ export function createImageNodeView(options: {
           return true
         },
         destroy() {
+          stopLanguageWatch()
           destroyed = true
           loadSequence++
           resizeCleanup?.()

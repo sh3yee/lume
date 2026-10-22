@@ -3,6 +3,7 @@
  *
  * 组合文件 Service 与 Document Store，不在 Adapter 中修改响应式状态。
  */
+import { t } from '@/app/i18n'
 import { computed } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
@@ -14,7 +15,7 @@ import {
 
 export function useDocumentFileCommands() {
   const { activeDocument, newDocument, openDocument, completeDocumentSave } = useDocument()
-  const currentFileName = computed(() => activeDocument.value?.name ?? '未命名文档')
+  const currentFileName = computed(() => activeDocument.value?.name ?? t('未命名文档'))
   const currentFilePath = computed(() => activeDocument.value?.path ?? null)
   const isDirty = computed(() => activeDocument.value?.isDirty ?? false)
 

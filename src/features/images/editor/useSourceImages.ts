@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { onBeforeUnmount, onMounted, type Ref } from 'vue'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { chooseImageFiles } from '../services/imageFileOperations'
@@ -41,7 +42,7 @@ export const useSourceImages = (
     )
   const insertAtTarget = (target: SourceTarget, text: string, cursorOffset = text.length) => {
     if (disposed || activeDocument.value?.id !== target.id || content.value !== target.source)
-      throw new Error('插入位置已发生变化，请重新插入图片。')
+      throw new Error(t('插入位置已发生变化，请重新插入图片。'))
     const element = textarea.value
     if (!element) return
     element.focus()

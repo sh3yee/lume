@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { isTauri } from '@/platform/tauri/client'
 import {
   deleteImageFile,
@@ -71,13 +72,13 @@ export const groupImageSources = async (sources: string[], document: ImageDocume
 }
 
 export const chooseImageFiles = async (multiple = true) => {
-  if (!isTauri()) throw new Error('选择本地图片需要在桌面应用中使用。')
+  if (!isTauri()) throw new Error(t('选择本地图片需要在桌面应用中使用。'))
   const { open } = await import('@tauri-apps/plugin-dialog')
   const paths = await open({
     multiple,
     filters: [
       {
-        name: '图片',
+        name: t('图片'),
         extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg', 'ico'],
       },
     ],
@@ -86,7 +87,7 @@ export const chooseImageFiles = async (multiple = true) => {
 }
 
 export const chooseImageFolder = async (title: string) => {
-  if (!isTauri()) throw new Error('管理图片文件需要在桌面应用中使用。')
+  if (!isTauri()) throw new Error(t('管理图片文件需要在桌面应用中使用。'))
   const { open } = await import('@tauri-apps/plugin-dialog')
   const folder = await open({ directory: true, multiple: false, title })
   return typeof folder === 'string' ? folder : null
@@ -104,14 +105,16 @@ export const operateImageFile = async (
   document: ImageDocument,
   destination?: string,
 ) => {
-  if (!isTauri()) throw new Error('管理图片文件需要在桌面应用中使用。')
+  if (!isTauri()) throw new Error(t('管理图片文件需要在桌面应用中使用。'))
   const options = getDocumentImageOptions(document.content)
   if (action === 'deleteImageFile') {
     const { confirm } = await import('@tauri-apps/plugin-dialog')
     if (
       !(await confirm(
-        '删除后将移除本文档中的图片引用，并永久删除磁盘上的原文件。撤销只能恢复引用，无法恢复文件。',
-        { title: '删除图片及原文件？', kind: 'warning' },
+        t(
+          '删除后将移除本文档中的图片引用，并永久删除磁盘上的原文件。撤销只能恢复引用，无法恢复文件。',
+        ),
+        { title: t('删除图片及原文件？'), kind: 'warning' },
       ))
     )
       return null
@@ -119,7 +122,7 @@ export const operateImageFile = async (
     return ''
   }
   if (action === 'uploadImage') {
-    if (!options.uploader?.program) throw new Error('请先在偏好设置 → 图片中配置上传工具。')
+    if (!options.uploader?.program) throw new Error(t('请先在偏好设置 → 图片中配置上传工具。'))
     return (await uploadImageFiles([src], document.path, document.id, options.uploader, options))[0]
       .markdownPath
   }
@@ -127,7 +130,7 @@ export const operateImageFile = async (
     destination ??
     (await chooseImageDestination(
       src,
-      action === 'moveImageTo' ? '移动 / 重命名图片' : '复制图片到',
+      action === 'moveImageTo' ? t('移动 / 重命名图片') : t('复制图片到'),
     ))
   if (!target) return null
   return (

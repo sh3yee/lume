@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { EmojiEntry } from './data'
 import './styles.css'
 
@@ -14,13 +15,15 @@ export const createEmojiCompletionPopup = (options: {
   popup.className = 'lume-emoji-completion'
   popup.hidden = true
   list.setAttribute('role', 'listbox')
-  list.setAttribute('aria-label', '表情符号补全')
+  list.setAttribute('aria-label', t('表情符号补全'))
   hint.className = 'lume-emoji-completion__hint'
-  hint.textContent = '↑ ↓ 选择 · Enter / Tab 确认 · Esc 关闭'
+  hint.textContent = t('↑ ↓ 选择 · Enter / Tab 确认 · Esc 关闭')
   popup.append(list, hint)
   ownerDocument.body.append(popup)
 
   const show = (state: { items: EmojiEntry[]; selected: number; left: number; top: number }) => {
+    list.setAttribute('aria-label', t('表情符号补全'))
+    hint.textContent = t('↑ ↓ 选择 · Enter / Tab 确认 · Esc 关闭')
     list.replaceChildren()
     state.items.forEach((entry, index) => {
       const item = ownerDocument.createElement('button')

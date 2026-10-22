@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { CommandPaletteItem } from '@/app/commands/useCommandPalette'
 
@@ -91,7 +92,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
         class="lume-command-palette__panel"
         role="dialog"
         aria-modal="true"
-        aria-label="命令面板"
+        :aria-label="t('命令面板')"
         @mousedown.stop
       >
         <div class="lume-command-palette__header">
@@ -100,12 +101,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
             v-model="query"
             class="lume-command-palette__input"
             type="text"
-            placeholder="搜索命令或动作..."
+            :placeholder="t('搜索命令或动作...')"
             autocomplete="off"
           />
         </div>
 
-        <div class="lume-command-palette__list" role="listbox" aria-label="可用命令">
+        <div class="lume-command-palette__list" role="listbox" :aria-label="t('可用命令')">
           <button
             v-for="(item, index) in filteredItems"
             :key="item.id"
@@ -121,7 +122,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
           </button>
 
           <div v-if="filteredItems.length === 0" class="lume-command-palette__empty">
-            没有匹配的命令
+            {{ t('没有匹配的命令') }}
           </div>
         </div>
       </div>

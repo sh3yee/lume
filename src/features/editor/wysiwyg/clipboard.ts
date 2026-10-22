@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { EditorView } from '@milkdown/kit/prose/view'
 
 /** 读取当前系统剪贴板，并交给编辑器原有的图片、Markdown 与 HTML 粘贴链路。 */
@@ -49,6 +50,6 @@ export const pasteClipboard = async (
       new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
     )
   } catch {
-    if (isActive()) onError('无法读取系统剪贴板，请使用 Ctrl+V 粘贴。')
+    if (isActive()) onError(t('无法读取系统剪贴板，请使用 Ctrl+V 粘贴。'))
   }
 }

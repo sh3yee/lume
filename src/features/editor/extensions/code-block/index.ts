@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { type Editor } from '@milkdown/kit/core'
 import { CodeMirrorBlock, codeBlockConfig } from '@milkdown/components/code-block'
 import { defaultKeymap, historyKeymap, indentWithTab } from '@codemirror/commands'
@@ -115,6 +116,15 @@ const createEagerCodeBlockView = (onViewUpdate?: (view: EditorView) => void) =>
     return (node, view, getPos) => {
       const block = new CodeMirrorBlock(node, view, getPos, languageLoader, {
         ...config,
+        get searchPlaceholder() {
+          return t('搜索语言')
+        },
+        get noResultText() {
+          return t('没有匹配的语言')
+        },
+        get copyText() {
+          return t('复制代码')
+        },
         extensions: [
           ...config.extensions,
           CodeMirrorView.updateListener.of((update) => {
@@ -160,19 +170,19 @@ export function useCodeBlockWysiwygExtension(
         expandIcon: '',
         searchIcon: '⌕',
         clearSearchIcon: '×',
-        searchPlaceholder: '搜索语言',
-        noResultText: '没有匹配的语言',
-        copyText: '复制代码',
+        searchPlaceholder: t('搜索语言'),
+        noResultText: t('没有匹配的语言'),
+        copyText: t('复制代码'),
         copyIcon: '',
         onCopy: () => {
           const button = document.activeElement
           if (!(button instanceof HTMLButtonElement) || !button.classList.contains('copy-button'))
             return
 
-          button.textContent = '已复制'
+          button.textContent = t('已复制')
           button.dataset.copied = 'true'
           window.setTimeout(() => {
-            button.textContent = '复制代码'
+            button.textContent = t('复制代码')
             delete button.dataset.copied
           }, 1800)
         },

@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { type Editor } from '@milkdown/kit/core'
 import {
   extendListItemSchemaForTask,
@@ -125,7 +126,7 @@ const taskCheckboxes = $prose(
                   input.checked = node.attrs.checked
                   input.disabled = !view.editable
                   input.contentEditable = 'false'
-                  input.setAttribute('aria-label', '切换任务完成状态')
+                  input.setAttribute('aria-label', t('切换任务完成状态'))
                   input.addEventListener('mousedown', (event) => event.preventDefault())
                   input.addEventListener('change', () => {
                     const item = view.state.doc.nodeAt(pos)
@@ -182,7 +183,7 @@ export function useGfmPreviewExtension(markdown: MarkdownIt) {
       if (!match) continue
       first.content = first.content.slice(match[0].length)
       const checkbox = new state.Token('lume_task_checkbox', '', 0)
-      checkbox.content = `<input class="lume-task-checkbox" type="checkbox" disabled${match[1].toLowerCase() === 'x' ? ' checked' : ''} aria-label="任务完成状态"> `
+      checkbox.content = `<input class="lume-task-checkbox" type="checkbox" disabled${match[1].toLowerCase() === 'x' ? ' checked' : ''} aria-label="${t('任务完成状态')}"> `
       token.children!.unshift(checkbox)
       item.attrJoin('class', 'lume-task-item')
     }

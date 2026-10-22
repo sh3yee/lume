@@ -3,6 +3,7 @@
  *
  * 管理当前工作区、文件树、折叠状态和加载反馈；平台调用与持久化由外部 Service 负责。
  */
+import { t } from '@/app/i18n'
 import { computed, ref } from 'vue'
 import type { WorkspaceEntry } from '@/platform/tauri/workspace'
 
@@ -11,18 +12,20 @@ const workspaceEntries = ref<WorkspaceEntry[]>([])
 const expandedPaths = ref(new Set<string>())
 const workspaceLoading = ref(false)
 const workspaceError = ref<string | null>(null)
-const externalConflicts = ref<Array<{
-  documentId: string
-  fileName: string
-  path: string
-  kind: 'modified' | 'deleted'
-}>>([])
+const externalConflicts = ref<
+  Array<{
+    documentId: string
+    fileName: string
+    path: string
+    kind: 'modified' | 'deleted'
+  }>
+>([])
 const externalConflict = computed(() => externalConflicts.value[0] ?? null)
 const lastScanDurationMs = ref<number | null>(null)
 const autoSaveError = ref<string | null>(null)
 
-const workspaceName = computed(() =>
-  workspacePath.value?.split(/[\\/]/).filter(Boolean).at(-1) ?? '工作区',
+const workspaceName = computed(
+  () => workspacePath.value?.split(/[\\/]/).filter(Boolean).at(-1) ?? t('工作区'),
 )
 
 const visibleWorkspaceEntries = computed(() => {
@@ -65,7 +68,7 @@ function setWorkspaceError(message: string | null) {
   workspaceError.value = message
 }
 
-function setExternalConflict(conflict: typeof externalConflicts.value[number] | null) {
+function setExternalConflict(conflict: (typeof externalConflicts.value)[number] | null) {
   if (!conflict) {
     externalConflicts.value.shift()
     return
@@ -106,9 +109,7 @@ function containsPath(path: string) {
   if (!workspacePath.value) return false
   const root = workspacePath.value.replace(/[\\/]+$/, '').toLocaleLowerCase()
   const candidate = path.toLocaleLowerCase()
-  return candidate === root
-    || candidate.startsWith(`${root}\\`)
-    || candidate.startsWith(`${root}/`)
+  return candidate === root || candidate.startsWith(`${root}\\`) || candidate.startsWith(`${root}/`)
 }
 
 export function useWorkspaceStore() {

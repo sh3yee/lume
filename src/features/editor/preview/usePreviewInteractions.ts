@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import type { SelectionToolbarModel } from '../wysiwyg/selectionToolbarItems'
 import { pickSelectionAnchor } from '../wysiwyg/selectionGeometry'
@@ -127,8 +128,8 @@ export const usePreviewInteractions = (options: {
     target = next
     toolbar.value = {
       model: {
-        title: '只读文字',
-        items: [{ id: 'copy', label: '复制所选文字' }],
+        title: t('只读文字'),
+        items: [{ id: 'copy', label: t('复制所选文字') }],
         more: [],
         placement: 'range',
       },
@@ -216,7 +217,7 @@ export const usePreviewInteractions = (options: {
       void options
         .onOpenLink(href)
         .catch((error: unknown) =>
-          options.onError(error instanceof Error ? error.message : '无法打开链接。'),
+          options.onError(error instanceof Error ? error.message : t('无法打开链接。')),
         )
   }
   const handleAction = async (id: string) => {
@@ -227,7 +228,7 @@ export const usePreviewInteractions = (options: {
     try {
       if (id === 'copy') await navigator.clipboard.writeText(target.text)
     } catch (error) {
-      options.onError(error instanceof Error ? error.message : '无法完成预览操作。')
+      options.onError(error instanceof Error ? error.message : t('无法完成预览操作。'))
     }
   }
   const handleKeydown = (event: KeyboardEvent) => {

@@ -4,6 +4,7 @@
  *
  * 使用 markdown-it 实时渲染编辑区的 Markdown 内容，并支持与源码编辑区同步滚动。
  */
+import { t } from '@/app/i18n'
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useMarkdownPreview } from '@/features/editor/preview/useMarkdownPreview.ts'
@@ -89,7 +90,8 @@ onMounted(() => void renderPreviewExtensions())
 <template>
   <section class="lume-preview-pane">
     <div v-if="interactionError" class="lume-preview-pane__error" role="alert">
-      {{ interactionError }} <button type="button" @click="interactionError = ''">关闭</button>
+      {{ interactionError }}
+      <button type="button" @click="interactionError = ''">{{ t('关闭') }}</button>
     </div>
     <div
       ref="previewContentRef"

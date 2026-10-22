@@ -1,3 +1,5 @@
+import { language, t } from '@/app/i18n'
+import { watch } from 'vue'
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model'
 import { closeHistory, undo, redo } from '@milkdown/kit/prose/history'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
@@ -26,11 +28,18 @@ export const createImagePathEditor = (options: {
   dom.className = 'lume-image-path'
   dom.contentEditable = 'false'
   input.dir = 'ltr'
-  input.setAttribute('aria-label', '图片路径')
+  input.setAttribute('aria-label', t('图片路径'))
   choose.className = 'lume-image-path__choose'
   choose.type = 'button'
-  choose.title = '选择本地图片'
-  choose.setAttribute('aria-label', '选择本地图片')
+  choose.title = t('选择本地图片')
+  choose.setAttribute('aria-label', t('选择本地图片'))
+  const stopLanguageWatch = watch(language, () => {
+    input.setAttribute('aria-label', t('图片路径'))
+    source.dom.setAttribute('aria-label', t('图片 Markdown'))
+    input.dataset.placeholder = t('输入图片路径')
+    choose.title = t('选择本地图片')
+    choose.setAttribute('aria-label', t('选择本地图片'))
+  })
   choose.innerHTML =
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v2H8l-5 10H2V7Z"/><path d="M3 20h15l4-10H8Z"/></svg>'
   dom.append(source.dom)
@@ -101,7 +110,7 @@ export const createImagePathEditor = (options: {
     let restoreFocus = false
     try {
       if (!selectFile && /^(?:javascript|vbscript):/i.test(draft))
-        throw new Error('请输入有效的图片路径。')
+        throw new Error(t('请输入有效的图片路径。'))
       const images = selectFile
         ? await options.selectImages?.()
         : [{ src: await (options.importSource?.(draft) ?? draft), alt: '', title: '' }]
@@ -268,6 +277,7 @@ export const createImagePathEditor = (options: {
     },
     contains: (target: EventTarget | null) => target instanceof Node && dom.contains(target),
     destroy() {
+      stopLanguageWatch()
       destroyed = true
       source.dom.removeEventListener('input', handleInput)
       source.dom.removeEventListener('focus', handleFocus)

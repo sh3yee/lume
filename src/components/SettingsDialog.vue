@@ -4,6 +4,7 @@
  *
  * 使用原生 dialog 提供分类式的应用设置入口。
  */
+import { language, languageOptions, setLanguage, t } from '@/app/i18n'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Braces,
@@ -46,63 +47,6 @@ const fontSizeOptions = Array.from({ length: 21 }, (_, index) => ({
   value: index + 12,
   label: `${index + 12} px`,
 }))
-const lineHeightOptions = [
-  { value: 1.4, label: '紧凑 · 1.4' },
-  { value: 1.65, label: '默认 · 1.65' },
-  { value: 1.8, label: '舒适 · 1.8' },
-  { value: 2, label: '宽松 · 2.0' },
-  { value: 2.4, label: '宽阔 · 2.4' },
-]
-const markdownSettingsGroups: MarkdownSettingsGroup[] = [
-  {
-    id: 'syntax',
-    label: '语法支持',
-    hint: '启用后，将对应的 Markdown 标记显示为格式化内容。',
-    extensions: [
-      { id: 'highlight', label: '高亮', description: '使用 ==重点== 标记高亮文字。' },
-      { id: 'subscript', label: '下标', description: '使用 H~2~O 显示下标。' },
-      { id: 'superscript', label: '上标', description: '使用 X^2^ 显示上标。' },
-    ],
-  },
-  {
-    id: 'math-diagrams',
-    label: '公式和图表',
-    hint: '行内公式可嵌入正文；Mermaid 图表在分栏预览中显示。',
-    extensions: [
-      { id: 'inlineMath', label: '行内公式', description: '使用 $x^2$ 在文字中插入公式。' },
-      {
-        id: 'mermaid',
-        label: 'Mermaid 图表',
-        description: '在预览中将 mermaid 代码块渲染为流程图、时序图等图表。',
-      },
-    ],
-  },
-  {
-    id: 'links',
-    label: '链接',
-    hint: '控制直接输入网址时的显示方式。',
-    extensions: [
-      {
-        id: 'autoLink',
-        label: '自动识别网址',
-        description: '将 https://example.com 等裸网址显示为可点击的链接。',
-      },
-    ],
-  },
-  {
-    id: 'emoji-alerts',
-    label: '表情和提示块',
-    hint: '补充常用的表情短代码与 GitHub 风格提示块。',
-    extensions: [
-      { id: 'emoji', label: '表情符号', description: '将 :smile: 等短代码显示为表情符号。' },
-      {
-        id: 'githubAlerts',
-        label: 'GitHub 提示块样式',
-        description: '将 > [!NOTE] 等引用显示为彩色提示块。',
-      },
-    ],
-  },
-]
 
 const props = defineProps<{
   open: boolean
@@ -144,13 +88,73 @@ const {
   error: fontsError,
   ensureLoaded: ensureFontsLoaded,
 } = useSystemFonts()
-const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }> = [
-  { id: 'general', label: '常规', icon: Type },
-  { id: 'editor', label: '编辑', icon: Sparkles },
+const lineHeightOptions = computed(() => [
+  { value: 1.4, label: t('紧凑 · 1.4') },
+  { value: 1.65, label: t('默认 · 1.65') },
+  { value: 1.8, label: t('舒适 · 1.8') },
+  { value: 2, label: t('宽松 · 2.0') },
+  { value: 2.4, label: t('宽阔 · 2.4') },
+])
+const markdownSettingsGroups = computed<MarkdownSettingsGroup[]>(() => [
+  {
+    id: 'syntax',
+    label: t('语法支持'),
+    hint: t('启用后，将对应的 Markdown 标记显示为格式化内容。'),
+    extensions: [
+      { id: 'highlight', label: t('高亮'), description: t('使用 ==重点== 标记高亮文字。') },
+      { id: 'subscript', label: t('下标'), description: t('使用 H~2~O 显示下标。') },
+      { id: 'superscript', label: t('上标'), description: t('使用 X^2^ 显示上标。') },
+    ],
+  },
+  {
+    id: 'math-diagrams',
+    label: t('公式和图表'),
+    hint: t('行内公式可嵌入正文；Mermaid 图表在分栏预览中显示。'),
+    extensions: [
+      { id: 'inlineMath', label: t('行内公式'), description: t('使用 $x^2$ 在文字中插入公式。') },
+      {
+        id: 'mermaid',
+        label: t('Mermaid 图表'),
+        description: t('在预览中将 mermaid 代码块渲染为流程图、时序图等图表。'),
+      },
+    ],
+  },
+  {
+    id: 'links',
+    label: t('链接'),
+    hint: t('控制直接输入网址时的显示方式。'),
+    extensions: [
+      {
+        id: 'autoLink',
+        label: t('自动识别网址'),
+        description: t('将 https://example.com 等裸网址显示为可点击的链接。'),
+      },
+    ],
+  },
+  {
+    id: 'emoji-alerts',
+    label: t('表情和提示块'),
+    hint: t('补充常用的表情短代码与 GitHub 风格提示块。'),
+    extensions: [
+      { id: 'emoji', label: t('表情符号'), description: t('将 :smile: 等短代码显示为表情符号。') },
+      {
+        id: 'githubAlerts',
+        label: t('GitHub 提示块样式'),
+        description: t('将 > [!NOTE] 等引用显示为彩色提示块。'),
+      },
+    ],
+  },
+])
+
+const categoryMeta = computed<
+  Array<{ id: SettingsCategory; label: string; icon: typeof Sparkles }>
+>(() => [
+  { id: 'general', label: t('常规'), icon: Type },
+  { id: 'editor', label: t('编辑'), icon: Sparkles },
   { id: 'markdown', label: 'Markdown', icon: Braces },
-  { id: 'images', label: '图片', icon: Image },
-  { id: 'appearance', label: '外观', icon: Palette },
-]
+  { id: 'images', label: t('图片'), icon: Image },
+  { id: 'appearance', label: t('外观'), icon: Palette },
+])
 
 const fontOptions = computed(() => {
   const options = [...systemFontOptions.value]
@@ -163,7 +167,7 @@ const fontOptions = computed(() => {
 })
 const fontStatus = computed(() => {
   if (fontsError.value) return fontsError.value
-  return fontsLoading.value ? '正在加载字体…' : ''
+  return fontsLoading.value ? t('正在加载字体…') : ''
 })
 
 const handleResetTypography = () => {
@@ -223,12 +227,12 @@ onBeforeUnmount(() => dialogRef.value?.close())
           <span class="lume-settings__title-icon" aria-hidden="true">
             <SlidersHorizontal :size="17" :stroke-width="1.7" />
           </span>
-          <span>偏好设置</span>
+          <span>{{ t('偏好设置') }}</span>
         </h2>
         <button
           class="lume-settings__close"
           type="button"
-          aria-label="关闭设置"
+          :aria-label="t('关闭设置')"
           @click="emit('close')"
         >
           <X :size="17" :stroke-width="1.6" />
@@ -236,7 +240,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
       </header>
 
       <div class="lume-settings__body">
-        <nav class="lume-settings__sidebar" aria-label="设置分类">
+        <nav class="lume-settings__sidebar" :aria-label="t('设置分类')">
           <button
             v-for="category in categoryMeta"
             :key="category.id"
@@ -251,13 +255,30 @@ onBeforeUnmount(() => dialogRef.value?.close())
         </nav>
 
         <div class="lume-settings__content">
+          <section v-if="activeCategory === 'general'" class="lume-settings__section">
+            <div class="lume-settings__section-heading">
+              <h3 class="lume-settings__label">{{ t('系统语言') }}</h3>
+              <p class="lume-settings__hint">
+                {{ t('选择界面显示语言，立即生效并自动保存。') }}
+              </p>
+            </div>
+            <SettingsSelect
+              id="app-language"
+              :label="t('语言')"
+              :value="language"
+              :options="languageOptions"
+              :container="dialogRef"
+              @change="setLanguage"
+            />
+          </section>
+
           <section v-if="activeCategory === 'editor'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">编辑模式</h3>
-              <p class="lume-settings__hint">选择最适合当前写作流程的工作区布局。</p>
+              <h3 class="lume-settings__label">{{ t('编辑模式') }}</h3>
+              <p class="lume-settings__hint">{{ t('选择最适合当前写作流程的工作区布局。') }}</p>
             </div>
 
-            <div class="lume-settings__options" role="radiogroup" aria-label="编辑模式">
+            <div class="lume-settings__options" role="radiogroup" :aria-label="t('编辑模式')">
               <button
                 class="lume-settings__option"
                 :class="{ 'lume-settings__option--active': viewMode === 'wysiwyg' }"
@@ -270,8 +291,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
                   <Sparkles :size="19" :stroke-width="1.6" />
                 </span>
                 <span class="lume-settings__option-copy">
-                  <strong>所见即所得</strong>
-                  <small>专注内容，直接编辑最终效果</small>
+                  <strong>{{ t('所见即所得') }}</strong>
+                  <small>{{ t('专注内容，直接编辑最终效果') }}</small>
                 </span>
                 <span class="lume-settings__check"></span>
               </button>
@@ -288,8 +309,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
                   <Columns2 :size="19" :stroke-width="1.6" />
                 </span>
                 <span class="lume-settings__option-copy">
-                  <strong>分栏预览</strong>
-                  <small>同时查看 Markdown 源码与渲染结果</small>
+                  <strong>{{ t('分栏预览') }}</strong>
+                  <small>{{ t('同时查看 Markdown 源码与渲染结果') }}</small>
                 </span>
                 <span class="lume-settings__check"></span>
               </button>
@@ -306,14 +327,18 @@ onBeforeUnmount(() => dialogRef.value?.close())
               :class="{ 'lume-settings__option--active': tabsEnabled }"
               role="switch"
               :aria-checked="tabsEnabled"
-              aria-label="显示文档标签栏"
+              :aria-label="t('显示文档标签栏')"
               aria-describedby="tabs-setting-description"
               @click="emit('update:tabs-enabled', !tabsEnabled)"
             >
               <span class="lume-settings__option-copy">
-                <strong>显示文档标签栏</strong>
+                <strong>{{ t('显示文档标签栏') }}</strong>
                 <small id="tabs-setting-description">
-                  在标题栏切换多个文档，默认启用。关闭后显示当前文件标题，不会关闭已打开的文档。
+                  {{
+                    t(
+                      '在标题栏切换多个文档，默认启用。关闭后显示当前文件标题，不会关闭已打开的文档。',
+                    )
+                  }}
                 </small>
               </span>
               <span class="lume-settings__check" aria-hidden="true"></span>
@@ -324,14 +349,14 @@ onBeforeUnmount(() => dialogRef.value?.close())
               :class="{ 'lume-settings__option--active': statusBarEnabled }"
               role="switch"
               :aria-checked="statusBarEnabled"
-              aria-label="显示状态栏"
+              :aria-label="t('显示状态栏')"
               aria-describedby="status-bar-setting-description"
               @click="emit('update:status-bar-enabled', !statusBarEnabled)"
             >
               <span class="lume-settings__option-copy">
-                <strong>显示状态栏</strong>
+                <strong>{{ t('显示状态栏') }}</strong>
                 <small id="status-bar-setting-description">
-                  在窗口底部显示行列位置、字数、字符数和阅读时长，默认开启。
+                  {{ t('在窗口底部显示行列位置、字数、字符数和阅读时长，默认开启。') }}
                 </small>
               </span>
               <span class="lume-settings__check" aria-hidden="true"></span>
@@ -382,7 +407,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                     type="button"
                     class="lume-settings__option lume-settings__option--toggle"
                     role="switch"
-                    aria-label="自动触发表情符号补全"
+                    :aria-label="t('自动触发表情符号补全')"
                     aria-describedby="markdown-emoji-completion-description"
                     :aria-checked="markdownPreferences.emojiCompletion === 'auto'"
                     :disabled="!markdownPreferences.enabled.emoji"
@@ -396,10 +421,13 @@ onBeforeUnmount(() => dialogRef.value?.close())
                     "
                   >
                     <span class="lume-settings__option-copy">
-                      <strong>自动触发表情符号补全</strong>
+                      <strong>{{ t('自动触发表情符号补全') }}</strong>
                       <small id="markdown-emoji-completion-description">
-                        输入冒号和名称时自动显示建议；关闭后按 Esc 手动触发，用 ↑ / ↓ 选择，按 Enter
-                        或 Tab 确认。需先启用表情符号。
+                        {{
+                          t(
+                            '输入冒号和名称时自动显示建议；关闭后按 Esc 手动触发，用 ↑ / ↓ 选择，按 Enter 或 Tab 确认。需先启用表情符号。',
+                          )
+                        }}
                       </small>
                     </span>
                     <span class="lume-settings__check" aria-hidden="true"></span>
@@ -414,11 +442,13 @@ onBeforeUnmount(() => dialogRef.value?.close())
             class="lume-settings__section lume-settings__section--divided"
           >
             <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">写作模式</h3>
-              <p class="lume-settings__hint">切换到更聚焦的界面，减少侧栏和多余信息的干扰。</p>
+              <h3 class="lume-settings__label">{{ t('写作模式') }}</h3>
+              <p class="lume-settings__hint">
+                {{ t('切换到更聚焦的界面，减少侧栏和多余信息的干扰。') }}
+              </p>
             </div>
 
-            <div class="lume-settings__options" role="radiogroup" aria-label="写作模式">
+            <div class="lume-settings__options" role="radiogroup" :aria-label="t('写作模式')">
               <button
                 class="lume-settings__option"
                 :class="{ 'lume-settings__option--active': !focusMode }"
@@ -431,8 +461,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
                   <Columns2 :size="19" :stroke-width="1.6" />
                 </span>
                 <span class="lume-settings__option-copy">
-                  <strong>常规模式</strong>
-                  <small>保留侧栏和标签，适合多文档浏览</small>
+                  <strong>{{ t('常规模式') }}</strong>
+                  <small>{{ t('保留侧栏和标签，适合多文档浏览') }}</small>
                 </span>
                 <span class="lume-settings__check"></span>
               </button>
@@ -449,26 +479,29 @@ onBeforeUnmount(() => dialogRef.value?.close())
                   <Sparkles :size="19" :stroke-width="1.6" />
                 </span>
                 <span class="lume-settings__option-copy">
-                  <strong>专注模式</strong>
-                  <small>隐藏侧栏与标签，最大化写作区域</small>
+                  <strong>{{ t('专注模式') }}</strong>
+                  <small>{{ t('隐藏侧栏与标签，最大化写作区域') }}</small>
                 </span>
                 <span class="lume-settings__check"></span>
               </button>
             </div>
           </section>
 
-          <section v-if="activeCategory === 'general'" class="lume-settings__section">
+          <section
+            v-if="activeCategory === 'general'"
+            class="lume-settings__section lume-settings__section--divided"
+          >
             <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">正文排版</h3>
+              <h3 class="lume-settings__label">{{ t('正文排版') }}</h3>
               <p class="lume-settings__hint">
-                只调整正文编辑和预览，自动保存。界面与大纲文字在“外观”中单独设置。
+                {{ t('只调整正文编辑和预览，自动保存。界面与大纲文字在“外观”中单独设置。') }}
               </p>
             </div>
 
             <div class="lume-settings__options lume-settings__options--stacked">
               <FontSelect
                 id="writing-font"
-                label="正文字体"
+                :label="t('正文字体')"
                 :value="writingFont"
                 :options="fontOptions"
                 :container="dialogRef"
@@ -478,7 +511,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
               />
               <SettingsSelect
                 id="writing-font-size"
-                label="正文字号"
+                :label="t('正文字号')"
                 :value="fontSize"
                 :options="fontSizeOptions"
                 :container="dialogRef"
@@ -486,15 +519,19 @@ onBeforeUnmount(() => dialogRef.value?.close())
               />
               <SettingsSelect
                 id="writing-line-height"
-                label="正文行距"
+                :label="t('正文行距')"
                 :value="lineHeight"
                 :options="lineHeightOptions"
                 :container="dialogRef"
                 @change="emit('update:line-height', $event)"
               />
               <div class="lume-settings__inline-group">
-                <span class="lume-settings__inline-label">正文宽度</span>
-                <div class="lume-settings__mini-options" role="radiogroup" aria-label="正文宽度">
+                <span class="lume-settings__inline-label">{{ t('正文宽度') }}</span>
+                <div
+                  class="lume-settings__mini-options"
+                  role="radiogroup"
+                  :aria-label="t('正文宽度')"
+                >
                   <button
                     class="lume-settings__mini-option"
                     :class="{ 'lume-settings__mini-option--active': writingWidth === 'compact' }"
@@ -503,7 +540,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                     :aria-checked="writingWidth === 'compact'"
                     @click="emit('update:writing-width', 'compact')"
                   >
-                    紧凑
+                    {{ t('紧凑') }}
                   </button>
                   <button
                     class="lume-settings__mini-option"
@@ -515,7 +552,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                     :aria-checked="writingWidth === 'comfortable'"
                     @click="emit('update:writing-width', 'comfortable')"
                   >
-                    舒适
+                    {{ t('舒适') }}
                   </button>
                   <button
                     class="lume-settings__mini-option"
@@ -525,7 +562,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                     :aria-checked="writingWidth === 'wide'"
                     @click="emit('update:writing-width', 'wide')"
                   >
-                    宽屏
+                    {{ t('宽屏') }}
                   </button>
                 </div>
               </div>
@@ -536,7 +573,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
             v-if="activeCategory === 'general'"
             class="lume-settings__section lume-settings__section--divided"
           >
-            <h3 class="lume-settings__label">排版预览</h3>
+            <h3 class="lume-settings__label">{{ t('排版预览') }}</h3>
             <p
               class="lume-settings__font-preview"
               :style="{
@@ -545,20 +582,21 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 lineHeight,
               }"
             >
-              让文字自然流动，让想法清晰呈现。<br />A quiet space to write, refine, and share.
+              {{ t('让文字自然流动，让想法清晰呈现。') }}<br />A quiet space to write, refine, and
+              share.
             </p>
             <button class="lume-settings__mini-option" type="button" @click="handleResetTypography">
-              恢复默认排版
+              {{ t('恢复默认排版') }}
             </button>
           </section>
 
           <section v-if="activeCategory === 'appearance'" class="lume-settings__section">
             <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">外观主题</h3>
-              <p class="lume-settings__hint">选择浅色、深色，或自动跟随系统外观。</p>
+              <h3 class="lume-settings__label">{{ t('外观主题') }}</h3>
+              <p class="lume-settings__hint">{{ t('选择浅色、深色，或自动跟随系统外观。') }}</p>
             </div>
 
-            <div class="lume-settings__theme-options" role="radiogroup" aria-label="外观主题">
+            <div class="lume-settings__theme-options" role="radiogroup" :aria-label="t('外观主题')">
               <button
                 class="lume-settings__theme-option"
                 :class="{ 'lume-settings__theme-option--active': theme === 'system' }"
@@ -568,7 +606,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 @click="emit('update:theme', 'system')"
               >
                 <Monitor :size="17" :stroke-width="1.6" />
-                <span>跟随系统</span>
+                <span>{{ t('跟随系统') }}</span>
               </button>
               <button
                 class="lume-settings__theme-option"
@@ -579,7 +617,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 @click="emit('update:theme', 'light')"
               >
                 <Sun :size="17" :stroke-width="1.6" />
-                <span>浅色</span>
+                <span>{{ t('浅色') }}</span>
               </button>
               <button
                 class="lume-settings__theme-option"
@@ -590,7 +628,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
                 @click="emit('update:theme', 'dark')"
               >
                 <Moon :size="17" :stroke-width="1.6" />
-                <span>深色</span>
+                <span>{{ t('深色') }}</span>
               </button>
             </div>
           </section>
@@ -612,7 +650,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
           <ImageSettingsPanel v-if="activeCategory === 'images'" />
 
           <footer class="lume-settings__footer">
-            <span>快捷键</span>
+            <span>{{ t('快捷键') }}</span>
             <kbd>Ctrl</kbd><span>+</span><kbd>,</kbd>
           </footer>
         </div>
@@ -665,7 +703,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  padding: var(--lume-space-5) var(--lume-space-7);
+  /* 标题图标中心与侧栏菜单图标对齐。 */
+  padding: var(--lume-space-3) var(--lume-space-4) var(--lume-space-3) 10px;
   background: linear-gradient(135deg, var(--lume-accent-subtle), transparent 55%);
 }
 
@@ -1028,7 +1067,6 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 @media (max-width: 560px) {
-  .lume-settings__header,
   .lume-settings__content {
     padding-right: var(--lume-space-6);
     padding-left: var(--lume-space-6);

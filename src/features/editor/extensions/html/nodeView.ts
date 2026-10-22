@@ -1,3 +1,5 @@
+import { language, t } from '@/app/i18n'
+import { watch } from 'vue'
 import type { Node } from '@milkdown/kit/prose/model'
 import { NodeSelection, Selection, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view'
@@ -21,7 +23,7 @@ export const createHtmlNodeView = (
   dom.className = block ? 'lume-html-block' : 'lume-html-atom'
   dom.contentEditable = 'false'
   dom.tabIndex = 0
-  dom.setAttribute('aria-label', 'HTML，按 Enter 编辑源码')
+  dom.setAttribute('aria-label', t('HTML，按 Enter 编辑源码'))
   const tools = document.createElement('span')
   tools.className = 'lume-html-tools'
   const toggle = document.createElement('button')
@@ -48,13 +50,16 @@ export const createHtmlNodeView = (
   const urls = new Map<string, string>()
 
   const updateControls = () => {
+    dom.setAttribute('aria-label', t('HTML，按 Enter 编辑源码'))
+    source?.editor.contentDOM.setAttribute('aria-label', t('HTML 源码'))
     toggle.disabled = !view.editable
-    toggle.title = editing ? '收起 HTML 源码（Ctrl / Cmd + Enter）' : '编辑 HTML 源码'
+    toggle.title = editing ? t('收起 HTML 源码（Ctrl / Cmd + Enter）') : t('编辑 HTML 源码')
     toggle.setAttribute('aria-label', toggle.title)
     toggle.setAttribute('aria-expanded', String(editing))
     dom.classList.toggle('lume-html-editing', editing)
     sourceHost.hidden = !editing
   }
+  const stopLanguageWatch = watch(language, updateControls)
   const renderPreview = () => {
     const raw = String(currentNode.attrs.value)
     const invisible = isInvisibleHtml(raw)
@@ -265,6 +270,7 @@ export const createHtmlNodeView = (
           (event.type !== 'keydown' && Boolean(event.target.closest(interactiveSelector))))),
     ignoreMutation: () => true,
     destroy() {
+      stopLanguageWatch()
       destroyed = true
       revision++
       clearTimeout(renderTimer)

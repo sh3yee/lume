@@ -4,6 +4,7 @@
  *
  * 当前使用原生 textarea，后续可在保持 Document Store 边界不变的情况下替换为 CodeMirror 6。
  */
+import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { useSourceImages } from '@/features/images/editor/useSourceImages'
@@ -173,7 +174,7 @@ onBeforeUnmount(() => {
         class="lume-source-editor__textarea"
         :value="content"
         spellcheck="false"
-        placeholder="开始输入 Markdown..."
+        :placeholder="t('开始输入 Markdown...')"
         @input="handleInput"
         @keyup="handleCursorChange"
         @click="handleCursorChange"

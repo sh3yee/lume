@@ -1,35 +1,49 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { t } from '@/app/i18n'
+import { computed, ref, watch } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderOpen, LoaderCircle } from 'lucide-vue-next'
 import { uploadImageFiles } from '@/platform/tauri/images'
 import { imageSettings } from '../model/imageSettings'
-
-const insertionOptions = [
-  { value: 'original', label: '保留图片原始位置' },
-  { value: 'copy', label: '复制图片到指定文件夹' },
-  { value: 'upload', label: '上传图片' },
-] as const
-const insertionRules = [
-  { key: 'applyToLocal', label: '对本地图片应用上述规则' },
-  { key: 'applyToRemote', label: '对网络图片应用上述规则' },
-  { key: 'allowYamlCopy', label: '允许根据 YAML 设置复制图片到指定文件夹' },
-  { key: 'allowYamlUpload', label: '允许根据 YAML 设置自动上传图片' },
-] as const
-const syntaxOptions = [
-  { key: 'preferRelative', label: '尽可能使用相对路径' },
-  { key: 'ensureDotSlash', label: '为相对路径添加 ./ 前缀' },
-  { key: 'escapePath', label: '插入时自动转义图片路径' },
-] as const
 
 const validating = ref(false)
 const validationResult = ref('')
 const validationFailed = ref(false)
 const argsText = ref(imageSettings.uploader.args.join('\n'))
 
+const insertionOptions = computed(
+  () =>
+    [
+      { value: 'original', label: t('保留图片原始位置') },
+      { value: 'copy', label: t('复制图片到指定文件夹') },
+      { value: 'upload', label: t('上传图片') },
+    ] as const,
+)
+const insertionRules = computed(
+  () =>
+    [
+      { key: 'applyToLocal', label: t('对本地图片应用上述规则') },
+      { key: 'applyToRemote', label: t('对网络图片应用上述规则') },
+      { key: 'allowYamlCopy', label: t('允许根据 YAML 设置复制图片到指定文件夹') },
+      { key: 'allowYamlUpload', label: t('允许根据 YAML 设置自动上传图片') },
+    ] as const,
+)
+const syntaxOptions = computed(
+  () =>
+    [
+      { key: 'preferRelative', label: t('尽可能使用相对路径') },
+      { key: 'ensureDotSlash', label: t('为相对路径添加 ./ 前缀') },
+      { key: 'escapePath', label: t('插入时自动转义图片路径') },
+    ] as const,
+)
+
 const handleChooseCopyFolder = async () => {
   try {
-    const selected = await open({ directory: true, multiple: false, title: '选择图片复制文件夹' })
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t('选择图片复制文件夹'),
+    })
     if (typeof selected === 'string') imageSettings.copyTo = selected
   } catch (error) {
     validationFailed.value = true
@@ -39,7 +53,7 @@ const handleChooseCopyFolder = async () => {
 
 const handleChooseUploader = async () => {
   try {
-    const selected = await open({ multiple: false, title: '选择图片上传程序' })
+    const selected = await open({ multiple: false, title: t('选择图片上传程序') })
     if (typeof selected === 'string') imageSettings.uploader.program = selected
   } catch (error) {
     validationFailed.value = true
@@ -54,9 +68,12 @@ const handleValidateUploader = async () => {
   try {
     const selected = await open({
       multiple: false,
-      title: '选择一张图片验证上传器（将实际上传）',
+      title: t('选择一张图片验证上传器（将实际上传）'),
       filters: [
-        { name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'] },
+        {
+          name: t('图片'),
+          extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'],
+        },
       ],
     })
     if (typeof selected !== 'string') return
@@ -65,10 +82,16 @@ const handleValidateUploader = async () => {
       program: imageSettings.uploader.program.trim(),
       args: [...imageSettings.uploader.args],
     })
-    validationResult.value = `上传成功\n${assets.map((asset) => asset.markdownPath).join('\n')}`
+    validationResult.value = t(
+      '上传成功\n{0}',
+      assets.map((asset) => asset.markdownPath).join('\n'),
+    )
   } catch (error) {
     validationFailed.value = true
-    validationResult.value = `上传失败：${error instanceof Error ? error.message : String(error)}`
+    validationResult.value = t(
+      '上传失败：{0}',
+      error instanceof Error ? error.message : String(error),
+    )
   } finally {
     validating.value = false
   }
@@ -83,16 +106,16 @@ watch(argsText, (value) => {
   <div class="image-settings">
     <section class="image-settings__section" aria-labelledby="image-insertion-label">
       <div>
-        <h3 id="image-insertion-label">插入图片时</h3>
-        <p>适用于粘贴、拖放和从本地选择图片。</p>
+        <h3 id="image-insertion-label">{{ t('插入图片时') }}</h3>
+        <p>{{ t('适用于粘贴、拖放和从本地选择图片。') }}</p>
       </div>
-      <select v-model="imageSettings.insertAction" aria-label="插入图片时的处理方式">
+      <select v-model="imageSettings.insertAction" :aria-label="t('插入图片时的处理方式')">
         <option v-for="option in insertionOptions" :key="option.value" :value="option.value">
           {{ option.label }}
         </option>
       </select>
       <div v-if="imageSettings.insertAction === 'copy'" class="image-settings__field">
-        <label for="image-copy-folder">复制目标文件夹</label>
+        <label for="image-copy-folder">{{ t('复制目标文件夹') }}</label>
         <div class="image-settings__input-row">
           <input
             id="image-copy-folder"
@@ -101,11 +124,18 @@ watch(argsText, (value) => {
             spellcheck="false"
             placeholder="${filename}.assets"
           />
-          <button type="button" aria-label="选择图片复制文件夹" @click="handleChooseCopyFolder">
+          <button
+            type="button"
+            :aria-label="t('选择图片复制文件夹')"
+            @click="handleChooseCopyFolder"
+          >
             <FolderOpen :size="16" />
           </button>
         </div>
-        <p>相对路径以文档所在文件夹为基准；<code>${filename}</code> 代表文档名（不含扩展名）。</p>
+        <p>
+          {{ t('相对路径以文档所在文件夹为基准；') }}<code>${filename}</code>
+          {{ t('代表文档名（不含扩展名）。') }}
+        </p>
       </div>
       <div class="image-settings__checks">
         <label v-for="rule in insertionRules" :key="rule.key" class="image-settings__check">
@@ -114,13 +144,13 @@ watch(argsText, (value) => {
         </label>
       </div>
       <p>
-        文档中的 <code>typora-copy-images-to</code> 可单独指定复制目录，设置为
-        <code>upload</code> 时自动上传。
+        {{ t('文档中的') }} <code>typora-copy-images-to</code> {{ t('可单独指定复制目录，设置为') }}
+        <code>upload</code> {{ t('时自动上传。') }}
       </p>
     </section>
 
     <section class="image-settings__section" aria-labelledby="image-syntax-label">
-      <h3 id="image-syntax-label">图片路径格式</h3>
+      <h3 id="image-syntax-label">{{ t('图片路径格式') }}</h3>
       <div class="image-settings__checks">
         <label v-for="option in syntaxOptions" :key="option.key" class="image-settings__check">
           <input
@@ -131,31 +161,31 @@ watch(argsText, (value) => {
           <span>{{ option.label }}</span>
         </label>
       </div>
-      <p>转义会将空格等字符编码为 URL 格式，便于其他 Markdown 工具读取。</p>
+      <p>{{ t('转义会将空格等字符编码为 URL 格式，便于其他 Markdown 工具读取。') }}</p>
     </section>
 
     <section class="image-settings__section" aria-labelledby="image-uploader-label">
       <div>
-        <h3 id="image-uploader-label">图片上传器</h3>
-        <p>使用已安装的 PicGo-Core、Upgit 或自定义上传程序。</p>
+        <h3 id="image-uploader-label">{{ t('图片上传器') }}</h3>
+        <p>{{ t('使用已安装的 PicGo-Core、Upgit 或自定义上传程序。') }}</p>
       </div>
       <div class="image-settings__field">
-        <label for="image-uploader-program">程序路径或名称</label>
+        <label for="image-uploader-program">{{ t('程序路径或名称') }}</label>
         <div class="image-settings__input-row">
           <input
             id="image-uploader-program"
             v-model="imageSettings.uploader.program"
             type="text"
             spellcheck="false"
-            placeholder="例如 C:\Tools\picgo.exe"
+            :placeholder="t('例如 C:\\Tools\\picgo.exe')"
           />
-          <button type="button" aria-label="选择图片上传程序" @click="handleChooseUploader">
+          <button type="button" :aria-label="t('选择图片上传程序')" @click="handleChooseUploader">
             <FolderOpen :size="16" />
           </button>
         </div>
       </div>
       <div class="image-settings__field">
-        <label for="image-uploader-args">程序参数（每行一个）</label>
+        <label for="image-uploader-args">{{ t('程序参数（每行一个）') }}</label>
         <textarea
           id="image-uploader-args"
           v-model="argsText"
@@ -164,8 +194,8 @@ watch(argsText, (value) => {
           placeholder="upload"
         />
         <p>
-          图片路径会自动追加到参数末尾。参数支持 <code>${filename}</code> 和
-          <code>${filepath}</code>；含空格的参数无需加引号。
+          {{ t('图片路径会自动追加到参数末尾。参数支持') }} <code>${filename}</code> {{ t('和') }}
+          <code>${filepath}</code>{{ t('；含空格的参数无需加引号。') }}
         </p>
       </div>
       <div class="image-settings__validation">
@@ -175,9 +205,9 @@ watch(argsText, (value) => {
           @click="handleValidateUploader"
         >
           <LoaderCircle v-if="validating" class="image-settings__spinner" :size="14" />
-          {{ validating ? '正在上传…' : '选择图片验证上传器' }}
+          {{ validating ? t('正在上传…') : t('选择图片验证上传器') }}
         </button>
-        <p>验证会将所选图片实际上传到当前配置的图床。</p>
+        <p>{{ t('验证会将所选图片实际上传到当前配置的图床。') }}</p>
       </div>
       <pre
         v-if="validationResult"

@@ -1,10 +1,15 @@
+import { t, type MessageKey } from '@/app/i18n'
+import { en } from '@/app/i18n/en'
 /** Tauri 命令客户端：负责环境检测、懒加载 invoke 和统一错误转换。 */
 type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>
 
 let invokeFn: InvokeFn | null = null
 
 export class PlatformError extends Error {
-  constructor(public readonly kind: string, message: string) {
+  constructor(
+    public readonly kind: string,
+    message: string,
+  ) {
     super(message)
     this.name = 'PlatformError'
   }
@@ -20,10 +25,21 @@ function toPlatformError(error: unknown, command: string) {
     const value = error as { kind?: unknown; message?: unknown }
     return new PlatformError(
       typeof value.kind === 'string' ? value.kind : 'Unknown',
-      typeof value.message === 'string' ? value.message : `命令 ${command} 执行失败`,
+      typeof value.message === 'string'
+        ? translatePlatformMessage(value.message)
+        : t('命令 {0} 执行失败', command),
     )
   }
-  return new Error(typeof error === 'string' ? error : `命令 ${command} 执行失败`)
+  return new Error(typeof error === 'string' ? error : t('命令 {0} 执行失败', command))
+}
+
+const translatePlatformMessage = (message: string) => {
+  if (Object.prototype.hasOwnProperty.call(en, message)) return t(message as MessageKey)
+  const unsupportedImage = /^不支持 \.(.+) 图片$/.exec(message)
+  if (unsupportedImage) return t('不支持 .{0} 图片', unsupportedImage[1])
+  const fontTask = /^读取系统字体任务失败：(.+)$/.exec(message)
+  if (fontTask) return t('读取系统字体任务失败：{0}', fontTask[1])
+  return message
 }
 
 async function getInvoke(): Promise<InvokeFn> {
@@ -33,10 +49,15 @@ async function getInvoke(): Promise<InvokeFn> {
   return invoke
 }
 
-export async function invokeCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  if (!isTauri()) throw new Error(`命令“${command}”需要 Tauri 桌面环境`)
+export async function invokeCommand<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  if (!isTauri()) throw new Error(t('命令“{0}”需要 Tauri 桌面环境', command))
   try {
-    return await (await getInvoke())(command, args) as T
+    return (await (
+      await getInvoke()
+    )(command, args)) as T
   } catch (error) {
     throw toPlatformError(error, command)
   }

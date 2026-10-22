@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { Node } from '@milkdown/kit/prose/model'
 import { closeHistory } from '@milkdown/kit/prose/history'
 import { TextSelection } from '@milkdown/kit/prose/state'
@@ -98,7 +99,7 @@ export const createFootnoteReferenceView = (
     source.value = getFootnoteReferenceSource(currentNode)
     source.size = Math.max(4, source.value.length + 1)
     source.spellcheck = false
-    source.setAttribute('aria-label', '编辑脚注引用源码')
+    source.setAttribute('aria-label', t('编辑脚注引用源码'))
     source.addEventListener('input', sync)
     source.addEventListener('blur', () => finish())
     source.addEventListener('keydown', (event) => {

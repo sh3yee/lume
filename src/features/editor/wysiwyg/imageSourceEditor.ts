@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { parseMarkdownImageAt } from '@/utils/imageMarkdown'
 
@@ -10,10 +11,10 @@ export const createImageSourceEditor = (choose: HTMLButtonElement) => {
   dom.className = 'lume-image-path__source'
   dom.dir = 'ltr'
   dom.setAttribute('role', 'textbox')
-  dom.setAttribute('aria-label', '图片 Markdown')
+  dom.setAttribute('aria-label', t('图片 Markdown'))
   dom.spellcheck = false
   path.className = 'lume-image-path__input'
-  path.dataset.placeholder = '输入图片路径'
+  path.dataset.placeholder = t('输入图片路径')
   choose.contentEditable = 'false'
   dom.append(prefix, path, choose, suffix)
 

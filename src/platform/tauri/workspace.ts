@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { invokeCommand } from './client'
 
 export interface WorkspaceEntry {
@@ -32,7 +33,11 @@ export function renameWorkspaceEntry(workspacePath: string, path: string, newNam
 }
 
 export function moveWorkspaceEntry(workspacePath: string, path: string, targetDirectory: string) {
-  return invokeCommand<string>('lume_move_workspace_entry', { workspacePath, path, targetDirectory })
+  return invokeCommand<string>('lume_move_workspace_entry', {
+    workspacePath,
+    path,
+    targetDirectory,
+  })
 }
 
 export function deleteWorkspaceEntry(workspacePath: string, path: string) {
@@ -54,6 +59,6 @@ export async function listenWorkspaceChanges(handler: (batch: WorkspaceChangeBat
 
 export async function selectWorkspaceDirectory() {
   const { open } = await import('@tauri-apps/plugin-dialog')
-  const selected = await open({ directory: true, multiple: false, title: '打开工作区' })
+  const selected = await open({ directory: true, multiple: false, title: t('打开工作区') })
   return typeof selected === 'string' ? selected : null
 }

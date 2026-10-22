@@ -5,6 +5,7 @@
  * 显示字数、字符数、阅读时长、光标位置和编码等信息。
  * 通过 useDocument composable 获取实时统计。
  */
+import { t } from '@/app/i18n'
 import { PanelLeft } from 'lucide-vue-next'
 import { useDocument } from '@composables/useDocument'
 
@@ -26,8 +27,8 @@ const emit = defineEmits<{
         class="lume-statusbar__sidebar-trigger"
         :class="{ 'lume-statusbar__sidebar-trigger--active': props.sidebarVisible }"
         type="button"
-        :title="props.sidebarVisible ? '隐藏侧边栏' : '显示侧边栏'"
-        :aria-label="props.sidebarVisible ? '隐藏侧边栏' : '显示侧边栏'"
+        :title="props.sidebarVisible ? t('隐藏侧边栏') : t('显示侧边栏')"
+        :aria-label="props.sidebarVisible ? t('隐藏侧边栏') : t('显示侧边栏')"
         :aria-pressed="props.sidebarVisible"
         @click="emit('toggle-sidebar')"
       >
@@ -38,17 +39,17 @@ const emit = defineEmits<{
     </div>
 
     <div class="lume-statusbar__right">
-      <span class="lume-statusbar__item lume-statusbar__position"
-        >行 {{ cursor.line }}, 列 {{ cursor.column }}</span
-      >
+      <span class="lume-statusbar__item lume-statusbar__position">{{
+        t('行 {0}, 列 {1}', cursor.line, cursor.column)
+      }}</span>
       <span class="lume-statusbar__separator lume-statusbar__position"></span>
-      <span class="lume-statusbar__item">{{ stats.words.toLocaleString() }} 字</span>
+      <span class="lume-statusbar__item">{{ t('{0} 字', stats.words.toLocaleString()) }}</span>
       <span class="lume-statusbar__separator"></span>
-      <span class="lume-statusbar__item">{{ stats.chars.toLocaleString() }} 字符</span>
+      <span class="lume-statusbar__item">{{ t('{0} 字符', stats.chars.toLocaleString()) }}</span>
       <span class="lume-statusbar__separator lume-statusbar__reading-time"></span>
-      <span class="lume-statusbar__item lume-statusbar__reading-time"
-        >约 {{ stats.readingTime }} 分钟阅读</span
-      >
+      <span class="lume-statusbar__item lume-statusbar__reading-time">{{
+        t('约 {0} 分钟阅读', stats.readingTime)
+      }}</span>
     </div>
   </footer>
 </template>

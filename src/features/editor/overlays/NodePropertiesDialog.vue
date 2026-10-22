@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from '@/app/i18n'
 import { onMounted, ref } from 'vue'
 import type { PropertyForm } from './contextMenuTypes'
 
@@ -34,8 +35,8 @@ onMounted(() => dialog.value?.showModal())
         <input v-else v-model="values[field.key]" :required="field.required" type="text" />
       </label>
       <div class="lume-node-properties__actions">
-        <button type="button" @click="emit('close')">取消</button>
-        <button type="submit">保存</button>
+        <button type="button" @click="emit('close')">{{ t('取消') }}</button>
+        <button type="submit">{{ t('保存') }}</button>
       </div>
     </form>
   </dialog>

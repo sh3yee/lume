@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useDocument } from '@/features/documents/model/useDocument'
 import {
@@ -54,18 +55,18 @@ export const useImageCommands = (options: {
       }
       if (command.startsWith('imageRule') || command.startsWith('imageRoot')) {
         if (command === 'imageRuleUpload' && !imageSettings.allowYamlUpload)
-          throw new Error('请先在偏好设置 → 图片中允许根据文档设置自动上传。')
+          throw new Error(t('请先在偏好设置 → 图片中允许根据文档设置自动上传。'))
         if (command === 'imageRuleCopy' && !imageSettings.allowYamlCopy)
-          throw new Error('请先在偏好设置 → 图片中允许根据文档设置复制图片。')
+          throw new Error(t('请先在偏好设置 → 图片中允许根据文档设置复制图片。'))
         const key = command.startsWith('imageRoot') ? 'typora-root-url' : 'typora-copy-images-to'
         if (command === 'imageRootReset' || command === 'imageRuleGlobal')
           updateMetadata(snapshot.id, key, null)
         else if (command === 'imageRuleUpload') updateMetadata(snapshot.id, key, 'upload')
         else if (command === 'imageRuleOriginal') updateMetadata(snapshot.id, key, '')
         else {
-          if (!snapshot.path) throw new Error('请先保存文档，再设置图片目录。')
+          if (!snapshot.path) throw new Error(t('请先保存文档，再设置图片目录。'))
           const folder = await chooseImageFolder(
-            command === 'imageRoot' ? '选择图片根目录' : '插入图片时复制到此目录',
+            command === 'imageRoot' ? t('选择图片根目录') : t('插入图片时复制到此目录'),
           )
           if (folder) updateMetadata(snapshot.id, key, folder.replace(/\\/g, '/'))
         }
@@ -90,11 +91,11 @@ export const useImageCommands = (options: {
         .filter((src) => command !== 'uploadAllImages' || !/^(?:https?:|\/\/)/i.test(src))
         .filter((src) => command !== 'downloadAllImages' || /^(?:https?:|\/\/)/i.test(src))
       if (!sources.length) {
-        options.onMessage('文档中没有符合条件的图片。')
+        options.onMessage(t('文档中没有符合条件的图片。'))
         return
       }
       const folder =
-        operation === 'uploadImage' ? undefined : await chooseImageFolder('选择图片目标文件夹')
+        operation === 'uploadImage' ? undefined : await chooseImageFolder(t('选择图片目标文件夹'))
       if (folder === null) return
       busy.value = true
       const groups = await groupImageSources(sources, snapshot)
@@ -102,7 +103,9 @@ export const useImageCommands = (options: {
       const errors: string[] = []
       for (const aliases of groups) {
         try {
-          options.onMessage(`正在处理图片 ${completed + errors.length + 1} / ${groups.length}…`)
+          options.onMessage(
+            t('正在处理图片 {0} / {1}…', completed + errors.length + 1, groups.length),
+          )
           const updated = await imageFiles.execute(
             operation,
             aliases,
@@ -115,7 +118,11 @@ export const useImageCommands = (options: {
         }
       }
       options.onMessage(
-        `已处理 ${completed} 张图片${errors.length ? `，${errors.length} 张失败：${errors[0]}` : ''}`,
+        t(
+          '已处理 {0} 张图片{1}',
+          completed,
+          errors.length ? t('，{0} 张失败：{1}', errors.length, errors[0]) : '',
+        ),
       )
     } catch (error) {
       options.onMessage(error instanceof Error ? error.message : String(error))
@@ -135,7 +142,7 @@ export const useImageCommands = (options: {
     void execute('insertImage')
   }
   const handleImageError = (event: Event) =>
-    options.onMessage(String((event as CustomEvent<unknown>).detail ?? '图片操作失败'))
+    options.onMessage(String((event as CustomEvent<unknown>).detail ?? t('图片操作失败')))
   onMounted(() => {
     window.addEventListener('keydown', handleKeydown)
     window.addEventListener('lume:image-error', handleImageError)

@@ -4,7 +4,8 @@
  * 负责命令列表、打开关闭状态和命令执行分发。
  * UI 组件只负责展示和输入，不直接持有业务状态。
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { t } from '@/app/i18n'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { IMAGE_COMMANDS, type ImageCommand } from '@/features/images/model/imageCommands'
 
 export interface CommandPaletteItem {
@@ -30,26 +31,26 @@ export interface CommandPaletteActions {
 
 export function useCommandPalette(actions: CommandPaletteActions) {
   const isOpen = ref(false)
-  const items: CommandPaletteItem[] = [
-    { id: 'new-file', label: '新建文档', hint: 'Ctrl+N' },
-    { id: 'open-file', label: '打开文件', hint: 'Ctrl+O' },
-    { id: 'save-file', label: '保存', hint: 'Ctrl+S' },
-    { id: 'save-file-as', label: '另存为', hint: 'Ctrl+Shift+S' },
-    { id: 'toggle-sidebar', label: '切换文件栏', hint: 'Ctrl+Shift+E' },
-    { id: 'toggle-inspector', label: '切换大纲', hint: 'Ctrl+Shift+O' },
-    { id: 'toggle-view-mode', label: '切换编辑模式', hint: '视图' },
-    { id: 'toggle-focus-mode', label: '切换专注模式', hint: '写作' },
-    { id: 'toggle-settings', label: '偏好设置', hint: 'Ctrl+,' },
-    { id: 'close-document', label: '关闭当前文档', hint: 'Ctrl+W' },
+  const items = computed<CommandPaletteItem[]>(() => [
+    { id: 'new-file', label: t('新建文档'), hint: 'Ctrl+N' },
+    { id: 'open-file', label: t('打开文件'), hint: 'Ctrl+O' },
+    { id: 'save-file', label: t('保存'), hint: 'Ctrl+S' },
+    { id: 'save-file-as', label: t('另存为'), hint: 'Ctrl+Shift+S' },
+    { id: 'toggle-sidebar', label: t('切换文件栏'), hint: 'Ctrl+Shift+E' },
+    { id: 'toggle-inspector', label: t('切换大纲'), hint: 'Ctrl+Shift+O' },
+    { id: 'toggle-view-mode', label: t('切换编辑模式'), hint: t('视图') },
+    { id: 'toggle-focus-mode', label: t('切换专注模式'), hint: t('写作') },
+    { id: 'toggle-settings', label: t('偏好设置'), hint: 'Ctrl+,' },
+    { id: 'close-document', label: t('关闭当前文档'), hint: 'Ctrl+W' },
     ...(actions.onImageCommand
-      ? IMAGE_COMMANDS.map((command) => ({
+      ? IMAGE_COMMANDS.value.map((command) => ({
           id: command.id,
           label: command.label,
           hint: 'hint' in command ? command.hint : undefined,
-          group: '图片',
+          group: t('图片'),
         }))
       : []),
-  ]
+  ])
 
   function open() {
     isOpen.value = true
@@ -72,7 +73,7 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     if (id === 'toggle-focus-mode') actions.toggleFocusMode()
     if (id === 'toggle-settings') actions.openSettings()
     if (id === 'close-document') actions.closeActiveDocument()
-    if (IMAGE_COMMANDS.some((command) => command.id === id)) {
+    if (IMAGE_COMMANDS.value.some((command) => command.id === id)) {
       void actions.onImageCommand?.(id as ImageCommand)
     }
   }

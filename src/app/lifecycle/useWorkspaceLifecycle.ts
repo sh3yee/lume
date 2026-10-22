@@ -3,6 +3,7 @@
  *
  * 监听只在应用壳挂载，避免侧栏隐藏时停止同步；外部内容不会覆盖 dirty 文档。
  */
+import { t } from '@/app/i18n'
 import { onBeforeUnmount, watch } from 'vue'
 import { isTauri } from '@/platform/tauri/client'
 import { useDocument } from '@/features/documents/model/useDocument'
@@ -80,7 +81,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
           updateDocumentMetadata(document.id, { isDirty: false })
         }
       } catch (error) {
-        showMessage(`读取外部修改失败：${getWorkspaceErrorMessage(error)}`)
+        showMessage(t('读取外部修改失败：{0}', getWorkspaceErrorMessage(error)))
       }
     }
   }
@@ -100,7 +101,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       updateDocumentMetadata(conflict.documentId, { isDirty: false })
       workspace.setExternalConflict(null)
     } catch (error) {
-      showMessage(`重新加载失败：${getWorkspaceErrorMessage(error)}`)
+      showMessage(t('重新加载失败：{0}', getWorkspaceErrorMessage(error)))
     }
   }
 
@@ -116,7 +117,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
           const document = documents.value.find((item) => item.id === conflict.documentId)
           if (document) document.savedContent = file.content
         } catch (error) {
-          showMessage(`读取外部版本失败：${getWorkspaceErrorMessage(error)}`)
+          showMessage(t('读取外部版本失败：{0}', getWorkspaceErrorMessage(error)))
           return
         }
       }
@@ -191,11 +192,11 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
           workspace.setAutoSaveError(saveErrors.values().next().value ?? null)
           recreateDeletedDocuments.delete(document.id)
         } catch (error) {
-          const message = getWorkspaceErrorMessage(error, '无法保存文件')
+          const message = getWorkspaceErrorMessage(error, t('无法保存文件'))
           const previousError = saveErrors.get(document.id)
           saveErrors.set(document.id, message)
           workspace.setAutoSaveError(message)
-          if (previousError !== message) showMessage(`自动保存失败：${message}`)
+          if (previousError !== message) showMessage(t('自动保存失败：{0}', message))
         }
       }
     } finally {

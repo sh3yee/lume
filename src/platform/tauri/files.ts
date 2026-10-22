@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { invokeCommand } from './client'
 
 export interface MarkdownFile {
@@ -18,12 +19,16 @@ export async function openDocument() {
   const bytes = await readFile(selected)
   return {
     content: new TextDecoder('utf-8').decode(bytes),
-    name: selected.split(/[\\/]/).pop() || '未命名文档',
+    name: selected.split(/[\\/]/).pop() || t('未命名文档'),
     path: selected,
   }
 }
 
-export async function selectSavePath(currentPath: string | null, currentName: string, saveAs: boolean) {
+export async function selectSavePath(
+  currentPath: string | null,
+  currentName: string,
+  saveAs: boolean,
+) {
   if (currentPath && !saveAs) return currentPath
   const { save } = await import('@tauri-apps/plugin-dialog')
   let path = await save({

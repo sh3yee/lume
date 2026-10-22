@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { EditorSelection } from '@codemirror/state'
 import type { EditorContext } from './selectionContext'
@@ -29,7 +30,7 @@ export const cutCodeSelection = async (
       scrollIntoView: true,
     })
   } catch {
-    if (isActive()) onError('无法写入系统剪贴板，未剪切代码。')
+    if (isActive()) onError(t('无法写入系统剪贴板，未剪切代码。'))
   }
 }
 
@@ -74,6 +75,6 @@ export const pasteCodeClipboard = async (
         : state.replaceSelection(text)
     code.view.dispatch({ ...changes, userEvent: 'input.paste', scrollIntoView: true })
   } catch {
-    if (isActive()) onError('无法读取系统剪贴板，请使用 Ctrl+V 粘贴代码。')
+    if (isActive()) onError(t('无法读取系统剪贴板，请使用 Ctrl+V 粘贴代码。'))
   }
 }
