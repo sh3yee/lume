@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** SideBar - 工作区文件列表与文件操作。 */
+/** SideBar - 标签与工作区资源管理器。 */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { vLiquidGlass } from '@/ui/glass/directive'
@@ -20,7 +20,8 @@ import { useFileOps } from '@composables/useFileOps'
 import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
 import type { WorkspaceEntry } from '@/platform/tauri/workspace'
 
-const { activeDocument, documents } = useDocument()
+const { activeDocument, activeDocumentId, documents, activateDocument, requestCloseDocument } =
+  useDocument()
 const { openFile, openFilesFromPaths } = useFileOps()
 const {
   workspacePath,
@@ -31,12 +32,12 @@ const {
   workspaceName,
   visibleWorkspaceEntries,
   selectWorkspace,
+  closeWorkspace,
   createWorkspaceEntry,
   renameWorkspaceEntry,
   moveWorkspaceEntry,
   deleteWorkspaceEntry,
   toggleDirectory,
-  containsPath,
 } = useWorkspaceCommands()
 const contextMenuOpen = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -51,6 +52,8 @@ const manualWidth = ref<number | null>(null)
 const measuredWidth = ref(228)
 const viewportWidth = ref(window.innerWidth)
 const resizing = ref(false)
+const openEditorsExpanded = ref(true)
+const workspaceExpanded = ref(true)
 let resizeStartX = 0
 let resizeStartWidth = 0
 
@@ -59,20 +62,9 @@ const panelWidth = computed(() =>
   Math.max(200, Math.min(manualWidth.value ?? measuredWidth.value, maxWidth.value)),
 )
 
-const standaloneFiles = computed(() =>
-  documents.value.filter((item) => {
-    if (!item.path) return false
-    return !containsPath(item.path)
-  }),
-)
-
-const hasFileContent = computed(
-  () => Boolean(workspacePath.value) || standaloneFiles.value.length > 0,
-)
-
 const measureSidebarWidth = () => {
   const rows = sidebarRef.value?.querySelectorAll<HTMLElement>(
-    '.lume-sidebar__file, .lume-sidebar__workspace-root',
+    '.lume-sidebar__file, .lume-sidebar__editor-open, .lume-sidebar__workspace-root',
   )
   let width = 228
   rows?.forEach((row) => {
@@ -138,6 +130,12 @@ const handleResizeKeydown = (event: KeyboardEvent) => {
 
 async function selectFile() {
   await openFile()
+}
+
+function handleCloseWorkspace() {
+  cancelCreate()
+  closeContextMenu()
+  closeWorkspace()
 }
 
 async function openWorkspaceFile(path: string) {
@@ -227,7 +225,13 @@ async function confirmCreate() {
 }
 
 watch(
-  [visibleWorkspaceEntries, standaloneFiles, workspaceName, interfaceFont, interfaceFontSize],
+  [
+    visibleWorkspaceEntries,
+    () => documents.value.map((item) => item.name),
+    workspaceName,
+    interfaceFont,
+    interfaceFontSize,
+  ],
   measureSidebarWidth,
   { flush: 'post' },
 )
@@ -251,8 +255,8 @@ onBeforeUnmount(() => {
 
 <template>
   <aside
-    v-liquid-glass
     ref="sidebarRef"
+    v-liquid-glass
     class="lume-sidebar lume-side-glass"
     :style="{ width: `${panelWidth}px` }"
     aria-label="文件"
@@ -276,110 +280,177 @@ onBeforeUnmount(() => {
       @dblclick="manualWidth = null"
       @keydown="handleResizeKeydown"
     ></div>
-    <div class="lume-sidebar__content" @contextmenu="openFileContextMenu">
-      <template v-if="workspacePath">
-        <button
-          class="lume-sidebar__workspace-root"
-          type="button"
-          :title="workspacePath"
-          @click="selectWorkspace"
-          @contextmenu.stop="openFileContextMenu($event)"
-        >
+    <div class="lume-sidebar__toolbar">
+      <span>资源管理器</span>
+      <div class="lume-sidebar__toolbar-actions">
+        <button type="button" title="打开文件" aria-label="打开文件" @click="selectFile">
+          <FileText :size="16" :stroke-width="1.6" />
+        </button>
+        <button type="button" title="打开文件夹" aria-label="打开文件夹" @click="selectWorkspace">
           <FolderOpen :size="16" :stroke-width="1.6" />
-          <span>{{ workspaceName }}</span>
         </button>
-
-        <div v-if="workspaceLoading" class="lume-sidebar__placeholder">
-          <p>正在读取工作区…</p>
-        </div>
-        <template v-else>
-          <button
-            v-for="entry in visibleWorkspaceEntries"
-            :key="entry.path"
-            class="lume-sidebar__file"
-            :class="{
-              'lume-sidebar__file--active':
-                !entry.isDirectory && entry.path === activeDocument?.path,
-            }"
-            :style="{ paddingLeft: `${12 + entry.depth * 14}px` }"
-            type="button"
-            :title="entry.path"
-            @click="entry.isDirectory ? toggleDirectory(entry.path) : openWorkspaceFile(entry.path)"
-            @contextmenu.stop="openFileContextMenu($event, entry)"
-          >
-            <ChevronRight
-              v-if="entry.isDirectory"
-              class="lume-sidebar__chevron"
-              :class="{ 'lume-sidebar__chevron--expanded': expandedPaths.has(entry.path) }"
-              :size="14"
-              :stroke-width="1.7"
-            />
-            <Folder v-if="entry.isDirectory" :size="16" :stroke-width="1.5" />
-            <FileText v-else :size="16" :stroke-width="1.5" />
-            <span class="lume-sidebar__file-name">{{ entry.name }}</span>
-          </button>
-          <div
-            v-if="workspaceEntries.length === 0 && !workspaceError"
-            class="lume-sidebar__placeholder"
-          >
-            <p>没有 Markdown 文件</p>
-          </div>
-        </template>
-      </template>
-
-      <section v-if="standaloneFiles.length > 0" class="lume-sidebar__standalone">
-        <div class="lume-sidebar__section-label">单独打开</div>
+      </div>
+    </div>
+    <div class="lume-sidebar__content" @contextmenu="openFileContextMenu">
+      <section v-if="documents.length > 0" class="lume-sidebar__section" @contextmenu.stop.prevent>
         <button
-          v-for="item in standaloneFiles"
-          :key="item.path!"
-          class="lume-sidebar__file"
-          :class="{ 'lume-sidebar__file--active': item.path === activeDocument?.path }"
+          class="lume-sidebar__section-heading"
           type="button"
-          :title="item.path!"
-          @click="openWorkspaceFile(item.path!)"
+          :aria-expanded="openEditorsExpanded"
+          @click="openEditorsExpanded = !openEditorsExpanded"
         >
-          <FileText :size="16" :stroke-width="1.5" />
-          <span class="lume-sidebar__file-name">{{ item.name }}</span>
-          <span v-if="item.isDirty" class="lume-sidebar__dirty" aria-label="未保存">●</span>
+          <ChevronRight
+            class="lume-sidebar__section-chevron"
+            :class="{ 'lume-sidebar__section-chevron--expanded': openEditorsExpanded }"
+            :size="14"
+            :stroke-width="1.7"
+          />
+          <span>标签</span>
         </button>
+        <div v-if="openEditorsExpanded" class="lume-sidebar__editor-list">
+          <div
+            v-for="item in documents"
+            :key="item.id"
+            class="lume-sidebar__editor-row"
+            :class="{ 'lume-sidebar__file--active': item.id === activeDocumentId }"
+          >
+            <button
+              class="lume-sidebar__editor-open"
+              type="button"
+              :title="item.path ?? item.name"
+              @click="activateDocument(item.id)"
+            >
+              <FileText :size="16" :stroke-width="1.5" />
+              <span class="lume-sidebar__file-name">{{ item.name }}</span>
+              <span v-if="item.isDirty" class="lume-sidebar__dirty" aria-label="未保存"></span>
+            </button>
+            <button
+              class="lume-sidebar__editor-close"
+              type="button"
+              :title="`关闭 ${item.name}`"
+              :aria-label="`关闭 ${item.name}`"
+              @click="requestCloseDocument(item.id)"
+            >
+              <X :size="14" :stroke-width="1.7" />
+            </button>
+          </div>
+        </div>
       </section>
 
-      <div v-if="!hasFileContent" class="lume-sidebar__empty-state">
-        <strong>打开文稿</strong>
-        <p>打开文件或文件夹</p>
-        <div class="lume-sidebar__empty-actions">
-          <button class="lume-sidebar__primary-action" type="button" @click="selectFile">
-            <FileText :size="15" />
-            打开文件
-          </button>
-          <button class="lume-sidebar__secondary-action" type="button" @click="selectWorkspace">
-            <FolderOpen :size="15" />
-            打开文件夹
-          </button>
-        </div>
-      </div>
+      <div
+        v-if="documents.length > 0"
+        class="lume-sidebar__workspace-divider"
+        aria-hidden="true"
+      ></div>
+      <template v-if="workspacePath">
+            <div
+              class="lume-sidebar__workspace-header"
+              @contextmenu.stop="openFileContextMenu($event)"
+            >
+              <button
+                class="lume-sidebar__workspace-root"
+                type="button"
+                :title="workspacePath"
+                :aria-expanded="workspaceExpanded"
+                @click="workspaceExpanded = !workspaceExpanded"
+                @contextmenu.stop="openFileContextMenu($event)"
+              >
+                <ChevronRight
+                  class="lume-sidebar__section-chevron"
+                  :class="{ 'lume-sidebar__section-chevron--expanded': workspaceExpanded }"
+                  :size="14"
+                  :stroke-width="1.7"
+                />
+                <FolderOpen :size="16" :stroke-width="1.6" />
+                <span>{{ workspaceName }}</span>
+              </button>
+              <button
+                class="lume-sidebar__workspace-close"
+                type="button"
+                title="关闭工作区"
+                aria-label="关闭工作区"
+                @click="handleCloseWorkspace"
+              >
+                <X :size="14" :stroke-width="1.7" />
+              </button>
+            </div>
 
-      <div v-if="createKind" class="lume-sidebar__create-row">
-        <FilePlus2 v-if="createKind === 'file'" :size="15" />
-        <FolderPlus v-else :size="15" />
-        <input
-          ref="createInput"
-          v-model="createName"
-          :placeholder="createKind === 'file' ? '文件名.md' : '文件夹名称'"
-          @keydown.enter.prevent="confirmCreate"
-          @keydown.esc.prevent="cancelCreate"
-          @blur="cancelCreate"
-        />
-        <button
-          type="button"
-          title="取消"
-          aria-label="取消新建"
-          @mousedown.prevent
-          @click="cancelCreate"
-        >
-          <X :size="13" />
-        </button>
-      </div>
+            <div v-if="workspaceExpanded && workspaceLoading" class="lume-sidebar__placeholder">
+              <p>正在读取工作区…</p>
+            </div>
+            <template v-else-if="workspaceExpanded">
+              <button
+                v-for="entry in visibleWorkspaceEntries"
+                :key="entry.path"
+                class="lume-sidebar__file"
+                :class="{
+                  'lume-sidebar__file--active':
+                    !entry.isDirectory && entry.path === activeDocument?.path,
+                }"
+                :style="{ paddingLeft: `${12 + entry.depth * 14}px` }"
+                type="button"
+                :title="entry.path"
+                @click="
+                  entry.isDirectory ? toggleDirectory(entry.path) : openWorkspaceFile(entry.path)
+                "
+                @contextmenu.stop="openFileContextMenu($event, entry)"
+              >
+                <ChevronRight
+                  v-if="entry.isDirectory"
+                  class="lume-sidebar__chevron"
+                  :class="{ 'lume-sidebar__chevron--expanded': expandedPaths.has(entry.path) }"
+                  :size="14"
+                  :stroke-width="1.7"
+                />
+                <Folder v-if="entry.isDirectory" :size="16" :stroke-width="1.5" />
+                <FileText v-else :size="16" :stroke-width="1.5" />
+                <span class="lume-sidebar__file-name">{{ entry.name }}</span>
+              </button>
+              <div
+                v-if="workspaceEntries.length === 0 && !workspaceError"
+                class="lume-sidebar__placeholder"
+              >
+                <p>没有 Markdown 文件</p>
+              </div>
+            </template>
+      </template>
+
+      <button
+        v-if="!workspacePath"
+        class="lume-sidebar__open-folder"
+        type="button"
+        title="打开文件夹"
+        aria-label="打开文件夹"
+        @click="selectWorkspace"
+      >
+        <FolderOpen :size="18" :stroke-width="1.5" aria-hidden="true" />
+        <span>打开文件夹</span>
+      </button>
+
+          <div
+            v-if="workspacePath && workspaceExpanded && createKind"
+            class="lume-sidebar__create-row"
+          >
+            <FilePlus2 v-if="createKind === 'file'" :size="15" />
+            <FolderPlus v-else :size="15" />
+            <input
+              ref="createInput"
+              v-model="createName"
+              :placeholder="createKind === 'file' ? '文件名.md' : '文件夹名称'"
+              @keydown.enter.prevent="confirmCreate"
+              @keydown.esc.prevent="cancelCreate"
+              @blur="cancelCreate"
+            />
+            <button
+              type="button"
+              title="取消"
+              aria-label="取消新建"
+              @mousedown.prevent
+              @click="cancelCreate"
+            >
+              <X :size="13" />
+            </button>
+          </div>
       <p v-if="workspaceError" class="lume-sidebar__error">{{ workspaceError }}</p>
     </div>
     <Teleport to="body">
@@ -457,12 +528,54 @@ onBeforeUnmount(() => {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 14px 10px;
+  padding: 8px 10px 14px;
   scrollbar-width: thin;
   scrollbar-color: var(--lume-border-default) transparent;
 }
 
+.lume-sidebar__toolbar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 20px;
+  border-bottom: 1px solid var(--lume-panel-border, var(--lume-border-subtle));
+  color: var(--lume-text-secondary);
+  font-size: var(--lume-font-size-xs);
+  font-weight: var(--lume-font-weight-medium);
+}
+
+.lume-sidebar__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lume-sidebar__toolbar-actions button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--lume-text-secondary);
+  cursor: pointer;
+}
+
+.lume-sidebar__toolbar-actions button:hover {
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-sidebar__toolbar-actions button:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 1px;
+}
+
 .lume-sidebar__file,
+.lume-sidebar__editor-open,
 .lume-sidebar__workspace-root {
   width: 100%;
   min-height: 32px;
@@ -485,17 +598,160 @@ onBeforeUnmount(() => {
   padding: 0 10px;
 }
 
+.lume-sidebar__section {
+  margin-bottom: 8px;
+}
+
+.lume-sidebar__workspace-divider {
+  margin: 8px 0;
+  border-top: 1px solid var(--lume-panel-border, var(--lume-border-subtle));
+}
+
+.lume-sidebar__section-heading {
+  width: 100%;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--lume-text-secondary);
+  text-align: left;
+  font-size: var(--lume-font-size-xs);
+  font-weight: var(--lume-font-weight-medium);
+  cursor: pointer;
+}
+
+.lume-sidebar__section-heading:hover {
+  color: var(--lume-text-primary);
+}
+
+.lume-sidebar__section-heading:focus-visible,
+.lume-sidebar__editor-open:focus-visible,
+.lume-sidebar__editor-close:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: -2px;
+}
+
+.lume-sidebar__section-chevron {
+  flex: 0 0 auto;
+  color: var(--lume-text-tertiary);
+  transition: transform var(--lume-transition-fast);
+}
+
+.lume-sidebar__section-chevron--expanded {
+  transform: rotate(90deg);
+}
+
+.lume-sidebar__editor-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.lume-sidebar__editor-row {
+  min-width: 0;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  color: var(--lume-text-secondary);
+}
+
+.lume-sidebar__editor-row:hover,
+.lume-sidebar__editor-row:focus-within {
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-sidebar__editor-row.lume-sidebar__file--active {
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
+
+.lume-sidebar__editor-open {
+  min-width: 0;
+  min-height: 32px;
+  flex: 1;
+  gap: 8px;
+  padding: 0 6px 0 10px;
+  border-radius: 6px 0 0 6px;
+  color: inherit;
+  font: inherit;
+}
+
+.lume-sidebar__editor-close {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-right: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--lume-text-tertiary);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lume-sidebar__editor-row:hover .lume-sidebar__editor-close,
+.lume-sidebar__editor-row:focus-within .lume-sidebar__editor-close,
+.lume-sidebar__editor-row.lume-sidebar__file--active .lume-sidebar__editor-close {
+  opacity: 1;
+}
+
+.lume-sidebar__editor-close:hover {
+  background: color-mix(in srgb, var(--lume-text-primary) 8%, transparent);
+  color: var(--lume-text-primary);
+}
+
 .lume-sidebar svg {
   flex-shrink: 0;
 }
 
 .lume-sidebar__workspace-root {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
   gap: 8px;
-  margin-bottom: 5px;
   padding: 0 10px;
   color: var(--lume-text-primary);
   font-size: var(--lume-font-size-sm);
   font-weight: var(--lume-font-weight-medium);
+}
+
+.lume-sidebar__workspace-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0 2px;
+}
+
+.lume-sidebar__workspace-close {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--lume-text-tertiary);
+  cursor: pointer;
+}
+
+.lume-sidebar__workspace-close:hover {
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
+}
+
+.lume-sidebar__workspace-close:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 1px;
 }
 
 .lume-sidebar__workspace-root span {
@@ -529,8 +785,11 @@ onBeforeUnmount(() => {
 }
 
 .lume-sidebar__dirty {
-  color: var(--lume-accent-default);
-  font-size: calc(var(--lume-font-size-xs) - 2px);
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: var(--lume-radius-full);
+  background-color: var(--lume-accent-default);
 }
 
 .lume-sidebar__chevron {
@@ -547,8 +806,7 @@ onBeforeUnmount(() => {
   outline-offset: -2px;
 }
 
-.lume-sidebar__placeholder,
-.lume-sidebar__empty-state {
+.lume-sidebar__placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -558,83 +816,28 @@ onBeforeUnmount(() => {
   color: var(--lume-text-tertiary);
 }
 
-.lume-sidebar__standalone {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--lume-panel-border, var(--lume-border-subtle));
-}
-
-.lume-sidebar__section-label {
-  padding: 0 10px 6px;
+.lume-sidebar__open-folder {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  margin: 6px auto 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   color: var(--lume-text-tertiary);
   font-size: var(--lume-font-size-xs);
-  font-weight: var(--lume-font-weight-medium);
-}
-
-.lume-sidebar__empty-state {
-  min-height: 220px;
-  justify-content: flex-start;
-  padding: 40px var(--lume-space-5) var(--lume-space-6);
-}
-
-.lume-sidebar__empty-state strong {
-  color: var(--lume-text-primary);
-  font-size: var(--lume-font-size-md);
-  font-weight: 600;
-  letter-spacing: -0.15px;
-}
-
-.lume-sidebar__empty-state p {
-  max-width: 205px;
-  margin-top: 6px;
-  font-size: var(--lume-font-size-xs);
-  line-height: 1.55;
-}
-
-.lume-sidebar__empty-actions {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 22px;
-}
-
-.lume-sidebar__primary-action,
-.lume-sidebar__secondary-action {
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-radius: 7px;
-  font-size: var(--lume-font-size-xs);
-  font-weight: 500;
   cursor: pointer;
-  transition:
-    background-color var(--lume-transition-fast),
-    color var(--lume-transition-fast);
 }
 
-.lume-sidebar__primary-action {
-  border: 1px solid var(--lume-accent-default);
-  background: var(--lume-accent-default);
-  color: var(--lume-accent-contrast);
-}
-
-.lume-sidebar__primary-action:hover {
-  border-color: var(--lume-accent-hover);
-  background: var(--lume-accent-hover);
-}
-
-.lume-sidebar__secondary-action {
-  border: 1px solid var(--lume-border-subtle);
+.lume-sidebar__open-folder:hover {
   background: var(--lume-bg-surface-raised);
-  color: var(--lume-text-secondary);
+  color: var(--lume-text-primary);
 }
 
-.lume-sidebar__secondary-action:hover {
-  background: color-mix(in srgb, var(--lume-text-primary) 6%, var(--lume-bg-surface));
-  color: var(--lume-text-primary);
+.lume-sidebar__open-folder:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 1px;
 }
 
 .lume-sidebar__create-row {

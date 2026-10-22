@@ -46,6 +46,13 @@ function setWorkspace(path: string, entries: WorkspaceEntry[]) {
   workspaceEntries.value = entries
 }
 
+function clearWorkspace() {
+  workspacePath.value = null
+  workspaceEntries.value = []
+  expandedPaths.value = new Set()
+  workspaceError.value = null
+}
+
 function setWorkspaceEntries(entries: WorkspaceEntry[]) {
   workspaceEntries.value = entries
 }
@@ -117,6 +124,7 @@ export function useWorkspaceStore() {
     workspaceName,
     visibleWorkspaceEntries,
     setWorkspace,
+    clearWorkspace,
     setWorkspaceEntries,
     setWorkspaceLoading,
     setWorkspaceError,

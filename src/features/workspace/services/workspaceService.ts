@@ -22,6 +22,10 @@ export function persistWorkspacePath(path: string) {
   localStorage.setItem(WORKSPACE_STORAGE_KEY, path)
 }
 
+export function clearStoredWorkspacePath() {
+  localStorage.removeItem(WORKSPACE_STORAGE_KEY)
+}
+
 export function loadWorkspaceEntries(path: string) {
   return readWorkspace(path)
 }

@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../model/workspaceStore'
 import { useDocument } from '@/features/documents/model/useDocument'
 import {
   createEntry,
+  clearStoredWorkspacePath,
   deleteEntry,
   getStoredWorkspacePath,
   getWorkspaceErrorMessage,
@@ -64,6 +65,11 @@ export function useWorkspaceCommands() {
       store.setWorkspaceError(getWorkspaceErrorMessage(error))
       return false
     }
+  }
+
+  function closeWorkspace() {
+    clearStoredWorkspacePath()
+    store.clearWorkspace()
   }
 
   async function restoreWorkspace() {
@@ -142,6 +148,7 @@ export function useWorkspaceCommands() {
     ...store,
     loadWorkspace,
     selectWorkspace,
+    closeWorkspace,
     restoreWorkspace,
     createWorkspaceEntry,
     renameWorkspaceEntry,
