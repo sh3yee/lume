@@ -672,7 +672,7 @@ onBeforeUnmount(() => {
   height: 6px;
   flex-shrink: 0;
   border-radius: var(--lume-radius-full);
-  background-color: var(--lume-text-tertiary);
+  background-color: var(--lume-accent-default);
 }
 
 .lume-tabs__drop-preview {
