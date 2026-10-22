@@ -8,6 +8,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { useSourceImages } from '@/features/images/editor/useSourceImages'
 import { createMarkdownPreview, useSourceEmojiCompletion } from '../extensions'
+import { highlightMarkdownSource } from '../source/markdownHighlight'
 
 const props = defineProps<{
   syncRatio?: number
@@ -23,6 +24,7 @@ const mirrorRef = ref<HTMLElement | null>(null)
 const lineHeights = ref<number[]>([])
 const scrollTop = ref(0)
 const lines = computed(() => content.value.split('\n'))
+const highlightedLines = computed(() => highlightMarkdownSource(content.value))
 let resizeObserver: ResizeObserver | null = null
 let styleObserver: MutationObserver | null = null
 let measureFrame = 0
@@ -146,26 +148,44 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-    <div ref="mirrorRef" class="lume-source-editor__mirror" aria-hidden="true">
-      <div v-for="(line, index) in lines" :key="index">{{ line || '\u200b' }}</div>
+    <div class="lume-source-editor__body">
+      <div class="lume-source-editor__highlight" aria-hidden="true">
+        <div
+          ref="mirrorRef"
+          class="lume-source-editor__mirror"
+          :style="{ transform: `translateY(${-scrollTop}px)` }"
+        >
+          <div v-for="(tokens, index) in highlightedLines" :key="index">
+            <template v-if="tokens.length">
+              <span
+                v-for="(token, tokenIndex) in tokens"
+                :key="tokenIndex"
+                :class="{ 'lume-source-editor__syntax': token.syntax }"
+                >{{ token.text }}</span
+              >
+            </template>
+            <template v-else>{{ '\u200b' }}</template>
+          </div>
+        </div>
+      </div>
+      <textarea
+        ref="textareaRef"
+        class="lume-source-editor__textarea"
+        :value="content"
+        spellcheck="false"
+        placeholder="开始输入 Markdown..."
+        @input="handleInput"
+        @keyup="handleCursorChange"
+        @click="handleCursorChange"
+        @keydown="handleKeydown"
+        @blur="emoji.close"
+        @compositionstart="emoji.handleCompositionStart"
+        @compositionend="emoji.handleCompositionEnd"
+        @scroll="handleScroll"
+        @paste="images.handlePaste"
+        @drop="images.handleDrop"
+      ></textarea>
     </div>
-    <textarea
-      ref="textareaRef"
-      class="lume-source-editor__textarea"
-      :value="content"
-      spellcheck="false"
-      placeholder="开始输入 Markdown..."
-      @input="handleInput"
-      @keyup="handleCursorChange"
-      @click="handleCursorChange"
-      @keydown="handleKeydown"
-      @blur="emoji.close"
-      @compositionstart="emoji.handleCompositionStart"
-      @compositionend="emoji.handleCompositionEnd"
-      @scroll="handleScroll"
-      @paste="images.handlePaste"
-      @drop="images.handleDrop"
-    ></textarea>
   </section>
 </template>
 
@@ -183,7 +203,8 @@ onBeforeUnmount(() => {
   box-shadow: var(--lume-shadow-xs);
 }
 .lume-source-editor__gutter,
-.lume-source-editor__mirror {
+.lume-source-editor__mirror,
+.lume-source-editor__textarea {
   font-family: var(--lume-font-mono, 'Cascadia Code', 'Fira Code', Consolas, monospace);
   font-size: var(--lume-writing-font-size, 15px);
   line-height: var(--lume-writing-line-height, 1.65);
@@ -200,30 +221,45 @@ onBeforeUnmount(() => {
   user-select: none;
   font-variant-numeric: tabular-nums;
 }
-.lume-source-editor__mirror {
+.lume-source-editor__body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.lume-source-editor__highlight,
+.lume-source-editor__textarea {
+  padding: var(--lume-space-7) var(--lume-space-7) var(--lume-space-7) 4px;
+}
+.lume-source-editor__highlight {
   position: absolute;
-  visibility: hidden;
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
+}
+.lume-source-editor__mirror,
+.lume-source-editor__textarea {
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+.lume-source-editor__mirror {
+  color: var(--lume-text-primary);
+}
+.lume-source-editor__syntax {
+  color: var(--lume-accent-default);
+}
 .lume-source-editor__textarea {
-  flex: 1;
+  position: relative;
+  display: block;
   width: 100%;
   height: 100%;
   min-width: 0;
-  padding: var(--lume-space-7) var(--lume-space-7) var(--lume-space-7) 4px;
   border: none;
   outline: none;
   resize: none;
   background-color: transparent;
-  color: var(--lume-text-primary);
+  /* 文字由高亮层绘制，输入、光标和选区仍使用原生文本框。 */
+  color: transparent;
   caret-color: var(--lume-accent-default);
-  font-family: var(--lume-font-mono, 'Cascadia Code', 'Fira Code', Consolas, monospace);
-  font-size: var(--lume-writing-font-size, 15px);
-  line-height: var(--lume-writing-line-height, 1.65);
-  letter-spacing: 0.1px;
-  tab-size: 2;
   -moz-tab-size: 2;
 }
 .lume-source-editor__textarea::placeholder {
@@ -231,6 +267,7 @@ onBeforeUnmount(() => {
 }
 .lume-source-editor__textarea::selection {
   background-color: var(--lume-accent-subtle);
+  color: var(--lume-text-primary);
 }
 .lume-source-editor__textarea::-webkit-scrollbar {
   width: 8px;
