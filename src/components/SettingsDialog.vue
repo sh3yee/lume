@@ -121,6 +121,13 @@ const categoryMeta: Array<{ id: SettingsCategory; label: string; icon: typeof Sp
   { id: 'appearance', label: '外观', icon: Droplets },
 ]
 
+const handleResetTypography = () => {
+  emit('update:writing-font', 'serif')
+  emit('update:font-size', 15)
+  emit('update:line-height', 1.65)
+  emit('update:writing-width', 'comfortable')
+}
+
 watch(
   () => props.open,
   (open) => {
@@ -497,16 +504,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
             >
               让文字自然流动，让想法清晰呈现。<br />A quiet space to write, refine, and share.
             </p>
-            <button
-              class="lume-settings__mini-option"
-              type="button"
-              @click="
-                emit('update:writing-font', 'serif')
-                emit('update:font-size', 15)
-                emit('update:line-height', 1.65)
-                emit('update:writing-width', 'comfortable')
-              "
-            >
+            <button class="lume-settings__mini-option" type="button" @click="handleResetTypography">
               恢复默认排版
             </button>
           </section>
