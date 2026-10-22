@@ -74,6 +74,9 @@ const measureOutlineWidth = () => {
   )
   if (!context || !headings?.length) return
 
+  const outlineStyle = getComputedStyle(headings[0].parentElement!)
+  const outlinePadding =
+    Number.parseFloat(outlineStyle.paddingLeft) + Number.parseFloat(outlineStyle.paddingRight)
   let width = 220
   headings.forEach((heading) => {
     const style = getComputedStyle(heading)
@@ -81,7 +84,12 @@ const measureOutlineWidth = () => {
     const padding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight)
     width = Math.max(
       width,
-      Math.ceil(context.measureText(heading.textContent?.trim() || '').width + padding + 16),
+      Math.ceil(
+        context.measureText(heading.textContent?.trim() || '').width +
+          padding +
+          outlinePadding +
+          16,
+      ),
     )
   })
   measuredWidth.value = Math.min(320, width)
@@ -335,16 +343,17 @@ onBeforeUnmount(() => {
 
 .lume-document-inspector__outline {
   position: relative;
+  padding: 0 10px;
 }
 
 .lume-document-inspector__heading {
   position: relative;
   width: 100%;
-  min-height: 28px;
+  min-height: 32px;
   display: block;
   margin-bottom: 0;
   overflow: hidden;
-  padding: 5px 8px 5px calc(10px + var(--outline-depth, 0) * 20px);
+  padding: 4px 10px 4px calc(10px + var(--outline-depth, 0) * 20px);
   border: 0;
   border-radius: var(--lume-radius-md);
   background: transparent;
@@ -405,17 +414,7 @@ onBeforeUnmount(() => {
 .lume-document-inspector__heading--active:hover {
   background: var(--lume-accent-subtle);
   color: var(--lume-accent-default);
-}
-
-.lume-document-inspector__heading--active::after {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 0;
-  width: 2px;
-  border-radius: var(--lume-radius-full);
-  background: var(--lume-accent-default);
-  content: '';
+  font-weight: var(--lume-font-weight-medium);
 }
 
 .lume-document-inspector__tab:focus-visible,
