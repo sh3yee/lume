@@ -1,6 +1,7 @@
 import { type Editor } from '@milkdown/kit/core'
 import {
   commonmark,
+  createCodeBlockInputRule,
   emphasisStarInputRule,
   emphasisUnderscoreInputRule,
   insertHrInputRule,
@@ -26,6 +27,7 @@ export function useBaseWysiwygExtension(editor: Editor) {
       commonmark.filter(
         (plugin) =>
           plugin !== insertHrInputRule &&
+          plugin !== createCodeBlockInputRule &&
           plugin !== insertImageInputRule &&
           plugin !== wrapInHeadingInputRule &&
           plugin !== emphasisStarInputRule &&

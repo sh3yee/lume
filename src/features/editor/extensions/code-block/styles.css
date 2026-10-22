@@ -239,3 +239,7 @@
   border: 0;
   border-radius: inherit;
 }
+
+.lume-markdown-content .lume-code-fence-source {
+  color: var(--lume-accent-default);
+}

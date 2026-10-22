@@ -1,6 +1,24 @@
 import type { EditorState } from '@milkdown/kit/prose/state'
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state'
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
+import { closeHistory } from '@milkdown/kit/prose/history'
+
+function convertOpeningFenceToCodeBlock(state: EditorState) {
+  const { $from, empty } = state.selection
+  const node = $from.parent
+  if (!empty || node.type.name !== 'paragraph' || $from.parentOffset !== node.content.size)
+    return null
+  if (node.childCount !== 1 || !node.firstChild?.isText || node.firstChild.marks.length)
+    return null
+  const match = /^```([^\s`]*)[ \t]*$/.exec(node.textContent)
+  const type = state.schema.nodes.code_block
+  if (!match || !type || !$from.node(-1).canReplaceWith($from.index(-1), $from.index(-1) + 1, type))
+    return null
+  const pos = $from.before()
+  const tr = closeHistory(state.tr).replaceWith(pos, $from.after(), type.create({ language: match[1] }))
+  return tr.setSelection(TextSelection.create(tr.doc, pos + 1)).scrollIntoView()
+}
 
 function convertFencedParagraphsToCodeBlock(state: EditorState) {
   const { $from, empty } = state.selection
@@ -77,6 +95,29 @@ export const codeBlockInteractionPlugin = $prose(() => new Plugin({
     return newState.tr.insert(newState.doc.content.size, newState.schema.nodes.paragraph.create())
   },
   props: {
+    handleDOMEvents: {
+      keydown(view, event) {
+        if (!view.editable || view.composing || event.isComposing || event.key !== 'Enter' ||
+          event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
+        const tr = convertFencedParagraphsToCodeBlock(view.state) ?? convertOpeningFenceToCodeBlock(view.state)
+        if (!tr) return false
+        event.preventDefault()
+        view.dispatch(tr)
+        return true
+      },
+    },
+    decorations(state) {
+      const decorations: Decoration[] = []
+      // Match the fence syntax accepted by the paragraph conversion below.
+      state.doc.forEach((node, pos) => {
+        if (node.type.name !== 'paragraph' || !/^```[^\s`]*\s*$/.test(node.textContent)) return
+        if (node.childCount !== 1 || !node.firstChild?.isText || node.firstChild.marks.length) return
+        decorations.push(Decoration.inline(pos + 1, pos + 1 + node.content.size, {
+          class: 'lume-code-fence-source',
+        }))
+      })
+      return DecorationSet.create(state.doc, decorations)
+    },
     handleKeyDown(view, event) {
       if (
         event.key === 'Backspace'
@@ -95,13 +136,6 @@ export const codeBlockInteractionPlugin = $prose(() => new Plugin({
       }
 
       if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false
-
-      const fencedCodeBlockTransaction = convertFencedParagraphsToCodeBlock(view.state)
-      if (fencedCodeBlockTransaction) {
-        event.preventDefault()
-        view.dispatch(fencedCodeBlockTransaction)
-        return true
-      }
 
       const tr = createParagraphAfterCodeBlock(view.state)
       if (!tr) return false
