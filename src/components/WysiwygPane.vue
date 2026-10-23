@@ -700,6 +700,7 @@ onBeforeUnmount(() => {
 
 .lume-wysiwyg-pane__content :deep(table) {
   display: block;
+  width: fit-content;
   max-width: 100%;
   overflow-x: auto;
 }
@@ -714,7 +715,8 @@ onBeforeUnmount(() => {
   content: '';
   position: absolute;
   inset: 0;
-  background-color: color-mix(in srgb, var(--lume-accent-default) 14%, transparent);
+  background-color: var(--lume-accent-subtle);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lume-accent-default) 35%, transparent);
   pointer-events: none;
 }
 .lume-wysiwyg-pane__content :deep(.lume-image-resizer) {

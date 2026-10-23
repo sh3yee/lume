@@ -212,18 +212,47 @@
 .lume-markdown-content table {
   width: 100%;
   margin: var(--lume-space-4) 0;
-  border-collapse: collapse;
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-lg);
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.875em;
+  line-height: var(--lume-line-height-relaxed);
 }
 .lume-markdown-content th,
 .lume-markdown-content td {
-  padding: var(--lume-space-2) var(--lume-space-4);
-  border: 1px solid var(--lume-border-default);
+  padding: var(--lume-space-3) var(--lume-space-5);
+  border: 0;
+  border-right: 1px solid var(--lume-border-subtle);
+  border-bottom: 1px solid var(--lume-border-subtle);
   text-align: left;
+  vertical-align: top;
+}
+.lume-markdown-content tr > :last-child {
+  border-right: 0;
+}
+.lume-markdown-content table > tr:last-child > :is(th, td),
+.lume-markdown-content table > :is(thead, tbody, tfoot):last-child > tr:last-child > :is(th, td) {
+  border-bottom: 0;
+}
+.lume-markdown-content table > tr:first-child > :first-child,
+.lume-markdown-content table > :is(thead, tbody):first-child > tr:first-child > :first-child {
+  border-top-left-radius: calc(var(--lume-radius-lg) - 1px);
+}
+.lume-markdown-content table > tr:first-child > :last-child,
+.lume-markdown-content table > :is(thead, tbody):first-child > tr:first-child > :last-child {
+  border-top-right-radius: calc(var(--lume-radius-lg) - 1px);
 }
 .lume-markdown-content th {
-  background-color: var(--lume-bg-surface);
+  background-color: var(--lume-bg-surface-raised);
+  color: var(--lume-text-primary);
   font-weight: var(--lume-font-weight-semibold);
+}
+.lume-markdown-content :is(th, td) > :first-child {
+  margin-top: 0;
+}
+.lume-markdown-content :is(th, td) > :last-child {
+  margin-bottom: 0;
 }
 .lume-markdown-content img {
   max-width: 100%;
