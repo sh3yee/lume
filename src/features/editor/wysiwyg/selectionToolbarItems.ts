@@ -18,6 +18,8 @@ export const getSelectionToolbarModel = (
   state: EditorState,
   editable = true,
 ): SelectionToolbarModel | null => {
+  // 块级公式使用原位源码编辑与右键菜单，避免重复的浮动栏遮挡内容。
+  if (context.node?.node.type.name === 'math_block') return null
   // HTML 使用原位源码入口与右键菜单，避免重复的浮动栏遮挡内容。
   if (
     context.node &&
@@ -59,7 +61,7 @@ export const getSelectionToolbarModel = (
   } else if (objectSelected && context.target === 'math') {
     title = t('公式')
     placement = 'object'
-    ids = context.node?.node.type.name === 'math_block' ? ['copyMath'] : ['editMath', 'copyMath']
+    ids = ['editMath', 'copyMath']
   } else if (context.target === 'code') {
     title = objectSelected ? t('代码块') : t('选中代码')
     placement = objectSelected ? 'object' : 'range'
