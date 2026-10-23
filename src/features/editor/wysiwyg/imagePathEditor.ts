@@ -144,7 +144,11 @@ export const createImagePathEditor = (options: {
               1,
             )
       const end = current.pos + current.node.nodeSize
-      const tr = state.tr.replaceRange(current.pos, end, slice)
+      // 单张图片只更新路径，避免替换节点使图片对象选区退化为文字光标。
+      const tr =
+        images.length === 1
+          ? state.tr.setNodeAttribute(current.pos, 'src', images[0]!.src)
+          : state.tr.replaceRange(current.pos, end, slice)
       tr.setSelection(
         preserveSelection
           ? bookmark.map(tr.mapping).resolve(tr.doc)

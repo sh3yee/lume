@@ -72,14 +72,6 @@ export const useEditorActions = (options: {
     const attrs = target.node?.node.attrs ?? {}
     const link = id === 'editLink' ? (target.link?.mark.attrs ?? {}) : {}
     const forms: Record<string, PropertyForm> = {
-      editImage: {
-        title: t('编辑图片'),
-        fields: [
-          { key: 'src', label: t('图片地址'), value: String(attrs.src ?? ''), required: true },
-          { key: 'alt', label: t('图片说明'), value: String(attrs.alt ?? '') },
-          { key: 'title', label: t('标题'), value: String(attrs.title ?? '') },
-        ],
-      },
       editMath: {
         title: t('编辑公式源码'),
         fields: [
@@ -148,16 +140,19 @@ export const useEditorActions = (options: {
       })
       return
     }
-    if (id === 'editMath' && target.node?.node.type.name === 'math_block') {
+    if (
+      (id === 'editImage' && target.node?.node.type.name === 'image') ||
+      (id === 'editMath' && target.node?.node.type.name === 'math_block')
+    ) {
       options.getEditor()?.action((ctx) => {
         const view = ctx.get(editorViewCtx)
         const dom = view.nodeDOM(target.node!.pos)
         if (!(dom instanceof HTMLElement)) return
-        dom.dispatchEvent(new Event('lume-edit-math'))
+        dom.dispatchEvent(new Event(id === 'editImage' ? 'lume-edit-image' : 'lume-edit-math'))
       })
       return
     }
-    if (['editImage', 'editMath', 'editLink', 'setLink', 'editCodeLanguage'].includes(id)) {
+    if (['editMath', 'editLink', 'setLink', 'editCodeLanguage'].includes(id)) {
       openProperties(id, target)
       return
     }

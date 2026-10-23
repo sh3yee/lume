@@ -55,7 +55,7 @@ export const getSelectionToolbarModel = (
     if (!context.node?.node.attrs.src) return null
     title = t('图片')
     placement = 'object'
-    ids = ['editImage', 'imageLeft', 'imageCenter', 'imageRight', 'resetImageSize']
+    ids = ['editImage', 'imageAlign', 'resetImageSize']
   } else if (objectSelected && context.target === 'math') {
     title = t('公式')
     placement = 'object'
@@ -131,10 +131,12 @@ export const getSelectionToolbarModel = (
         },
       ]
     : []
+  const imageAlign = entries.find((item) => item.id === 'imageAlign')
+  if (ids.includes('imageAlign') && imageAlign) toolbarGroups.push({ ...imageAlign })
   for (const group of toolbarGroups) {
     group.disabled = group.children?.every((item) => item.disabled)
-    if (group.id === 'tableAlign') {
-      group.icon = group.children?.find((item) => item.active === true)?.id ?? 'tableAlign'
+    if (group.id === 'tableAlign' || group.id === 'imageAlign') {
+      group.icon = group.children?.find((item) => item.active === true)?.id ?? group.id
     }
   }
   const items = ids.flatMap((id) => {

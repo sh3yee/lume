@@ -52,6 +52,7 @@ const icons: Record<string, typeof Bold> = {
   imageLeft: AlignLeft,
   imageCenter: AlignCenter,
   imageRight: AlignRight,
+  imageAlign: AlignLeft,
   resetImageSize: RotateCcw,
   rowAfter: Rows3,
   colAfter: Columns3,
