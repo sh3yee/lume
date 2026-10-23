@@ -136,6 +136,7 @@ watch(argsText, (value) => {
           {{ t('相对路径以文档所在文件夹为基准；') }}<code>${filename}</code>
           {{ t('代表文档名（不含扩展名）。') }}
         </p>
+        <p>{{ t('保存时会将文档中的本地图片复制到此目录；分享文档时请同时带上图片文件夹。') }}</p>
       </div>
       <div class="image-settings__checks">
         <label v-for="rule in insertionRules" :key="rule.key" class="image-settings__check">

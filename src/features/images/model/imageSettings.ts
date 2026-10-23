@@ -20,7 +20,7 @@ export interface ImageSettings {
 
 const STORAGE_KEY = 'lume-image-settings'
 const DEFAULT_SETTINGS: ImageSettings = {
-  insertAction: 'original',
+  insertAction: 'copy',
   copyTo: '${filename}.assets',
   applyToLocal: true,
   applyToRemote: false,
@@ -67,6 +67,21 @@ const getInitialSettings = (): ImageSettings => {
           : [],
       }
     }
+    // 仅升级旧版未定制的默认设置；自定义目录、上传和原位置规则继续保留。
+    if (
+      saved.version === undefined &&
+      defaults.insertAction === 'original' &&
+      !defaults.uploader.program &&
+      !defaults.uploader.args.length &&
+      Object.entries(DEFAULT_SETTINGS).every(
+        ([key, value]) =>
+          key === 'insertAction' ||
+          key === 'uploader' ||
+          defaults[key as keyof ImageSettings] === value,
+      )
+    ) {
+      defaults.insertAction = 'copy'
+    }
     return defaults
   } catch {
     return defaults
@@ -112,10 +127,10 @@ watch(
   imageSettings,
   (settings) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings, version: 1 }))
     } catch (error) {
       console.warn('保存图片偏好设置失败:', error)
     }
   },
-  { deep: true },
+  { deep: true, immediate: true },
 )

@@ -371,20 +371,19 @@ pub fn import_image_file(
         .next()
         .ok_or_else(|| LumeError::Generic("上传未返回图片地址".to_string())),
         ImageInsertAction::Copy => {
-            if let Some(directory) = target_directory(document, options)? {
-                if source.parent().is_some_and(|parent| normalized_path(parent) == directory) {
-                    return make_asset(&source, document, options);
-                }
-            }
-            store(
-                app,
-                &std::fs::read(&source)?,
-                &image_extension(&source)?,
-                source.file_name().and_then(|value| value.to_str()).unwrap_or("image"),
-                document,
-                id,
-                options,
-            )
+            let Some(directory) = target_directory(document, options)? else {
+                return store(
+                    app,
+                    &std::fs::read(&source)?,
+                    &image_extension(&source)?,
+                    source.file_name().and_then(|value| value.to_str()).unwrap_or("image"),
+                    document,
+                    id,
+                    options,
+                );
+            };
+            let destination = copy_image_to_directory(&source, &directory)?;
+            make_asset(&destination, document, options)
         }
     }
 }
@@ -560,6 +559,42 @@ fn copy_new(source: &Path, destination: &Path) -> LumeResult<()> {
         return Err(error.into());
     }
     Ok(())
+}
+
+fn copy_image_to_directory(source: &Path, directory: &Path) -> LumeResult<PathBuf> {
+    std::fs::create_dir_all(directory)?;
+    if source.parent().is_some_and(|parent| normalized_path(parent) == normalized_path(directory)) {
+        return Ok(source.to_path_buf());
+    }
+    let name = source.file_name().and_then(|value| value.to_str())
+        .ok_or_else(|| LumeError::InvalidPath("图片缺少有效文件名".to_string()))?;
+    let extension = image_extension(source)?;
+    let stem = safe_stem(name);
+    // 重试保存时复用同名且内容相同的副本，不覆盖其他图片，也不反复生成附件。
+    for suffix in 0..10_000 {
+        let candidate = directory.join(if suffix == 0 {
+            format!("{stem}.{extension}")
+        } else {
+            format!("{stem}-{suffix}.{extension}")
+        });
+        let metadata = match candidate.symlink_metadata() {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                copy_new(source, &candidate)?;
+                return Ok(candidate);
+            }
+            Err(error) => return Err(error.into()),
+        };
+        if metadata.is_file() && !metadata.file_type().is_symlink()
+            && metadata.len() == source.metadata()?.len()
+            && std::fs::read(&candidate)? == std::fs::read(source)?
+        {
+            return Ok(candidate);
+        }
+    }
+    let destination = unique_path(directory, name, &extension);
+    copy_new(source, &destination)?;
+    Ok(destination)
 }
 
 fn is_remote(value: &str) -> bool {

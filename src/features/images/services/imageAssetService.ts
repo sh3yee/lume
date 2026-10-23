@@ -1,5 +1,11 @@
 import { t } from '@/app/i18n'
-import { clearStagedImages, materializeStagedImages } from '@/platform/tauri/images'
+import { PlatformError } from '@/platform/tauri/client'
+import {
+  clearStagedImages,
+  importImageFile,
+  materializeStagedImages,
+  resolveImagePath,
+} from '@/platform/tauri/images'
 import { getDocumentImageOptions } from '../model/imageSettings'
 import { isLocalImage, rebaseImageSource } from './imageFileOperations'
 import {
@@ -18,7 +24,7 @@ const collectStagedSources = (content: string, documentId: string) => {
   )
 }
 
-/** 保存时迁移暂存图片，文档位置改变时按新目录重写本地引用。 */
+/** 保存时落实图片复制规则，文档位置改变时按新目录处理本地引用。 */
 export async function prepareDocumentImages(
   content: string,
   documentPath: string,
@@ -26,18 +32,44 @@ export async function prepareDocumentImages(
   originalPath: string | null,
 ) {
   const sources = collectStagedSources(content, documentId)
+  const options = getDocumentImageOptions(content, 'local')
   const imageReplacements = new Map<string, string>()
   if (sources.length) {
-    const assets = await materializeStagedImages(
-      sources,
-      documentPath,
-      documentId,
-      getDocumentImageOptions(content, 'local'),
-    )
+    const assets = await materializeStagedImages(sources, documentPath, documentId, options)
     if (assets.length !== sources.length) throw new Error(t('暂存图片迁移结果不完整。'))
     sources.forEach((source, index) => imageReplacements.set(source, assets[index]!.markdownPath))
   }
-  if (originalPath !== documentPath) {
+  if (options.insertAction === 'copy') {
+    const copied = new Map<string, string>()
+    const originalOptions = getDocumentImageOptions(content)
+    const references = new Set(collectMarkdownImageReferences(content).map((image) => image.src))
+    for (const src of references) {
+      if (!isLocalImage(src) || imageReplacements.has(src)) continue
+      let path: string
+      try {
+        path = await resolveImagePath(
+          src,
+          originalPath ?? documentPath,
+          documentId,
+          originalOptions,
+        )
+      } catch (error) {
+        // 已有坏图保留原引用，实际复制失败则中止保存，避免假报成功。
+        if (
+          error instanceof PlatformError &&
+          (error.kind === 'NotFound' || error.kind === 'InvalidPath')
+        )
+          continue
+        throw error
+      }
+      let replacement = copied.get(path)
+      if (replacement === undefined) {
+        replacement = (await importImageFile(path, documentPath, documentId, options)).markdownPath
+        copied.set(path, replacement)
+      }
+      imageReplacements.set(src, replacement)
+    }
+  } else if (originalPath !== documentPath) {
     const original = { path: originalPath, id: documentId, content }
     const current = { path: documentPath, id: documentId, content }
     for (const { src } of collectMarkdownImageReferences(content)) {

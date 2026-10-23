@@ -1,6 +1,6 @@
 use super::{
-    copy_new, image_extension, make_asset, required_uploader, resolve_image_path, staging_dir,
-    target_directory, unique_path, upload_image_files, validate_image_file, ImageAsset,
+    copy_image_to_directory, make_asset, required_uploader, resolve_image_path, staging_dir,
+    target_directory, upload_image_files, validate_image_file, ImageAsset,
     ImageInsertAction, ImagePathOptions,
 };
 use crate::error::{LumeError, LumeResult};
@@ -57,23 +57,7 @@ pub fn materialize_staged_images(
         }
         validate_image_file(&source)?;
         let asset = if let Some(directory) = &destination_dir {
-            let file_name = source
-                .file_name()
-                .and_then(|value| value.to_str())
-                .ok_or_else(|| LumeError::InvalidPath("暂存图片文件名无效".to_string()))?;
-            let preferred = directory.join(file_name);
-            let reusable = preferred
-                .symlink_metadata()
-                .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
-                && std::fs::read(&preferred)? == std::fs::read(&source)?;
-            let destination = if reusable {
-                preferred
-            } else {
-                unique_path(directory, file_name, &image_extension(&source)?)
-            };
-            if !destination.exists() {
-                copy_new(&source, &destination)?;
-            }
+            let destination = copy_image_to_directory(&source, directory)?;
             make_asset(&destination, Some(document), options)?
         } else {
             upload_image_files(

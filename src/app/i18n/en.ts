@@ -1,4 +1,6 @@
 export const en = {
+  '保存时会将文档中的本地图片复制到此目录；分享文档时请同时带上图片文件夹。':
+    'Local images in the document are copied to this folder when saving. Include the image folder when sharing the document.',
   导出: 'Export',
   '导出…': 'Export…',
   导出格式: 'Export format',
