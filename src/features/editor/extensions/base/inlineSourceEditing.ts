@@ -189,6 +189,8 @@ export const inlineSourceEditingPlugin = $prose((ctx) => {
           event.ctrlKey ||
           event.metaKey ||
           event.shiftKey ||
+          // 图片点击由自身的选中、缩放与路径编辑处理，不能替换成通用源码节点。
+          node.type.name === 'image' ||
           !atomNames.has(node.type.name)
         )
           return false
