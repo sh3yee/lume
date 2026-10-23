@@ -1,11 +1,7 @@
 import { nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { positionOverlayAroundBounds } from '../overlays/overlayPosition'
-import {
-  captureSelectionContext,
-  restoreEditorContext,
-  type EditorContext,
-} from './selectionContext'
+import { captureSelectionContext, type EditorContext } from './selectionContext'
 import { getSelectionAnchor } from './selectionGeometry'
 import { getSelectionToolbarModel, type SelectionToolbarModel } from './selectionToolbarItems'
 
@@ -17,6 +13,7 @@ interface ToolbarState {
 }
 
 const IMAGE_TOOLBAR_DELAY = 200
+const SELECTION_TOOLBAR_DELAY = 100
 
 export const useSelectionToolbar = (options: {
   getRoot: () => HTMLElement | null
@@ -33,7 +30,7 @@ export const useSelectionToolbar = (options: {
 }) => {
   const toolbar = shallowRef<ToolbarState | null>(null)
   let view: EditorView | null = null
-  let phase: 'idle' | 'pointer' | 'composition' = 'idle'
+  let phase: 'idle' | 'pointer' | 'drag' | 'composition' = 'idle'
   let dismissed: EditorContext | null = null
   let frame = 0
   let revision = 0
@@ -41,8 +38,9 @@ export const useSelectionToolbar = (options: {
   let resizeObserver: ResizeObserver | null = null
   let observedToolbar: HTMLElement | null = null
   let imagePointerDown = false
-  let imageToolbarReadyAt = 0
-  let imageToolbarTimer: ReturnType<typeof setTimeout> | undefined
+  let toolbarReadyAt = 0
+  let toolbarDelayTarget: 'image' | 'selection' = 'selection'
+  let toolbarTimer: ReturnType<typeof setTimeout> | undefined
   let windowBlurred = false
 
   const ownsOverlay = (target: EventTarget | null) =>
@@ -51,17 +49,32 @@ export const useSelectionToolbar = (options: {
       options.overlayId
   const isEditorTarget = (target: EventTarget | null) =>
     target instanceof Node && Boolean(options.getRoot()?.contains(target))
-  const isCurrentSelection = (context: EditorContext) =>
+  const hasSameSelection = (context: EditorContext) =>
     Boolean(
       view &&
-      context.doc === view.state.doc &&
       context.selection.eq(view.state.selection) &&
       (!context.nativeCode ||
-        context.nativeCode.state.selection.eq(context.nativeCode.view.state.selection)),
+        (context.nativeCode.state.doc === context.nativeCode.view.state.doc &&
+          context.nativeCode.state.selection.eq(context.nativeCode.view.state.selection))),
     )
+  const isCurrentSelection = (context: EditorContext) =>
+    context.doc === view?.state.doc && hasSameSelection(context)
+  const matchesDOMSelection = (context: EditorContext) => {
+    if (context.nativeCode || !['text', 'all'].includes(context.kind ?? '')) return true
+    const selection = view?.dom.ownerDocument.getSelection()
+    if (!view || !selection?.anchorNode || !selection.focusNode) return false
+    try {
+      return (
+        view.posAtDOM(selection.anchorNode, selection.anchorOffset) === context.selection.anchor &&
+        view.posAtDOM(selection.focusNode, selection.focusOffset) === context.selection.head
+      )
+    } catch {
+      return false
+    }
+  }
   const hide = () => {
-    clearTimeout(imageToolbarTimer)
-    imageToolbarTimer = undefined
+    clearTimeout(toolbarTimer)
+    toolbarTimer = undefined
     if (observedToolbar) resizeObserver?.unobserve(observedToolbar)
     observedToolbar = null
     toolbar.value = null
@@ -70,7 +83,14 @@ export const useSelectionToolbar = (options: {
     const target = toolbar.value?.context
     dismissed = view ? captureSelectionContext(view) : null
     hide()
-    if (focus && view && target && options.isActive() && restoreEditorContext(view, target)) {
+    if (
+      focus &&
+      view &&
+      target &&
+      options.isActive() &&
+      isCurrentSelection(target) &&
+      matchesDOMSelection(target)
+    ) {
       if (target.nativeCode) target.nativeCode.view.focus()
       else view.focus()
     }
@@ -128,20 +148,22 @@ export const useSelectionToolbar = (options: {
     const previous = toolbar.value
     const context = captureSelectionContext(view)
     const model = getSelectionToolbarModel(context, view.state, view.editable)
-    if (!model) {
+    if (!model || !matchesDOMSelection(context)) {
       hide()
       return
     }
-    // 图片单击先等待双击判定，期间进入源码或移开焦点就取消工具栏。
-    const delay = imageToolbarReadyAt - performance.now()
-    if (context.target === 'image' && delay > 0) {
+    // 松手后等待选区同步完成；图片额外保留双击判定时间。
+    const delay = toolbarReadyAt - performance.now()
+    if (delay > 0 && (toolbarDelayTarget !== 'image' || context.target === 'image')) {
       hide()
-      imageToolbarTimer = setTimeout(() => {
-        imageToolbarTimer = undefined
+      toolbarTimer = setTimeout(() => {
+        toolbarTimer = undefined
         schedule()
       }, delay)
       return
     }
+    clearTimeout(toolbarTimer)
+    toolbarTimer = undefined
     if (
       !previous ||
       previous.context.doc !== context.doc ||
@@ -166,8 +188,8 @@ export const useSelectionToolbar = (options: {
   }
   const schedule = (nextView?: EditorView | null) => {
     if (nextView) view = nextView
-    // 选区变更后立即撤下旧快照，避免下一帧刷新前的点击恢复旧选区。
-    if (toolbar.value && !isCurrentSelection(toolbar.value.context)) hide()
+    // 选区变化时撤下旧工具栏；同一选区的格式修改直接更新，避免反复卸载。
+    if (toolbar.value && !hasSameSelection(toolbar.value.context)) hide()
     if (disposed || frame) return
     frame = requestAnimationFrame(() => {
       frame = 0
@@ -176,7 +198,13 @@ export const useSelectionToolbar = (options: {
   }
   const handleAction = (id: string) => {
     const target = toolbar.value?.context
-    if (!view || !target || !options.isActive() || !restoreEditorContext(view, target)) {
+    if (
+      !view ||
+      !target ||
+      !options.isActive() ||
+      !isCurrentSelection(target) ||
+      !matchesDOMSelection(target)
+    ) {
       hide()
       return
     }
@@ -186,12 +214,9 @@ export const useSelectionToolbar = (options: {
   const handlePointerDown = (event: PointerEvent) => {
     if (ownsOverlay(event.target)) return
     imagePointerDown = false
-    imageToolbarReadyAt = 0
+    toolbarReadyAt = 0
     options.onCloseMenus()
-    if (
-      !isEditorTarget(event.target) ||
-      (view && event.target instanceof Node && !view.dom.contains(event.target))
-    ) {
+    if (!isEditorTarget(event.target)) {
       dismiss()
       return
     }
@@ -210,10 +235,36 @@ export const useSelectionToolbar = (options: {
       !event.target.closest('.lume-image-path, .lume-image-resizer__handle')
   }
   const handlePointerUp = (event: PointerEvent) => {
-    if (phase === 'pointer' && imagePointerDown && event.type === 'pointerup')
-      imageToolbarReadyAt = performance.now() + IMAGE_TOOLBAR_DELAY
+    if (event.type === 'pointercancel') {
+      imagePointerDown = false
+      if (phase === 'drag') {
+        hide()
+        return
+      }
+      phase = 'idle'
+      dismiss()
+      return
+    }
+    if (phase === 'pointer' && event.type === 'pointerup') {
+      toolbarDelayTarget = imagePointerDown ? 'image' : 'selection'
+      toolbarReadyAt =
+        performance.now() + (imagePointerDown ? IMAGE_TOOLBAR_DELAY : SELECTION_TOOLBAR_DELAY)
+    }
     imagePointerDown = false
     if (phase === 'pointer') phase = 'idle'
+    schedule()
+  }
+  const handleDragStart = (event: DragEvent) => {
+    if (!isEditorTarget(event.target)) return
+    phase = 'drag'
+    dismissed = null
+    hide()
+  }
+  const handleDragEnd = () => {
+    if (phase !== 'drag') return
+    phase = 'idle'
+    toolbarDelayTarget = 'selection'
+    toolbarReadyAt = performance.now() + SELECTION_TOOLBAR_DELAY
     schedule()
   }
   const handleCompositionStart = () => {
@@ -233,8 +284,9 @@ export const useSelectionToolbar = (options: {
   }
   const handleWindowBlur = () => {
     windowBlurred = true
+    phase = 'idle'
     imagePointerDown = false
-    imageToolbarReadyAt = 0
+    toolbarReadyAt = 0
     hide()
   }
   const handleWindowFocus = () => {
@@ -246,19 +298,19 @@ export const useSelectionToolbar = (options: {
   }
   const handleKeydown = (event: KeyboardEvent) => {
     if (!isEditorTarget(event.target) && !ownsOverlay(event.target)) return
-    const pendingImageToolbar = imageToolbarTimer !== undefined
-    imageToolbarReadyAt = 0
+    const pendingToolbar = toolbarTimer !== undefined
+    toolbarReadyAt = 0
     if (event.altKey && event.key === 'F10' && toolbar.value) {
       event.preventDefault()
       options.getToolbar()?.focusFirstItem()
       return
     }
-    if (event.key === 'Escape' && (toolbar.value || pendingImageToolbar)) {
+    if (event.key === 'Escape' && (toolbar.value || pendingToolbar)) {
       event.preventDefault()
       dismiss(true)
       return
     }
-    if (pendingImageToolbar) schedule()
+    if (pendingToolbar) schedule()
   }
 
   watch(options.isSuspended, () => schedule())
@@ -270,6 +322,9 @@ export const useSelectionToolbar = (options: {
     window.addEventListener('pointerdown', handlePointerDown, true)
     window.addEventListener('pointerup', handlePointerUp, true)
     window.addEventListener('pointercancel', handlePointerUp, true)
+    window.addEventListener('dragstart', handleDragStart, true)
+    window.addEventListener('dragend', handleDragEnd, true)
+    window.addEventListener('drop', handleDragEnd, true)
     window.addEventListener('scroll', handleLayout, true)
     window.addEventListener('resize', handleLayout)
     window.addEventListener('blur', handleWindowBlur)
@@ -289,6 +344,9 @@ export const useSelectionToolbar = (options: {
     window.removeEventListener('pointerdown', handlePointerDown, true)
     window.removeEventListener('pointerup', handlePointerUp, true)
     window.removeEventListener('pointercancel', handlePointerUp, true)
+    window.removeEventListener('dragstart', handleDragStart, true)
+    window.removeEventListener('dragend', handleDragEnd, true)
+    window.removeEventListener('drop', handleDragEnd, true)
     window.removeEventListener('scroll', handleLayout, true)
     window.removeEventListener('resize', handleLayout)
     window.removeEventListener('blur', handleWindowBlur)

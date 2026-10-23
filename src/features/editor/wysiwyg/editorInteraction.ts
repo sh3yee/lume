@@ -8,12 +8,34 @@ import { parseLinkSource } from '../extensions/base/linkEditing'
 import { handleHorizontalRuleKeyDown } from '../extensions/base/horizontalRule'
 import { handleDocumentBlockKeyDown } from '../extensions/blockInput'
 import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
+import { bindEditorSurface } from './editorSurface'
 
 const getLinkElement = (view: EditorView, target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest('a, [data-link-source]') : null
   if (element?.getAttribute('data-auto-link') === 'true' && !markdownPreferences.enabled.autoLink)
     return null
   return element && view.dom.contains(element) ? element : null
+}
+
+const shouldUseNativeTextClick = (view: EditorView, event: MouseEvent) => {
+  if (
+    event.button !== 0 ||
+    event.detail !== 1 ||
+    event.ctrlKey ||
+    event.metaKey ||
+    !(view.state.selection instanceof TextSelection) ||
+    view.state.selection.empty
+  )
+    return false
+  const hit = view.posAtCoords({ left: event.clientX, top: event.clientY })
+  if (!hit) return false
+  const parent = view.state.doc.resolve(hit.pos).parent
+  if (!parent.isTextblock || parent.type.spec.code) return false
+  let plainText = true
+  parent.forEach((node) => {
+    if (!node.isText || node.marks.length) plainText = false
+  })
+  return plainText
 }
 
 export const getShortcutCommand = (
@@ -43,6 +65,7 @@ export const getShortcutCommand = (
 }
 
 export const createEditorInteractionPlugin = (options: {
+  root?: HTMLElement
   onViewUpdate?: (view: EditorView) => void
   onAction?: (id: string, target: EditorContext) => void
 }) =>
@@ -50,6 +73,7 @@ export const createEditorInteractionPlugin = (options: {
     (ctx) =>
       new Plugin({
         view(view) {
+          const unbindSurface = options.root ? bindEditorSurface(view, options.root) : undefined
           const ownerDocument = view.dom.ownerDocument
           const ownerWindow = ownerDocument.defaultView
           const handleLinkModifier = (event: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey'>) => {
@@ -64,6 +88,7 @@ export const createEditorInteractionPlugin = (options: {
           return {
             update: (nextView) => options.onViewUpdate?.(nextView),
             destroy() {
+              unbindSurface?.()
               ownerDocument.removeEventListener('keydown', handleLinkModifier, true)
               ownerDocument.removeEventListener('keyup', handleLinkModifier, true)
               view.dom.removeEventListener('pointermove', handleLinkModifier)
@@ -155,6 +180,8 @@ export const createEditorInteractionPlugin = (options: {
               return false
             },
             mousedown(view, event) {
+              // 已选中文字后的新单击交给浏览器，避免邻近点击被误判成三击而重选整段。
+              if (shouldUseNativeTextClick(view, event)) return true
               if (
                 event.button !== 0 ||
                 (!event.ctrlKey && !event.metaKey) ||
