@@ -16,6 +16,8 @@ interface ToolbarState {
   revision: number
 }
 
+const IMAGE_TOOLBAR_DELAY = 200
+
 export const useSelectionToolbar = (options: {
   getRoot: () => HTMLElement | null
   getToolbar: () => {
@@ -38,6 +40,10 @@ export const useSelectionToolbar = (options: {
   let disposed = false
   let resizeObserver: ResizeObserver | null = null
   let observedToolbar: HTMLElement | null = null
+  let imagePointerDown = false
+  let imageToolbarReadyAt = 0
+  let imageToolbarTimer: ReturnType<typeof setTimeout> | undefined
+  let windowBlurred = false
 
   const ownsOverlay = (target: EventTarget | null) =>
     target instanceof Element &&
@@ -54,6 +60,8 @@ export const useSelectionToolbar = (options: {
         context.nativeCode.state.selection.eq(context.nativeCode.view.state.selection)),
     )
   const hide = () => {
+    clearTimeout(imageToolbarTimer)
+    imageToolbarTimer = undefined
     if (observedToolbar) resizeObserver?.unobserve(observedToolbar)
     observedToolbar = null
     toolbar.value = null
@@ -96,7 +104,7 @@ export const useSelectionToolbar = (options: {
       toolbar.value = { ...current, position: next }
   }
   const refresh = () => {
-    if (disposed || !view || view.isDestroyed || !options.isActive()) {
+    if (disposed || windowBlurred || !view || view.isDestroyed || !options.isActive()) {
       hide()
       return
     }
@@ -122,6 +130,16 @@ export const useSelectionToolbar = (options: {
     const model = getSelectionToolbarModel(context, view.state, view.editable)
     if (!model) {
       hide()
+      return
+    }
+    // 图片单击先等待双击判定，期间进入源码或移开焦点就取消工具栏。
+    const delay = imageToolbarReadyAt - performance.now()
+    if (context.target === 'image' && delay > 0) {
+      hide()
+      imageToolbarTimer = setTimeout(() => {
+        imageToolbarTimer = undefined
+        schedule()
+      }, delay)
       return
     }
     if (
@@ -167,6 +185,8 @@ export const useSelectionToolbar = (options: {
   }
   const handlePointerDown = (event: PointerEvent) => {
     if (ownsOverlay(event.target)) return
+    imagePointerDown = false
+    imageToolbarReadyAt = 0
     options.onCloseMenus()
     if (
       !isEditorTarget(event.target) ||
@@ -184,8 +204,15 @@ export const useSelectionToolbar = (options: {
     if (event.target instanceof HTMLElement && event.target.closest('.lume-task-checkbox'))
       dismiss()
     else hide()
+    imagePointerDown =
+      event.target instanceof Element &&
+      Boolean(event.target.closest('.lume-image-resizer')) &&
+      !event.target.closest('.lume-image-path, .lume-image-resizer__handle')
   }
-  const handlePointerUp = () => {
+  const handlePointerUp = (event: PointerEvent) => {
+    if (phase === 'pointer' && imagePointerDown && event.type === 'pointerup')
+      imageToolbarReadyAt = performance.now() + IMAGE_TOOLBAR_DELAY
+    imagePointerDown = false
     if (phase === 'pointer') phase = 'idle'
     schedule()
   }
@@ -205,22 +232,33 @@ export const useSelectionToolbar = (options: {
     schedule()
   }
   const handleWindowBlur = () => {
+    windowBlurred = true
+    imagePointerDown = false
+    imageToolbarReadyAt = 0
     hide()
+  }
+  const handleWindowFocus = () => {
+    windowBlurred = false
+    schedule()
   }
   const handleLayout = () => {
     schedule()
   }
   const handleKeydown = (event: KeyboardEvent) => {
     if (!isEditorTarget(event.target) && !ownsOverlay(event.target)) return
+    const pendingImageToolbar = imageToolbarTimer !== undefined
+    imageToolbarReadyAt = 0
     if (event.altKey && event.key === 'F10' && toolbar.value) {
       event.preventDefault()
       options.getToolbar()?.focusFirstItem()
       return
     }
-    if (event.key === 'Escape' && toolbar.value) {
+    if (event.key === 'Escape' && (toolbar.value || pendingImageToolbar)) {
       event.preventDefault()
       dismiss(true)
+      return
     }
+    if (pendingImageToolbar) schedule()
   }
 
   watch(options.isSuspended, () => schedule())
@@ -235,7 +273,7 @@ export const useSelectionToolbar = (options: {
     window.addEventListener('scroll', handleLayout, true)
     window.addEventListener('resize', handleLayout)
     window.addEventListener('blur', handleWindowBlur)
-    window.addEventListener('focus', handleLayout)
+    window.addEventListener('focus', handleWindowFocus)
     window.addEventListener('keydown', handleKeydown)
     root.addEventListener('compositionstart', handleCompositionStart, true)
     root.addEventListener('compositionend', handleCompositionEnd, true)
@@ -254,7 +292,7 @@ export const useSelectionToolbar = (options: {
     window.removeEventListener('scroll', handleLayout, true)
     window.removeEventListener('resize', handleLayout)
     window.removeEventListener('blur', handleWindowBlur)
-    window.removeEventListener('focus', handleLayout)
+    window.removeEventListener('focus', handleWindowFocus)
     window.removeEventListener('keydown', handleKeydown)
     root?.removeEventListener('compositionstart', handleCompositionStart, true)
     root?.removeEventListener('compositionend', handleCompositionEnd, true)
