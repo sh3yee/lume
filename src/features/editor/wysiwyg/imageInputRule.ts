@@ -1,11 +1,12 @@
 import { InputRule } from '@milkdown/kit/prose/inputrules'
 import { Fragment } from '@milkdown/kit/prose/model'
+import { NodeSelection } from '@milkdown/kit/prose/state'
 import { insertInlineSource } from '../extensions/base/inlineSourceEditing'
 import { $inputRule } from '@milkdown/kit/utils'
 import { parseMarkdownImageAt } from '@/utils/imageMarkdown'
 import { parseSizedImageHtml } from '@/utils/imageHtml'
 
-/** 图片语法闭合后保留源码，光标移出后显示图片。 */
+/** 空地址立即进入图片路径输入；已有地址保留源码，光标移出后显示图片。 */
 export const imageSourceInputRule = $inputRule(
   () =>
     new InputRule(
@@ -33,6 +34,10 @@ export const imageSourceInputRule = $inputRule(
               alt: image.alt,
               title: image.title,
             })
+            if (!image.src) {
+              const tr = state.tr.replaceWith(from, end, node)
+              return tr.setSelection(NodeSelection.create(tr.doc, from))
+            }
             return insertInlineSource(
               state.tr,
               from,
