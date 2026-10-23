@@ -13,7 +13,6 @@ import {
   Image,
   Monitor,
   Moon,
-  SlidersHorizontal,
   Sparkles,
   Sun,
   Type,
@@ -155,6 +154,9 @@ const categoryMeta = computed<
   { id: 'images', label: t('图片'), icon: Image },
   { id: 'appearance', label: t('外观'), icon: Palette },
 ])
+const activeCategoryLabel = computed(
+  () => categoryMeta.value.find((category) => category.id === activeCategory.value)?.label ?? '',
+)
 
 const fontOptions = computed(() => {
   const options = [...systemFontOptions.value]
@@ -224,10 +226,9 @@ onBeforeUnmount(() => dialogRef.value?.close())
     <div class="lume-settings__panel">
       <header class="lume-settings__header">
         <h2 id="settings-title" class="lume-settings__title">
-          <span class="lume-settings__title-icon" aria-hidden="true">
-            <SlidersHorizontal :size="17" :stroke-width="1.7" />
-          </span>
-          <span>{{ t('偏好设置') }}</span>
+          <span class="lume-settings__title-label">{{ t('偏好设置') }}</span>
+          <span class="lume-settings__title-separator" aria-hidden="true">/</span>
+          <span class="lume-settings__current-category">{{ activeCategoryLabel }}</span>
         </h2>
         <button
           class="lume-settings__close"
@@ -247,6 +248,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
             type="button"
             class="lume-settings__nav-item"
             :class="{ 'lume-settings__nav-item--active': activeCategory === category.id }"
+            :aria-current="activeCategory === category.id ? 'page' : undefined"
             @click="activeCategory = category.id"
           >
             <component :is="category.icon" :size="16" :stroke-width="1.7" />
@@ -256,15 +258,10 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
         <div class="lume-settings__content">
           <section v-if="activeCategory === 'general'" class="lume-settings__section">
-            <div class="lume-settings__section-heading">
-              <h3 class="lume-settings__label">{{ t('系统语言') }}</h3>
-              <p class="lume-settings__hint">
-                {{ t('选择界面显示语言，立即生效并自动保存。') }}
-              </p>
-            </div>
             <SettingsSelect
               id="app-language"
-              :label="t('语言')"
+              :label="t('系统语言')"
+              :description="t('选择界面显示语言，立即生效并自动保存。')"
               :value="language"
               :options="languageOptions"
               :container="dialogRef"
@@ -498,7 +495,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
               </p>
             </div>
 
-            <div class="lume-settings__options lume-settings__options--stacked">
+            <div class="lume-settings__typography">
               <FontSelect
                 id="writing-font"
                 :label="t('正文字体')"
@@ -661,28 +658,31 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
 <style scoped>
 .lume-settings__font-preview {
-  margin: 12px 0;
-  padding: 16px;
+  margin: 0;
+  padding: var(--lume-space-5);
   border: 1px solid var(--lume-border-subtle);
   border-radius: var(--lume-radius-md);
   overflow-wrap: anywhere;
 }
 
 .lume-settings {
+  --lume-settings-control-width: 220px;
   position: fixed;
   top: 50%;
   left: 50%;
-  width: min(860px, calc(100vw - 40px));
+  width: min(800px, calc(100vw - 40px));
   max-height: calc(100vh - 40px);
   margin: 0;
   padding: 0;
   overflow: hidden;
   transform: translate(-50%, -50%);
-  border: 1px solid color-mix(in srgb, var(--lume-border-default) 75%, transparent);
+  border: 1px solid var(--lume-glass-edge);
   border-radius: var(--lume-radius-xl);
   background: transparent;
   color: var(--lume-text-primary);
-  box-shadow: var(--lume-shadow-xl);
+  box-shadow:
+    inset 0 1px 0 var(--lume-glass-rim),
+    var(--lume-shadow-lg);
 }
 
 .lume-settings::backdrop {
@@ -695,7 +695,6 @@ onBeforeUnmount(() => dialogRef.value?.close())
   flex-direction: column;
   min-height: 0;
   max-height: calc(100vh - 40px);
-  background-color: var(--lume-bg-surface);
 }
 
 .lume-settings__header {
@@ -703,32 +702,53 @@ onBeforeUnmount(() => dialogRef.value?.close())
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  /* 标题图标中心与侧栏菜单图标对齐。 */
-  padding: var(--lume-space-3) var(--lume-space-4) var(--lume-space-3) 10px;
-  background: linear-gradient(135deg, var(--lume-accent-subtle), transparent 55%);
+  gap: var(--lume-space-5);
+  min-height: 46px;
+  padding: var(--lume-space-3) var(--lume-space-6);
+  border-bottom: 1px solid color-mix(in srgb, var(--lume-border-subtle) 55%, transparent);
+  border-radius: var(--lume-radius-xl) var(--lume-radius-xl) 0 0;
+  background-color: color-mix(in srgb, var(--lume-bg-overlay) 96%, transparent);
+  background-image: linear-gradient(
+    105deg,
+    var(--lume-accent-subtle) 0%,
+    color-mix(in srgb, var(--lume-accent-subtle) 30%, transparent) 36%,
+    transparent 70%
+  );
+  box-shadow: inset 0 1px 0 var(--lume-glass-rim);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .lume-settings__title {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
   gap: var(--lume-space-4);
   margin: 0;
-  font-size: var(--lume-font-size-lg);
+  font-size: calc(var(--lume-font-size-base) + 2px);
   font-weight: var(--lume-font-weight-medium);
   line-height: 1.4;
-  letter-spacing: 0.04em;
 }
 
-.lume-settings__title-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.lume-settings__title-label {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--lume-radius-md);
-  background: var(--lume-accent-subtle);
-  color: var(--lume-accent-default);
+}
+
+.lume-settings__title-separator {
+  flex-shrink: 0;
+  color: var(--lume-border-strong);
+  font-size: var(--lume-font-size-base);
+  font-weight: var(--lume-font-weight-regular);
+}
+
+.lume-settings__current-category {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lume-text-secondary);
+  font-size: var(--lume-font-size-sm);
+  font-weight: var(--lume-font-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lume-settings__hint {
@@ -739,6 +759,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__close {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
   display: inline-flex;
@@ -750,6 +771,9 @@ onBeforeUnmount(() => dialogRef.value?.close())
   background: transparent;
   color: var(--lume-text-tertiary);
   cursor: pointer;
+  transition:
+    background-color var(--lume-transition-fast),
+    color var(--lume-transition-fast);
 }
 
 .lume-settings__close:hover {
@@ -764,16 +788,20 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__sidebar {
-  flex: 0 0 152px;
-  width: 152px;
+  flex: 0 0 144px;
+  width: 144px;
   padding: var(--lume-space-4) var(--lume-space-3);
   overflow-y: auto;
-  border-right: 1px solid var(--lume-border-subtle);
-  background: var(--lume-bg-surface-raised);
+  border-right: 1px solid color-mix(in srgb, var(--lume-border-subtle) 55%, transparent);
+  border-bottom-left-radius: var(--lume-radius-xl);
+  background-color: color-mix(in srgb, var(--lume-chrome-bg) 96%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .lume-settings__nav-item {
   width: 100%;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   gap: var(--lume-space-3);
@@ -783,13 +811,12 @@ onBeforeUnmount(() => dialogRef.value?.close())
   border-radius: var(--lume-radius-md);
   background: transparent;
   color: var(--lume-text-secondary);
-  font-size: var(--lume-font-size-base);
+  font-size: var(--lume-font-size-sm);
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
   transition:
     background-color var(--lume-transition-fast),
-    border-color var(--lume-transition-fast),
     color var(--lume-transition-fast);
 }
 
@@ -798,21 +825,55 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__nav-item:hover {
-  background: var(--lume-bg-surface);
+  background: color-mix(in srgb, var(--lume-text-primary) 6%, transparent);
   color: var(--lume-text-primary);
 }
 
 .lume-settings__nav-item--active {
-  border-color: var(--lume-accent-default);
   background: var(--lume-accent-subtle);
   color: var(--lume-accent-default);
+  font-weight: var(--lume-font-weight-medium);
 }
+
+.lume-settings__nav-item:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: -2px;
+}
+
 .lume-settings__content {
+  container: lume-settings-content / inline-size;
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: var(--lume-space-5) var(--lume-space-6);
+  padding: var(--lume-space-5) var(--lume-space-7);
   overflow-y: auto;
+  background-color: var(--lume-bg-surface);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .lume-settings__header {
+    background: var(--lume-bg-overlay);
+  }
+
+  .lume-settings__sidebar {
+    background: var(--lume-bg-surface-raised);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lume-settings__header,
+  .lume-settings__sidebar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .lume-settings__header {
+    background: var(--lume-bg-surface);
+  }
+
+  .lume-settings__sidebar {
+    background: var(--lume-bg-surface-raised);
+  }
 }
 
 .lume-settings__section {
@@ -826,8 +887,8 @@ onBeforeUnmount(() => dialogRef.value?.close())
 }
 
 .lume-settings__section--divided {
-  margin-top: var(--lume-space-5);
-  padding-top: var(--lume-space-5);
+  margin-top: var(--lume-space-6);
+  padding-top: var(--lume-space-6);
   border-top: 1px solid var(--lume-border-subtle);
 }
 
@@ -848,26 +909,35 @@ onBeforeUnmount(() => dialogRef.value?.close())
   grid-template-columns: 1fr;
 }
 
-.lume-settings__inline-group {
+.lume-settings__typography {
   display: flex;
   flex-direction: column;
-  gap: var(--lume-space-3);
+}
+
+.lume-settings__inline-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--lume-settings-control-width));
+  min-height: 52px;
+  align-items: center;
+  gap: var(--lume-space-6);
+  padding: var(--lume-space-3) 0;
 }
 
 .lume-settings__inline-label {
-  color: var(--lume-text-secondary);
+  color: var(--lume-text-primary);
   font-size: var(--lume-font-size-sm);
   font-weight: var(--lume-font-weight-medium);
 }
 
 .lume-settings__mini-options {
-  display: flex;
-  gap: var(--lume-space-3);
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--lume-space-2);
 }
 
 .lume-settings__mini-option {
-  min-width: 60px;
+  align-self: flex-start;
+  min-width: 0;
   min-height: 30px;
   padding: 0 var(--lume-space-3);
   border: 1px solid var(--lume-border-default);
@@ -891,7 +961,6 @@ onBeforeUnmount(() => dialogRef.value?.close())
   border-color: var(--lume-accent-default);
   background: var(--lume-accent-subtle);
   color: var(--lume-accent-default);
-  box-shadow: 0 0 0 1px var(--lume-accent-default);
 }
 .lume-settings__option {
   min-height: 80px;
@@ -1064,6 +1133,13 @@ onBeforeUnmount(() => dialogRef.value?.close())
   font-family: var(--lume-font-sans);
   text-align: center;
   box-shadow: 0 1px 0 var(--lume-border-subtle);
+}
+
+@container lume-settings-content (max-width: 420px) {
+  .lume-settings__inline-group {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lume-space-3);
+  }
 }
 
 @media (max-width: 560px) {

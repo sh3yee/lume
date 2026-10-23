@@ -2,6 +2,7 @@
 import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Check, ChevronDown } from 'lucide-vue-next'
+import { vLiquidGlass } from '@/ui/glass/directive'
 
 const MENU_MAX_HEIGHT = 224
 const MENU_GAP = 4
@@ -10,6 +11,7 @@ const MENU_INSET = 8
 const props = defineProps<{
   id: string
   label: string
+  description?: string
   value: T
   options: readonly { value: T; label: string; group?: string }[]
   container: HTMLDialogElement | null
@@ -306,7 +308,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="lume-settings-select">
-    <label :id="`${id}-label`" :for="id" class="lume-settings-select__label">{{ label }}</label>
+    <div class="lume-settings-select__copy">
+      <label :id="`${id}-label`" :for="id" class="lume-settings-select__label">{{ label }}</label>
+      <p v-if="description" :id="`${id}-description`" class="lume-settings-select__description">
+        {{ description }}
+      </p>
+    </div>
     <button
       :id="id"
       ref="triggerRef"
@@ -315,6 +322,7 @@ onBeforeUnmount(() => {
       role="combobox"
       aria-haspopup="listbox"
       :aria-labelledby="`${id}-label`"
+      :aria-describedby="description ? `${id}-description` : undefined"
       :aria-expanded="isOpen"
       :aria-controls="isOpen ? `${id}-listbox` : undefined"
       :aria-activedescendant="activeDescendant"
@@ -327,6 +335,7 @@ onBeforeUnmount(() => {
     <Teleport v-if="isOpen && container" :to="container">
       <div
         ref="menuRef"
+        v-liquid-glass
         class="lume-settings-select__menu"
         :style="menuPosition"
         @keydown="handleMenuKeydown"
@@ -396,17 +405,31 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .lume-settings-select {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--lume-settings-control-width, 220px));
   min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--lume-space-3);
+  min-height: 52px;
+  align-items: center;
+  gap: var(--lume-space-6);
+  padding: var(--lume-space-3) 0;
+}
+
+.lume-settings-select__copy {
+  min-width: 0;
 }
 
 .lume-settings-select__label {
-  color: var(--lume-text-secondary);
+  color: var(--lume-text-primary);
   font-size: var(--lume-font-size-sm);
   font-weight: var(--lume-font-weight-medium);
+}
+
+.lume-settings-select__description {
+  margin: var(--lume-space-2) 0 0;
+  color: var(--lume-text-tertiary);
+  font-size: var(--lume-font-size-xs);
+  line-height: var(--lume-line-height-normal);
+  overflow-wrap: anywhere;
 }
 
 .lume-settings-select__trigger {
@@ -414,7 +437,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--lume-space-3);
-  width: min(240px, 100%);
+  min-width: 0;
+  width: 100%;
   min-height: 34px;
   padding: 7px 10px;
   border: 1px solid var(--lume-border-default);
@@ -455,12 +479,31 @@ onBeforeUnmount(() => {
   overflow: hidden;
   overscroll-behavior: contain;
   padding: var(--lume-space-2);
-  border: 1px solid var(--lume-border-default);
+  border: 1px solid var(--lume-glass-edge);
   border-radius: var(--lume-radius-md);
-  background: var(--lume-bg-overlay);
-  backdrop-filter: blur(14px);
+  background-color: color-mix(in srgb, var(--lume-bg-overlay) 82%, transparent);
+  background-image: var(--lume-glass-reflection);
+  backdrop-filter: var(--lume-glass-filter, blur(0px)) blur(12px);
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(0px)) blur(12px);
   color: var(--lume-text-primary);
-  box-shadow: var(--lume-shadow-lg);
+  box-shadow:
+    inset 0 1px 0 var(--lume-glass-rim),
+    0 8px 24px var(--lume-glass-depth),
+    0 2px 6px var(--lume-glass-shadow);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .lume-settings-select__menu {
+    background: var(--lume-bg-overlay);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lume-settings-select__menu {
+    background: var(--lume-bg-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 .lume-settings-select__search {
@@ -534,5 +577,12 @@ onBeforeUnmount(() => {
 
 .lume-settings-select__option > svg {
   flex-shrink: 0;
+}
+
+@container lume-settings-content (max-width: 420px) {
+  .lume-settings-select {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lume-space-3);
+  }
 }
 </style>

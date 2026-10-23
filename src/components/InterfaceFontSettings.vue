@@ -93,8 +93,8 @@ const handleResetInterface = () => {
   display: flex;
   flex-direction: column;
   gap: var(--lume-space-4);
-  margin-top: var(--lume-space-5);
-  padding-top: var(--lume-space-5);
+  margin-top: var(--lume-space-6);
+  padding-top: var(--lume-space-6);
   border-top: 1px solid var(--lume-border-subtle);
 }
 
@@ -119,18 +119,18 @@ const handleResetInterface = () => {
   width: 100%;
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--lume-space-3);
 }
 
 .lume-interface-font-settings__preview {
-  margin: 12px 0;
-  padding: 16px;
+  margin: 0;
+  padding: var(--lume-space-5);
   border: 1px solid var(--lume-border-subtle);
   border-radius: var(--lume-radius-md);
   overflow-wrap: anywhere;
 }
 
 .lume-interface-font-settings__reset {
+  align-self: flex-start;
   min-width: 60px;
   min-height: 30px;
   padding: 0 var(--lume-space-3);
