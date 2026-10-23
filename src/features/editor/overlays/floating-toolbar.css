@@ -8,7 +8,7 @@
   padding: 3px;
   border: 1px solid var(--lume-glass-edge);
   border-radius: 9px;
-  background-color: color-mix(in srgb, var(--lume-glass-overlay) 65%, var(--lume-bg-overlay));
+  background-color: color-mix(in srgb, var(--lume-glass-overlay) 85%, transparent);
   background-image: var(--lume-glass-reflection);
   color: var(--lume-text-secondary);
   font-family: var(--lume-interface-font);
@@ -17,8 +17,8 @@
     0 8px 22px rgb(0 0 0 / 12%),
     0 1px 2px var(--lume-glass-shadow);
   user-select: none;
-  backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(3px);
-  -webkit-backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(3px);
+  backdrop-filter: var(--lume-glass-filter, blur(4px)) blur(1px);
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(4px)) blur(1px);
 }
 
 @supports not (backdrop-filter: blur(1px)) {

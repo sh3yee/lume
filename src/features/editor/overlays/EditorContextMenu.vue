@@ -168,15 +168,15 @@ defineExpose({ focusFirstItem, getBounds })
   padding: var(--lume-space-2);
   border: 1px solid var(--lume-glass-edge);
   border-radius: var(--lume-radius-md);
-  background-color: color-mix(in srgb, var(--lume-glass-overlay) 65%, var(--lume-bg-overlay));
+  background-color: color-mix(in srgb, var(--lume-glass-overlay) 85%, transparent);
   background-image: var(--lume-glass-reflection);
   color: var(--lume-text-secondary);
   box-shadow:
     inset 0 1px 0 var(--lume-glass-rim),
     var(--lume-shadow-md);
   user-select: none;
-  backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(3px);
-  -webkit-backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(3px);
+  backdrop-filter: var(--lume-glass-filter, blur(4px)) blur(1px);
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(4px)) blur(1px);
 }
 @supports not (backdrop-filter: blur(1px)) {
   .lume-editor-context-menu {
