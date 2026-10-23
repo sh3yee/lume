@@ -136,7 +136,7 @@ On macOS, use `Command` instead of `Ctrl`. Focus mode and editing-mode switching
 
 ## Status and feedback
 
-Lume is in early development; the current repository version is **0.7.0**. The interface and editing behavior continue to evolve. Keep independent backups of important documents; session recovery is a convenience, not a backup system.
+Lume is in early development; the current repository version is **0.8.0**. The interface and editing behavior continue to evolve. Keep independent backups of important documents; session recovery is a convenience, not a backup system.
 
 Workspace-wide full-text search, recent-file history, source-editor find and replace, and HTML / PDF export are not yet available. See the [roadmap](docs/roadmap.md) for planned work.
 

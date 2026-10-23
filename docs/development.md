@@ -106,8 +106,8 @@ The repository uses `.github/workflows/release.yml` to build Windows, macOS, and
 After committing the version changes, create and push a tag starting with `v`:
 
 ```powershell
-git tag -a v0.7.0 -m "发布 v0.7.0"
-git push --atomic origin main v0.7.0
+git tag -a v0.8.0 -m "发布 v0.8.0"
+git push --atomic origin main v0.8.0
 ```
 
 Pushing the tag triggers the workflow to publish a release directly on GitHub Releases and attach platform installation packages. Windows provides two installer formats:
