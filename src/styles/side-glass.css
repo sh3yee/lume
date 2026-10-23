@@ -55,6 +55,12 @@
   --lume-glass-edge: rgb(193 211 245 / 7%);
 }
 
+/* 文件栏提高底色遮盖率，避免正文图片透出后影响文件名辨识。 */
+:root .lume-sidebar.lume-side-glass {
+  --lume-glass-surface: color-mix(in srgb, var(--lume-app-background) 90%, transparent);
+  --lume-glass-overlay: color-mix(in srgb, var(--lume-app-background) 96%, transparent);
+}
+
 :root .lume-sidebar.lume-side-glass,
 :root .lume-document-inspector.lume-side-glass {
   background-color: var(--lume-glass-surface);
