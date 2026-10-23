@@ -712,6 +712,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
   gap: var(--lume-space-5);
   min-height: 46px;
   padding: var(--lume-space-3) var(--lume-space-6);
+  padding-left: var(--lume-space-4);
   border-bottom: 1px solid color-mix(in srgb, var(--lume-border-subtle) 55%, transparent);
   border-radius: var(--lume-radius-xl) var(--lume-radius-xl) 0 0;
   background-color: color-mix(in srgb, var(--lume-bg-overlay) 96%, transparent);
