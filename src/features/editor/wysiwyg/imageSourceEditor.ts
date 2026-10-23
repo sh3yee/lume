@@ -76,7 +76,10 @@ export const createImageSourceEditor = (choose: HTMLButtonElement) => {
       dom.replaceChildren(prefix, path, choose, suffix)
       if (selection) setSelection(selection.anchor, selection.head)
     }
-    path.style.width = `${Math.max(14, Math.min(28, (path.textContent?.length ?? 0) + 1))}ch`
+    const empty = !node.attrs.src
+    dom.dataset.empty = String(empty)
+    choose.hidden = !empty
+    path.style.width = empty ? '14ch' : ''
   }
 
   return {

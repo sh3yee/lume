@@ -1,6 +1,4 @@
 import { language, t } from '@/app/i18n'
-import { serializerCtx } from '@milkdown/kit/core'
-import { openInlineSource } from '../extensions/base/inlineSourceEditing'
 import { watch } from 'vue'
 import type { ImageInputAttributes } from './imageInput'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
@@ -26,8 +24,9 @@ export function createImageNodeView(options: {
 }) {
   return $view(
     sizedImageSchema.node,
-    (ctx) => (node: ProseNode, view: EditorView, getPos: () => number | undefined) => {
+    () => (node: ProseNode, view: EditorView, getPos: () => number | undefined) => {
       const dom = document.createElement('span')
+      const preview = document.createElement('span')
       const imageElement = document.createElement('img')
       const resizeHandle = document.createElement('span')
       let currentNode = node
@@ -49,18 +48,20 @@ export function createImageNodeView(options: {
 
       dom.className = 'lume-image-resizer'
       dom.contentEditable = 'false'
+      preview.className = 'lume-image-resizer__preview'
       imageElement.draggable = false
       resizeHandle.className = 'lume-image-resizer__handle'
       resizeHandle.title = t('拖动调整图片大小')
       const stopLanguageWatch = watch(language, () => {
         resizeHandle.title = t('拖动调整图片大小')
       })
-      dom.append(imageElement, resizeHandle, pathEditor.dom)
+      preview.append(imageElement, resizeHandle)
+      dom.append(pathEditor.dom, preview)
 
       const applyZoom = () => {
         if (animationFrame !== null) cancelAnimationFrame(animationFrame)
         animationFrame = null
-        if (destroyed || dom.dataset.pathEditor === 'true') return
+        if (destroyed || preview.hidden) return
         if (dom.parentElement && dom.parentElement !== observedParent) {
           if (observedParent) resizeObserver.unobserve(observedParent)
           observedParent = dom.parentElement
@@ -73,9 +74,10 @@ export function createImageNodeView(options: {
         const hasHeight = Boolean(height && height !== 'auto')
         // 容器高度也会随拖拽变化；布局刷新必须沿用预览比例，不能回写尚未提交的旧比例。
         const scale = (resizeZoom ?? currentZoom) / 100
-        dom.style.zoom = String(scale)
-        dom.style.maxWidth = `${100 / scale}%`
-        dom.style.width =
+        // 只缩放图片预览，源码区域保持正常字号和输入尺寸。
+        preview.style.zoom = String(scale)
+        preview.style.maxWidth = parentWidth ? `${parentWidth / scale}px` : `${100 / scale}%`
+        preview.style.width =
           width.endsWith('%') && parentWidth
             ? `${(parentWidth * Number.parseFloat(width)) / 100}px`
             : hasWidth
@@ -109,18 +111,16 @@ export function createImageNodeView(options: {
         dom.dataset.align = currentAlign
         imageElement.alt = alt || ''
         imageElement.title = title || ''
-        if (pathEditor.update(updatedNode)) {
-          dom.dataset.pathEditor = 'true'
-          dom.style.width = ''
-          dom.style.maxWidth = '100%'
-          dom.style.zoom = '1'
+        if (pathEditor.update(updatedNode)) dom.dataset.pathEditor = 'true'
+        else delete dom.dataset.pathEditor
+        preview.hidden = !src
+        if (!src) {
           delete dom.dataset.error
           currentSource = null
           loadSequence++
           imageElement.removeAttribute('src')
           return
         }
-        delete dom.dataset.pathEditor
         scheduleZoom()
 
         if (!force && src === currentSource) return
@@ -169,11 +169,11 @@ export function createImageNodeView(options: {
         applyZoom()
 
         const startX = event.clientX
-        const startWidth = dom.getBoundingClientRect().width
-        const previousMaxWidth = dom.style.maxWidth
-        dom.style.maxWidth = 'none'
-        const baseWidth = dom.getBoundingClientRect().width / (currentZoom / 100)
-        dom.style.maxWidth = previousMaxWidth
+        const startWidth = preview.getBoundingClientRect().width
+        const previousMaxWidth = preview.style.maxWidth
+        preview.style.maxWidth = 'none'
+        const baseWidth = preview.getBoundingClientRect().width / (currentZoom / 100)
+        preview.style.maxWidth = previousMaxWidth
         if (!baseWidth) return
         const parentWidth = dom.parentElement?.getBoundingClientRect().width ?? startWidth
         let nextZoom = currentZoom
@@ -237,18 +237,6 @@ export function createImageNodeView(options: {
         const pos = getImagePos()
         event.preventDefault()
         event.stopPropagation()
-        if (view.editable && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
-          view.dispatch(
-            openInlineSource(
-              view.state.tr,
-              pos,
-              pos + currentNode.nodeSize,
-              ctx.get(serializerCtx),
-            ),
-          )
-          view.focus()
-          return
-        }
         view.dispatch(
           view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)).scrollIntoView(),
         )
@@ -257,16 +245,35 @@ export function createImageNodeView(options: {
         if (selection instanceof NodeSelection) options.onSelect(view, selection)
       }
 
+      const handleDoubleClick = (event: MouseEvent) => {
+        if (
+          destroyed ||
+          !view.editable ||
+          event.button !== 0 ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          event.shiftKey ||
+          pathEditor.contains(event.target) ||
+          (event.target instanceof Node && resizeHandle.contains(event.target))
+        )
+          return
+        event.preventDefault()
+        event.stopPropagation()
+        pathEditor.focus()
+      }
+
       dom.addEventListener('pointerdown', selectImage)
       dom.addEventListener('mousedown', selectImage)
+      dom.addEventListener('dblclick', handleDoubleClick)
       imageElement.addEventListener('load', () => {
-        if (dom.dataset.pathEditor === 'true') return
+        if (preview.hidden) return
         imageElement.classList.remove('lume-image--error')
         delete dom.dataset.error
         scheduleZoom()
       })
       imageElement.addEventListener('error', () => {
-        if (dom.dataset.pathEditor === 'true') return
+        if (preview.hidden) return
         imageElement.classList.add('lume-image--error')
         dom.dataset.error = 'true'
       })
@@ -297,7 +304,8 @@ export function createImageNodeView(options: {
           return (
             pathEditor.contains(event.target) ||
             event.type === 'mousedown' ||
-            event.type === 'pointerdown'
+            event.type === 'pointerdown' ||
+            event.type === 'dblclick'
           )
         },
         ignoreMutation(mutation: { type: string }) {
@@ -319,6 +327,7 @@ export function createImageNodeView(options: {
           window.removeEventListener('resize', scheduleZoom)
           view.dom.removeEventListener('lume:image-refresh', handleImageRefresh)
           dom.removeEventListener('lume-edit-image', handleEditImage)
+          dom.removeEventListener('dblclick', handleDoubleClick)
         },
       }
     },
