@@ -205,9 +205,6 @@ export const createHtmlNodeView = (
     else selectAndStart()
   })
   dom.addEventListener('lume-edit-html', selectAndStart)
-  dom.addEventListener('focus', (event) => {
-    if (event.target === dom) selectAndStart()
-  })
   dom.addEventListener('focusout', () => {
     clearTimeout(blurTimer)
     blurTimer = setTimeout(() => {
@@ -227,11 +224,7 @@ export const createHtmlNodeView = (
     if (anchor && !event.ctrlKey && !event.metaKey) {
       event.preventDefault()
       onOpenLink?.(view, anchor.getAttribute('href') ?? '')
-      return
     }
-    if (event.target.closest(interactiveSelector) && !event.ctrlKey && !event.metaKey) return
-    event.preventDefault()
-    selectAndStart()
   })
   updateControls()
   refreshPreview()
