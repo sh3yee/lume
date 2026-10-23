@@ -7,6 +7,7 @@
 import { t } from '@/app/i18n'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { IMAGE_COMMANDS, type ImageCommand } from '@/features/images/model/imageCommands'
+import { getShortcutHint } from '@/app/preferences/useShortcutPreference'
 
 export interface CommandPaletteItem {
   id: string
@@ -32,16 +33,20 @@ export interface CommandPaletteActions {
 export function useCommandPalette(actions: CommandPaletteActions) {
   const isOpen = ref(false)
   const items = computed<CommandPaletteItem[]>(() => [
-    { id: 'new-file', label: t('新建文档'), hint: 'Ctrl+N' },
-    { id: 'open-file', label: t('打开文件'), hint: 'Ctrl+O' },
-    { id: 'save-file', label: t('保存'), hint: 'Ctrl+S' },
-    { id: 'save-file-as', label: t('另存为'), hint: 'Ctrl+Shift+S' },
-    { id: 'toggle-sidebar', label: t('切换文件栏'), hint: 'Ctrl+Shift+E' },
-    { id: 'toggle-inspector', label: t('切换大纲'), hint: 'Ctrl+Shift+O' },
-    { id: 'toggle-view-mode', label: t('切换编辑模式'), hint: t('视图') },
-    { id: 'toggle-focus-mode', label: t('切换专注模式'), hint: t('写作') },
-    { id: 'toggle-settings', label: t('偏好设置'), hint: 'Ctrl+,' },
-    { id: 'close-document', label: t('关闭当前文档'), hint: 'Ctrl+W' },
+    { id: 'new-file', label: t('新建文档'), hint: getShortcutHint('new-file') },
+    { id: 'open-file', label: t('打开文件'), hint: getShortcutHint('open-file') },
+    { id: 'save-file', label: t('保存'), hint: getShortcutHint('save-file') },
+    { id: 'save-file-as', label: t('另存为'), hint: getShortcutHint('save-file-as') },
+    { id: 'toggle-sidebar', label: t('切换文件栏'), hint: getShortcutHint('toggle-sidebar') },
+    { id: 'toggle-inspector', label: t('切换大纲'), hint: getShortcutHint('toggle-inspector') },
+    { id: 'toggle-view-mode', label: t('切换编辑模式'), hint: getShortcutHint('toggle-view-mode') },
+    {
+      id: 'toggle-focus-mode',
+      label: t('切换专注模式'),
+      hint: getShortcutHint('toggle-focus-mode'),
+    },
+    { id: 'toggle-settings', label: t('偏好设置'), hint: getShortcutHint('toggle-settings') },
+    { id: 'close-document', label: t('关闭当前文档'), hint: getShortcutHint('close-document') },
     ...(actions.onImageCommand
       ? IMAGE_COMMANDS.value.map((command) => ({
           id: command.id,

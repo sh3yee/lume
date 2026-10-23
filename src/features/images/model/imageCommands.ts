@@ -1,9 +1,10 @@
 import { computed } from 'vue'
 import { t } from '@/app/i18n'
+import { getShortcutHint } from '@/app/preferences/useShortcutPreference'
 export const IMAGE_COMMANDS = computed(
   () =>
     [
-      { id: 'insertImage', label: t('插入图片'), hint: 'Ctrl+Shift+I' },
+      { id: 'insertImage', label: t('插入图片'), hint: getShortcutHint('insertImage') },
       { id: 'insertLocalImages', label: t('插入本地图片…') },
       { id: 'copyAllImages', label: t('复制所有图片到…') },
       { id: 'moveAllImages', label: t('移动所有图片到…') },

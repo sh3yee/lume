@@ -11,6 +11,7 @@ import { FileDown, FileText, Plus, X } from 'lucide-vue-next'
 import { useDocument, type DocumentDropPosition, type OpenDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { revealFileInFolder } from '@/platform/tauri/files'
+import { getShortcutHint } from '@/app/preferences/useShortcutPreference'
 
 const DRAG_THRESHOLD = 4
 
@@ -56,6 +57,10 @@ const revealFileLabel = computed(() =>
       ? t('在资源管理器中显示')
       : t('在文件管理器中显示'),
 )
+const newFileLabel = computed(() => {
+  const hint = getShortcutHint('new-file')
+  return hint ? `${t('新建文档')} (${hint})` : t('新建文档')
+})
 
 const contextDocumentIndex = computed(() =>
   contextDocument.value
@@ -489,7 +494,7 @@ onBeforeUnmount(() => {
     <button
       class="lume-tabs__new"
       type="button"
-      :title="t('新建文档 (Ctrl+N)')"
+      :title="newFileLabel"
       :aria-label="t('新建文档')"
       @click="newFile"
     >

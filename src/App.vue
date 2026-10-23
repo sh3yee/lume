@@ -289,6 +289,11 @@ useAppShortcuts({
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
   openCommandPalette: commandPalette.open,
+  toggleViewMode: () => handleViewModeChange(viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'),
+  toggleFocusMode: () => {
+    focusMode.value = !focusMode.value
+  },
+  insertImage: () => imageCommands.execute('insertImage'),
 })
 </script>
 

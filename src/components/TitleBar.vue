@@ -10,6 +10,7 @@ import { Check, Copy, FileText, Minus, MoreHorizontal, Square, X } from 'lucide-
 import { useFileOps } from '@composables/useFileOps'
 import { isWindowMaximized, minimizeWindow, toggleMaximizeWindow } from '@/platform/tauri/window'
 import { vLiquidGlass } from '@/ui/glass/directive'
+import { getShortcutCommand, getShortcutHint } from '@/app/preferences/useShortcutPreference'
 
 type MenuKind = 'window' | 'document'
 
@@ -58,26 +59,36 @@ const menuItems = computed<MenuItem[]>(() => {
     ]
   }
   return [
-    { id: 'save', label: t('保存'), hint: 'Ctrl+S', action: () => emit('save-file') },
+    {
+      id: 'save',
+      label: t('保存'),
+      hint: getShortcutHint('save-file'),
+      action: () => emit('save-file'),
+    },
     {
       id: 'sidebar',
       label: t('文件栏'),
-      hint: 'Ctrl+Shift+E',
+      hint: getShortcutHint('toggle-sidebar'),
       checked: props.sidebarVisible,
       action: () => emit('toggle-sidebar'),
     },
     {
       id: 'inspector',
       label: t('大纲与统计'),
-      hint: 'Ctrl+Shift+O',
+      hint: getShortcutHint('toggle-inspector'),
       checked: props.inspectorVisible,
       action: () => emit('toggle-inspector'),
     },
-    { id: 'settings', label: t('偏好设置'), hint: 'Ctrl+,', action: () => emit('open-settings') },
+    {
+      id: 'settings',
+      label: t('偏好设置'),
+      hint: getShortcutHint('toggle-settings'),
+      action: () => emit('open-settings'),
+    },
     {
       id: 'commands',
       label: t('命令面板'),
-      hint: 'Ctrl+P',
+      hint: getShortcutHint('open-command-palette'),
       action: () => emit('open-command-palette'),
     },
   ]
@@ -157,12 +168,7 @@ function handleContextMenuKeydown(event: KeyboardEvent) {
 
 function handleWindowKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeContextMenu(true)
-  if (
-    (event.ctrlKey || event.metaKey) &&
-    ['n', 'o', 's', 't', 'w', 'p', ','].includes(event.key.toLowerCase())
-  ) {
-    closeContextMenu()
-  }
+  if (getShortcutCommand(event)) closeContextMenu()
 }
 
 const handleDismissMenu = () => closeContextMenu()
@@ -172,14 +178,14 @@ onMounted(async () => {
   window.addEventListener('pointerdown', handleDismissMenu)
   window.addEventListener('blur', handleDismissMenu)
   window.addEventListener('resize', handleDismissMenu)
-  window.addEventListener('keydown', handleWindowKeydown)
+  window.addEventListener('keydown', handleWindowKeydown, true)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', handleDismissMenu)
   window.removeEventListener('blur', handleDismissMenu)
   window.removeEventListener('resize', handleDismissMenu)
-  window.removeEventListener('keydown', handleWindowKeydown)
+  window.removeEventListener('keydown', handleWindowKeydown, true)
 })
 </script>
 

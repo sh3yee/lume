@@ -11,6 +11,7 @@ import {
   Columns2,
   Palette,
   Image,
+  Keyboard,
   Monitor,
   Moon,
   Sparkles,
@@ -28,13 +29,15 @@ import type { ThemePreference } from '@/app/preferences/useThemePreference'
 import { resolveFontFamily, type FontPreference } from '@/app/preferences/fontFamily'
 import { useSystemFonts, type FontOption } from '@/app/preferences/useSystemFonts'
 import { isTauri } from '@/platform/tauri/client'
+import { useShortcutPreference } from '@/app/preferences/useShortcutPreference'
 import InterfaceFontSettings from './InterfaceFontSettings.vue'
 import FontSelect from './FontSelect.vue'
 import SettingsSelect from './SettingsSelect.vue'
+import ShortcutSettings from './ShortcutSettings.vue'
 
 type ViewMode = 'wysiwyg' | 'split'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
-type SettingsCategory = 'general' | 'editor' | 'markdown' | 'appearance' | 'images'
+type SettingsCategory = 'general' | 'editor' | 'markdown' | 'appearance' | 'images' | 'shortcuts'
 interface MarkdownSettingsGroup {
   id: string
   label: string
@@ -81,6 +84,7 @@ const emit = defineEmits<{
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const activeCategory = ref<SettingsCategory>('general')
+const { getShortcutHint } = useShortcutPreference()
 const {
   options: systemFontOptions,
   loading: fontsLoading,
@@ -153,6 +157,7 @@ const categoryMeta = computed<
   { id: 'markdown', label: 'Markdown', icon: Braces },
   { id: 'images', label: t('图片'), icon: Image },
   { id: 'appearance', label: t('外观'), icon: Palette },
+  { id: 'shortcuts', label: t('快捷键'), icon: Keyboard },
 ])
 const activeCategoryLabel = computed(
   () => categoryMeta.value.find((category) => category.id === activeCategory.value)?.label ?? '',
@@ -646,9 +651,11 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
           <ImageSettingsPanel v-if="activeCategory === 'images'" />
 
-          <footer class="lume-settings__footer">
+          <ShortcutSettings v-if="open && activeCategory === 'shortcuts'" />
+
+          <footer v-if="getShortcutHint('toggle-settings')" class="lume-settings__footer">
             <span>{{ t('快捷键') }}</span>
-            <kbd>Ctrl</kbd><span>+</span><kbd>,</kbd>
+            <kbd>{{ getShortcutHint('toggle-settings') }}</kbd>
           </footer>
         </div>
       </div>

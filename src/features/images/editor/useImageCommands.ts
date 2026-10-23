@@ -130,25 +130,12 @@ export const useImageCommands = (options: {
       busy.value = false
     }
   }
-  const handleKeydown = (event: KeyboardEvent) => {
-    if (
-      !(event.ctrlKey || event.metaKey) ||
-      !event.shiftKey ||
-      event.key.toLowerCase() !== 'i' ||
-      document.querySelector('dialog[open]')
-    )
-      return
-    event.preventDefault()
-    void execute('insertImage')
-  }
   const handleImageError = (event: Event) =>
     options.onMessage(String((event as CustomEvent<unknown>).detail ?? t('图片操作失败')))
   onMounted(() => {
-    window.addEventListener('keydown', handleKeydown)
     window.addEventListener('lume:image-error', handleImageError)
   })
   onBeforeUnmount(() => {
-    window.removeEventListener('keydown', handleKeydown)
     window.removeEventListener('lume:image-error', handleImageError)
   })
   return { busy, execute }
