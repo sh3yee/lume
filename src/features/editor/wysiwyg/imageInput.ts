@@ -25,7 +25,13 @@ let imageImportSequence = 0
 function createImageDecorations(doc: ProseNode) {
   const decorations: Decoration[] = []
   doc.descendants((node, pos, parent) => {
-    if (node.type.name === 'image' && parent?.type.name === 'paragraph' && parent.childCount === 1)
+    // 空路径是行内输入占位符，不参与独立图片的自动居中。
+    if (
+      node.type.name === 'image' &&
+      node.attrs.src &&
+      parent?.type.name === 'paragraph' &&
+      parent.childCount === 1
+    )
       decorations.push(
         Decoration.node(pos, pos + node.nodeSize, { class: 'lume-image-standalone' }),
       )
