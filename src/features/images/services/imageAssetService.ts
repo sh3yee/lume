@@ -1,6 +1,7 @@
 import { t } from '@/app/i18n'
 import { clearStagedImages, materializeStagedImages } from '@/platform/tauri/images'
 import { getDocumentImageOptions } from '../model/imageSettings'
+import { isLocalImage, rebaseImageSource } from './imageFileOperations'
 import {
   collectMarkdownImageReferences,
   replaceMarkdownImageSources,
@@ -17,25 +18,40 @@ const collectStagedSources = (content: string, documentId: string) => {
   )
 }
 
-/** 首次保存未命名文档时迁移暂存图片，并返回可写盘的 Markdown。 */
+/** 保存时迁移暂存图片，文档位置改变时按新目录重写本地引用。 */
 export async function prepareDocumentImages(
   content: string,
   documentPath: string,
   documentId: string,
+  originalPath: string | null,
 ) {
   const sources = collectStagedSources(content, documentId)
-  if (!sources.length) return content
-  const assets = await materializeStagedImages(
-    sources,
-    documentPath,
-    documentId,
-    getDocumentImageOptions(content, 'local'),
-  )
-  if (assets.length !== sources.length) throw new Error(t('暂存图片迁移结果不完整。'))
-  return replaceMarkdownImageSources(
-    content,
-    new Map(sources.map((source, index) => [source, assets[index]!.markdownPath])),
-  )
+  const imageReplacements = new Map<string, string>()
+  if (sources.length) {
+    const assets = await materializeStagedImages(
+      sources,
+      documentPath,
+      documentId,
+      getDocumentImageOptions(content, 'local'),
+    )
+    if (assets.length !== sources.length) throw new Error(t('暂存图片迁移结果不完整。'))
+    sources.forEach((source, index) => imageReplacements.set(source, assets[index]!.markdownPath))
+  }
+  if (originalPath !== documentPath) {
+    const original = { path: originalPath, id: documentId, content }
+    const current = { path: documentPath, id: documentId, content }
+    for (const { src } of collectMarkdownImageReferences(content)) {
+      if (!isLocalImage(src) || imageReplacements.has(src)) continue
+      // 未命名文档中的手写相对地址尚无基准，保留为相对首次保存位置的引用。
+      if (!originalPath && !/^(?:[a-z]:[\\/]|[\\/]|file:)/i.test(src)) continue
+      try {
+        imageReplacements.set(src, await rebaseImageSource(src, original, current))
+      } catch {
+        // 缺失图片仍保留原引用，不能因已有坏图阻止 Markdown 保存。
+      }
+    }
+  }
+  return { content: replaceMarkdownImageSources(content, imageReplacements), imageReplacements }
 }
 
 export async function clearDocumentImageStaging(documentId: string, content?: string) {

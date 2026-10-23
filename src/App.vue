@@ -7,6 +7,7 @@
       @toggle-inspector="handleToggleInspector"
       @open-command-palette="commandPalette.open"
       @save-file="saveCurrentFile()"
+      @open-export="handleOpenExport"
       @open-settings="openSettings"
       @close-window="handleCloseWindow"
     >
@@ -91,6 +92,12 @@
       @cancel="cancelCloseDocument"
       @confirm="confirmCloseDocument"
     />
+    <ExportDialog
+      v-if="exportSnapshot"
+      :document="exportSnapshot"
+      @close="exportSnapshot = null"
+      @exported="showMessage(t('导出成功'))"
+    />
     <ExternalConflictDialog
       v-if="externalConflict"
       :file-name="externalConflict.fileName"
@@ -123,6 +130,7 @@ import CommandPalette from '@components/CommandPalette.vue'
 import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import FileDropMessage from '@components/FileDropMessage.vue'
 import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
+import ExportDialog from '@/features/export/components/ExportDialog.vue'
 import { nextTick, ref } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
@@ -155,12 +163,14 @@ const inspectorVisible = ref(window.matchMedia('(min-width: 1180px)').matches)
 const focusMode = ref(false)
 const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
+const exportSnapshot = ref<OpenDocument | null>(null)
 const { newFile, openFile, openFilesFromPaths, saveFile } = useFileOps()
 const commandPalette = useCommandPalette({
   newFile,
   openFile,
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
+  openExport: () => handleOpenExport(),
   toggleSidebar,
   toggleInspector: () => handleToggleInspector(),
   toggleFocusMode: () => {
@@ -211,6 +221,11 @@ const handleEditSource = async () => {
   handleViewModeChange('split')
   await nextTick()
   sourceEditorRef.value?.focus()
+}
+
+const handleOpenExport = () => {
+  wysiwygPaneRef.value?.flushPendingMarkdown?.()
+  if (activeDocument.value) exportSnapshot.value = { ...activeDocument.value }
 }
 
 const handleViewModeChange = (mode: ViewMode) => {
@@ -288,6 +303,7 @@ useAppShortcuts({
   openSettings,
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
+  openExport: handleOpenExport,
   openCommandPalette: commandPalette.open,
   toggleViewMode: () => handleViewModeChange(viewMode.value === 'wysiwyg' ? 'split' : 'wysiwyg'),
   toggleFocusMode: () => {

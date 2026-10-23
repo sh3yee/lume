@@ -9,6 +9,7 @@ interface AppShortcutCommands {
   openSettings: () => void
   saveFile: () => unknown
   saveFileAs: () => unknown
+  openExport: () => void
   openCommandPalette: () => void
   toggleSidebar: () => void
   toggleInspector: () => void
@@ -23,6 +24,7 @@ export const useAppShortcuts = (commands: AppShortcutCommands) => {
     'open-file': commands.openFile,
     'save-file': commands.saveFile,
     'save-file-as': commands.saveFileAs,
+    'export-file': commands.openExport,
     'close-document': commands.closeActiveDocument,
     'toggle-settings': commands.openSettings,
     'open-command-palette': commands.openCommandPalette,

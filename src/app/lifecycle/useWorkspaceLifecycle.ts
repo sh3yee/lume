@@ -9,6 +9,7 @@ import { isTauri } from '@/platform/tauri/client'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { saveDocumentFile } from '@/features/files/services/documentFileService'
 import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
+import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
 import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
 import {
   getWorkspaceErrorMessage,
@@ -185,6 +186,11 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
             continue
           const saved = await saveDocumentFile(snapshot)
           if (!saved || document.path !== snapshot.path) continue
+          if (document.content !== snapshot.content && saved.imageReplacements.size)
+            updateDocumentContent(
+              document.id,
+              replaceMarkdownImageSources(document.content, saved.imageReplacements),
+            )
           completeDocumentSave(document.id, snapshot.content, saved)
           if (document.content === saved.content)
             await clearDocumentImageStaging(document.id, snapshot.content)

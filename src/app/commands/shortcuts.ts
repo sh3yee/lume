@@ -5,6 +5,7 @@ export const SHORTCUT_DEFINITIONS = [
   { id: 'open-file', label: '打开文件', group: '文件', defaultBinding: 'Mod+O' },
   { id: 'save-file', label: '保存', group: '文件', defaultBinding: 'Mod+S' },
   { id: 'save-file-as', label: '另存为', group: '文件', defaultBinding: 'Mod+Shift+S' },
+  { id: 'export-file', label: '导出', group: '文件', defaultBinding: 'Mod+Alt+E' },
   { id: 'close-document', label: '关闭当前文档', group: '文件', defaultBinding: 'Mod+W' },
   { id: 'insertImage', label: '插入图片', group: '编辑', defaultBinding: 'Mod+Shift+I' },
   { id: 'toggle-sidebar', label: '切换文件栏', group: '视图', defaultBinding: 'Mod+Shift+E' },

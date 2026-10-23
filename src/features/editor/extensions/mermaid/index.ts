@@ -4,6 +4,7 @@ import type MarkdownIt from 'markdown-it'
 import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 
 let renderSequence = 0
+const renderRevisions = new WeakMap<HTMLElement, number>()
 
 /** Mermaid 在 WYSIWYG 中复用可编辑的围栏代码块，不注册额外节点。 */
 export function useMermaidWysiwygExtension(editor: Editor) {
@@ -30,7 +31,10 @@ export function useMermaidPreviewExtension(markdown: MarkdownIt) {
 }
 
 /** 按需加载 Mermaid，并增强当前 Preview 中尚未渲染的图表。 */
-export async function renderMermaidDiagrams(container: HTMLElement) {
+export async function renderMermaidDiagrams(
+  container: HTMLElement,
+  colorScheme = document.documentElement.dataset.theme,
+) {
   if (!markdownPreferences.enabled.mermaid) return
   const diagrams = Array.from(
     container.querySelectorAll<HTMLElement>('.lume-mermaid[data-mermaid-source]'),
@@ -38,8 +42,9 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
   if (diagrams.length === 0) return
 
   const sequence = ++renderSequence
+  renderRevisions.set(container, sequence)
   const { default: mermaid } = await import('mermaid')
-  const isDark = document.documentElement.dataset.theme === 'dark'
+  const isDark = colorScheme === 'dark'
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'strict',
@@ -47,7 +52,11 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
   })
 
   for (const [index, diagram] of diagrams.entries()) {
-    if (!markdownPreferences.enabled.mermaid || sequence !== renderSequence || !diagram.isConnected)
+    if (
+      !markdownPreferences.enabled.mermaid ||
+      sequence !== renderRevisions.get(container) ||
+      !diagram.isConnected
+    )
       return
     const encodedSource = diagram.dataset.mermaidSource
     if (!encodedSource) continue
@@ -60,7 +69,7 @@ export async function renderMermaidDiagrams(container: HTMLElement) {
       )
       if (
         !markdownPreferences.enabled.mermaid ||
-        sequence !== renderSequence ||
+        sequence !== renderRevisions.get(container) ||
         !diagram.isConnected
       )
         return

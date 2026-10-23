@@ -23,7 +23,7 @@ interface MenuItem {
 }
 
 const MENU_WIDTH = { window: 168, document: 248 }
-const MENU_HEIGHT = { window: 106, document: 170 }
+const MENU_HEIGHT = { window: 106, document: 202 }
 
 const props = defineProps<{
   sidebarVisible: boolean
@@ -34,6 +34,7 @@ const emit = defineEmits<{
   'close-window': []
   'open-command-palette': []
   'save-file': []
+  'open-export': []
   'toggle-sidebar': []
   'toggle-inspector': []
 }>()
@@ -64,6 +65,12 @@ const menuItems = computed<MenuItem[]>(() => {
       label: t('保存'),
       hint: getShortcutHint('save-file'),
       action: () => emit('save-file'),
+    },
+    {
+      id: 'export',
+      label: t('导出…'),
+      hint: getShortcutHint('export-file'),
+      action: () => emit('open-export'),
     },
     {
       id: 'sidebar',

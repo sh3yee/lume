@@ -7,6 +7,7 @@ import { t } from '@/app/i18n'
 import { computed } from 'vue'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
+import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
 import {
   readDroppedDocuments,
   saveDocumentFile,
@@ -14,7 +15,8 @@ import {
 } from '../services/documentFileService'
 
 export function useDocumentFileCommands() {
-  const { activeDocument, newDocument, openDocument, completeDocumentSave } = useDocument()
+  const { activeDocument, newDocument, openDocument, completeDocumentSave, updateDocumentContent } =
+    useDocument()
   const currentFileName = computed(() => activeDocument.value?.name ?? t('未命名文档'))
   const currentFilePath = computed(() => activeDocument.value?.path ?? null)
   const isDirty = computed(() => activeDocument.value?.isDirty ?? false)
@@ -36,6 +38,11 @@ export function useDocumentFileCommands() {
     const snapshot = { ...document }
     const saved = await saveDocumentFile(snapshot, saveAs)
     if (!saved) return false
+    if (document.content !== snapshot.content && saved.imageReplacements.size)
+      updateDocumentContent(
+        document.id,
+        replaceMarkdownImageSources(document.content, saved.imageReplacements),
+      )
     completeDocumentSave(document.id, snapshot.content, saved)
     // 并发编辑仍可能引用暂存图片，等后续完整保存成功后再清理。
     if (document.content === saved.content)

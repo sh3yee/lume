@@ -18,6 +18,7 @@ import { preservedCodeSchema } from '../../wysiwyg/codeSchema'
 import { getShortcutCommand } from '../../wysiwyg/editorInteraction'
 
 let highlightSequence = 0
+const highlightRevisions = new WeakMap<HTMLElement, number>()
 
 const codeLanguages = [
   LanguageDescription.of({
@@ -214,15 +215,19 @@ export function useCodeBlockPreviewExtension(markdown: MarkdownIt) {
 }
 
 /** 按需加载 Shiki，并增强当前 Preview 中尚未高亮的代码块。 */
-export async function highlightCodeBlocks(container: HTMLElement) {
+export async function highlightCodeBlocks(
+  container: HTMLElement,
+  colorScheme = document.documentElement.dataset.theme,
+) {
   const blocks = Array.from(
     container.querySelectorAll<HTMLElement>('.lume-code-block[data-code-source]'),
   )
   if (blocks.length === 0) return
 
   const sequence = ++highlightSequence
+  highlightRevisions.set(container, sequence)
   const { codeToHtml } = await import('shiki')
-  const theme = document.documentElement.dataset.theme === 'dark' ? 'github-dark' : 'github-light'
+  const theme = colorScheme === 'dark' ? 'github-dark' : 'github-light'
 
   await Promise.all(
     blocks.map(async (block) => {
@@ -235,7 +240,7 @@ export async function highlightCodeBlocks(container: HTMLElement) {
           lang: decodeURIComponent(encodedLanguage),
           theme,
         })
-        if (sequence !== highlightSequence || !block.isConnected) return
+        if (sequence !== highlightRevisions.get(container) || !block.isConnected) return
         const template = document.createElement('template')
         template.innerHTML = html.trim()
         const highlighted = template.content.firstElementChild

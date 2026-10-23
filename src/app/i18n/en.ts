@@ -1,4 +1,27 @@
 export const en = {
+  导出: 'Export',
+  '导出…': 'Export…',
+  导出格式: 'Export format',
+  导出成功: 'Export completed',
+  '正在导出…': 'Exporting…',
+  PDF: 'PDF',
+  HTML: 'HTML',
+  'HTML（无样式）': 'HTML (without styles)',
+  '图片（PNG）': 'Image (PNG)',
+  '将打开打印窗口，请选择“另存为 PDF”保存。':
+    'The print window will open. Choose “Save as PDF” to save.',
+  '导出当前文档的全部内容，包含尚未保存的修改。':
+    'Export the entire document, including unsaved changes.',
+  '无法读取导出资源：{0}': 'Cannot read export resource: {0}',
+  '导出内容加载超时。': 'Export content took too long to load.',
+  '无法创建导出页面。': 'Cannot create the export page.',
+  '图片加载失败：{0}': 'Image failed to load: {0}',
+  嵌入图片: 'Embedded image',
+  '图片导出需要下载文中的图片，请检查图片地址及跨域访问权限。':
+    'Image export needs to download document images. Check their addresses and cross-origin permissions.',
+  '文档过长，无法导出为单张图片，请改用 PDF 或拆分文档。':
+    'This document is too long for a single image. Export as PDF or split it into shorter documents.',
+  '无法渲染导出图片。': 'Cannot render the exported image.',
   系统语言: 'Application language',
   语言: 'Language',
   '选择界面显示语言，立即生效并自动保存。':

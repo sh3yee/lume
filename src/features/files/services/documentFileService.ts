@@ -52,12 +52,17 @@ export async function saveDocumentFile(
 ) {
   if (!isTauri()) {
     saveBrowserDocument(document.content, document.name)
-    return { content: document.content, name: document.name, path: document.path }
+    return {
+      content: document.content,
+      name: document.name,
+      path: document.path,
+      imageReplacements: new Map<string, string>(),
+    }
   }
 
   const path = await selectSavePath(document.path, document.name, saveAs)
   if (!path) return null
-  const content = await prepareDocumentImages(document.content, path, document.id)
-  await writeDocument(path, content)
-  return { content, name: path.split(/[\\/]/).pop() || document.name, path }
+  const prepared = await prepareDocumentImages(document.content, path, document.id, document.path)
+  await writeDocument(path, prepared.content)
+  return { ...prepared, name: path.split(/[\\/]/).pop() || document.name, path }
 }
