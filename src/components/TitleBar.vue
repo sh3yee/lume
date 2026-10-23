@@ -9,6 +9,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Check, Copy, FileText, Minus, MoreHorizontal, Square, X } from 'lucide-vue-next'
 import { useFileOps } from '@composables/useFileOps'
 import { isWindowMaximized, minimizeWindow, toggleMaximizeWindow } from '@/platform/tauri/window'
+import { vLiquidGlass } from '@/ui/glass/directive'
 
 type MenuKind = 'window' | 'document'
 
@@ -266,6 +267,7 @@ onBeforeUnmount(() => {
       v-if="contextMenuOpen"
       id="lume-titlebar-menu"
       ref="contextMenu"
+      v-liquid-glass
       class="lume-titlebar__context-menu"
       role="menu"
       :aria-label="contextMenuKind === 'window' ? t('窗口操作') : t('更多操作')"
@@ -439,13 +441,32 @@ onBeforeUnmount(() => {
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   padding: var(--lume-space-2);
-  border: 1px solid var(--lume-border-subtle);
+  border: 1px solid var(--lume-glass-edge);
   border-radius: var(--lume-radius-md);
-  background-color: var(--lume-bg-overlay);
-  color: var(--lume-text-secondary);
-  box-shadow: var(--lume-shadow-md);
+  background-color: color-mix(in srgb, var(--lume-bg-overlay) 82%, transparent);
+  background-image: var(--lume-glass-reflection);
+  color: var(--lume-text-primary);
+  box-shadow:
+    inset 0 1px 0 var(--lume-glass-rim),
+    0 8px 24px var(--lume-glass-depth),
+    0 2px 6px var(--lume-glass-shadow);
   user-select: none;
-  backdrop-filter: blur(14px);
+  backdrop-filter: var(--lume-glass-filter, blur(0px)) blur(12px);
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(0px)) blur(12px);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .lume-titlebar__context-menu {
+    background: var(--lume-bg-overlay);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lume-titlebar__context-menu {
+    background: var(--lume-bg-overlay);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 .lume-titlebar__context-menu button {
@@ -470,7 +491,7 @@ onBeforeUnmount(() => {
 }
 
 .lume-titlebar__menu-hint {
-  color: var(--lume-text-tertiary);
+  color: var(--lume-text-secondary);
   font-size: var(--lume-font-size-xs);
 }
 
