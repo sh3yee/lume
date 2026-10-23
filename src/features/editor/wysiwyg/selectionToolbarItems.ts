@@ -7,7 +7,8 @@ import type { EditorContext } from './selectionContext'
 
 export interface SelectionToolbarModel {
   title: string
-  items: ContextMenuItem[]
+  hideTitle?: boolean
+  items: (ContextMenuItem & { icon?: string })[]
   more: ContextMenuItem[][]
   placement: 'range' | 'object' | 'block'
 }
@@ -29,8 +30,7 @@ export const getSelectionToolbarModel = (
       !context.selection.empty &&
       Boolean(context.doc.textBetween(context.selection.from, context.selection.to))
   const objectSelected = context.kind === 'node' && context.node !== null
-  const tableSelected =
-    context.target === 'cells' || (context.kind === 'caret' && context.containers.includes('table'))
+  const tableSelected = context.target === 'cells'
   if (!selected && !objectSelected && !tableSelected) return null
   let title = ''
   let ids: string[] = []
@@ -78,15 +78,7 @@ export const getSelectionToolbarModel = (
               : t('选中 {0} × {1} 单元格', rect.bottom - rect.top, rect.right - rect.left)
         : t('表格')
     placement = selection instanceof CellSelection ? 'range' : 'block'
-    ids = [
-      ...(selection instanceof CellSelection ? ['copy'] : []),
-      'rowAfter',
-      'colAfter',
-      'alignColumnLeft',
-      'alignColumnCenter',
-      'alignColumnRight',
-      'deleteTable',
-    ]
+    ids = ['copy', 'tableAlign', 'tableInsert', 'tableDelete']
   } else if (['mixed', 'all'].includes(context.target)) {
     title = context.target === 'all' ? t('整个文档') : t('混合选区')
     ids = ['copy', 'cut']
@@ -114,11 +106,45 @@ export const getSelectionToolbarModel = (
   const entries = groups.flatMap((group) =>
     group.flatMap((item) => [item, ...(item.children ?? [])]),
   )
+  const toolbarGroups: (ContextMenuItem & { icon?: string })[] = tableSelected
+    ? [
+        {
+          id: 'tableAlign',
+          label: t('对齐'),
+          children: entries.filter((item) =>
+            ['alignColumnLeft', 'alignColumnCenter', 'alignColumnRight'].includes(item.id),
+          ),
+        },
+        {
+          id: 'tableInsert',
+          label: t('插入行列'),
+          children: entries.filter((item) =>
+            ['rowBefore', 'rowAfter', 'colBefore', 'colAfter'].includes(item.id),
+          ),
+        },
+        {
+          id: 'tableDelete',
+          label: t('删除'),
+          children: entries.filter((item) =>
+            ['deleteRow', 'deleteColumn', 'deleteTable'].includes(item.id),
+          ),
+        },
+      ]
+    : []
+  for (const group of toolbarGroups) {
+    group.disabled = group.children?.every((item) => item.disabled)
+    if (group.id === 'tableAlign') {
+      group.icon = group.children?.find((item) => item.active === true)?.id ?? 'tableAlign'
+    }
+  }
   const items = ids.flatMap((id) => {
-    const item = entries.find((item) => item.id === id)
+    const item = [...toolbarGroups, ...entries].find((item) => item.id === id)
     return item ? [item] : []
   })
-  const used = new Set(ids)
+  const used = new Set([
+    ...ids,
+    ...toolbarGroups.flatMap((item) => item.children?.map((child) => child.id) ?? []),
+  ])
   const more = groups
     .map((group) =>
       group
@@ -131,5 +157,5 @@ export const getSelectionToolbarModel = (
         .filter((item) => !item.children || item.children.length),
     )
     .filter((group) => group.length)
-  return { title, items, more, placement }
+  return { title, hideTitle: tableSelected, items, more, placement }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { t } from '@/app/i18n'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   Bold,
   Italic,
@@ -8,6 +8,7 @@ import {
   Code,
   Link,
   Copy,
+  Check,
   Scissors,
   Pencil,
   AlignLeft,
@@ -25,6 +26,7 @@ import {
   ArrowUp,
   ArrowDown,
   Trash2,
+  Plus,
 } from 'lucide-vue-next'
 import type { ContextMenuItem } from './contextMenuTypes'
 import type { SelectionToolbarModel } from '../wysiwyg/selectionToolbarItems'
@@ -67,6 +69,9 @@ const icons: Record<string, typeof Bold> = {
   editCodeLanguage: Code,
   deleteNode: Trash2,
   deleteTable: Trash2,
+  tableAlign: AlignLeft,
+  tableInsert: Plus,
+  tableDelete: Trash2,
 }
 const props = defineProps<{
   model: SelectionToolbarModel
@@ -81,6 +86,7 @@ const menuGroups = ref<ContextMenuItem[][] | null>(null)
 const expandedId = ref<string | null>(null)
 const menuPosition = ref({ x: 0, y: 0 })
 const focusedIndex = ref(0)
+const copied = ref(false)
 const hasMore = computed(() => props.model.more.length > 0)
 const tabstopIndex = computed(() => {
   if (focusedIndex.value === props.model.items.length && hasMore.value) return focusedIndex.value
@@ -90,6 +96,17 @@ const tabstopIndex = computed(() => {
   return first >= 0 ? first : props.model.items.length
 })
 let trigger: HTMLButtonElement | null = null
+let copyTimer: ReturnType<typeof setTimeout> | undefined
+
+const resetCopyFeedback = () => {
+  clearTimeout(copyTimer)
+  copied.value = false
+}
+const showCopySuccess = () => {
+  resetCopyFeedback()
+  copied.value = true
+  copyTimer = setTimeout(resetCopyFeedback, 1500)
+}
 
 const getElement = () => root.value
 const getBounds = () => root.value?.getBoundingClientRect() ?? null
@@ -151,10 +168,11 @@ const handleKeydown = (event: KeyboardEvent) => {
   focusedIndex.value = Array.from(root.value!.querySelectorAll('button')).indexOf(buttons[next])
   buttons[next]?.focus()
 }
-defineExpose({ getElement, getBounds, focusFirstItem })
+defineExpose({ getElement, getBounds, focusFirstItem, showCopySuccess })
 watch(
   () => props.revision,
   () => {
+    resetCopyFeedback()
     menuGroups.value = null
     expandedId.value = null
   },
@@ -165,6 +183,7 @@ watch(
     if (menuGroups.value) closeMenu()
   },
 )
+onBeforeUnmount(resetCopyFeedback)
 </script>
 
 <template>
@@ -179,23 +198,31 @@ watch(
     @keydown.stop="handleKeydown"
     @contextmenu.prevent
   >
-    <span class="lume-selection-toolbar__label">{{ model.title }}</span>
+    <span v-if="!model.hideTitle" class="lume-selection-toolbar__label">{{ model.title }}</span>
     <button
       v-for="(item, index) in model.items"
       :key="item.id"
       type="button"
-      :aria-label="item.label"
-      :data-tooltip="item.reason ?? item.label"
+      :aria-label="item.id === 'copy' && copied ? t('已复制') : item.label"
+      :data-tooltip="item.id === 'copy' && copied ? t('已复制') : (item.reason ?? item.label)"
       :title="item.reason"
       :disabled="item.disabled"
       :tabindex="tabstopIndex === index ? 0 : -1"
       :aria-pressed="item.active"
       :aria-haspopup="item.children ? 'menu' : undefined"
       :aria-expanded="item.children ? expandedId === item.id : undefined"
-      :class="{ 'is-active': item.active === true, 'is-mixed': item.active === 'mixed' }"
+      :class="{
+        'is-active': item.active === true,
+        'is-mixed': item.active === 'mixed',
+        'is-copied': item.id === 'copy' && copied,
+      }"
       @click="handleItem(item, $event)"
     >
-      <component :is="icons[item.id] ?? MoreHorizontal" :size="15" :stroke-width="2.1" />
+      <component
+        :is="item.id === 'copy' && copied ? Check : (icons[item.icon ?? item.id] ?? MoreHorizontal)"
+        :size="15"
+        :stroke-width="2.1"
+      />
     </button>
     <template v-if="hasMore">
       <span class="lume-floating-toolbar__separator" role="separator"></span>
@@ -236,5 +263,8 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: calc(var(--lume-font-size-base) - 2px);
+}
+.lume-selection-toolbar button.is-copied {
+  color: var(--lume-accent-default);
 }
 </style>

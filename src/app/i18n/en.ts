@@ -310,6 +310,8 @@ export const en = {
   删除整个表格: 'Delete entire table',
   删除整个所选块: 'Delete entire selected block',
   '当前表格 / 所选行列': 'Current table / Selected rows and columns',
+  对齐: 'Alignment',
+  插入行列: 'Insert rows or columns',
   上方插入行: 'Insert row above',
   下方插入行: 'Insert row below',
   删除所选行: 'Delete selected rows',

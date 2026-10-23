@@ -81,6 +81,7 @@ const selectionToolbarRef = ref<{
   getElement: () => HTMLElement | null
   getBounds: () => DOMRect | null
   focusFirstItem: () => void
+  showCopySuccess: () => void
 } | null>(null)
 let editor: Editor | null = null
 let disposed = false
@@ -88,6 +89,14 @@ let editorMarkdown = content.value
 let synchronizedDoc: ProseNode | null = null
 let sourceDocument: { doc: ProseNode; markdown: string } | null = null
 let commandNoticeTimer: ReturnType<typeof setTimeout> | undefined
+const handleCommandSuccess = (message: string) => {
+  clearTimeout(commandNoticeTimer)
+  commandError.value = ''
+  commandNotice.value = message
+  commandNoticeTimer = setTimeout(() => {
+    commandNotice.value = ''
+  }, 1800)
+}
 const {
   context: menuContext,
   groups: contextMenuGroups,
@@ -108,14 +117,7 @@ const {
     commandNotice.value = ''
     commandError.value = message
   },
-  onSuccess: (message) => {
-    clearTimeout(commandNoticeTimer)
-    commandError.value = ''
-    commandNotice.value = message
-    commandNoticeTimer = setTimeout(() => {
-      commandNotice.value = ''
-    }, 1800)
-  },
+  onSuccess: handleCommandSuccess,
   onEditSource: () => {
     flushPendingMarkdown()
     emit('editSource')
@@ -135,8 +137,9 @@ const contextMenuOpen = computed(() => menuContext.value !== null)
 const editorCommands = createEditorCommands({
   getEditor: () => editor,
   onBeforeCommand: prepareCommand,
-  onCopy: () => {},
+  onCopy: () => selectionToolbarRef.value?.showCopySuccess(),
   onError: (message) => {
+    commandNotice.value = ''
     commandError.value = message
   },
   isActive: () => !disposed && activeDocument.value?.id === boundDocumentId,

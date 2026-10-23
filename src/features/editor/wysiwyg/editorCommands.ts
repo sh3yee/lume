@@ -1,3 +1,4 @@
+import { t } from '@/app/i18n'
 import { editorViewCtx, type Editor } from '@milkdown/kit/core'
 import { toggleMark } from '@milkdown/kit/prose/commands'
 import { undo, redo } from '@milkdown/kit/prose/history'
@@ -141,8 +142,16 @@ export function createEditorCommands(options: {
   const runNativeEditCommand = (command: 'copy' | 'cut') =>
     runWithView((view) => {
       if (view.state.selection.empty) return
-      document.execCommand(command)
-      if (command === 'copy') options.onCopy()
+      if (command === 'cut') {
+        document.execCommand(command)
+        return
+      }
+      try {
+        if (document.execCommand('copy')) options.onCopy()
+        else options.onError(t('无法写入系统剪贴板。'))
+      } catch {
+        options.onError(t('无法写入系统剪贴板。'))
+      }
     })
 
   const insertNode = (type: string) =>
