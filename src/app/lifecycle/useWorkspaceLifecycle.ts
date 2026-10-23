@@ -14,6 +14,7 @@ import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspace
 import {
   getWorkspaceErrorMessage,
   listenWorkspaceChanges,
+  persistExpandedPaths,
   readWorkspaceDocument,
   startWorkspaceWatcher,
   stopWorkspaceWatcher,
@@ -30,6 +31,14 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
   let savePending = false
   let disposed = false
   let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+  watch(
+    workspace.expandedPaths,
+    (paths) => {
+      if (workspace.workspacePath.value) persistExpandedPaths(workspace.workspacePath.value, paths)
+    },
+    { flush: 'sync' },
+  )
 
   async function processExternalChanges(batch: {
     workspacePath: string

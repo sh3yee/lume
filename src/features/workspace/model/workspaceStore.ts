@@ -94,6 +94,10 @@ function resetExpandedPaths() {
   expandedPaths.value = new Set()
 }
 
+function setExpandedPaths(paths: string[]) {
+  expandedPaths.value = new Set(paths)
+}
+
 function expandDirectory(path: string) {
   expandedPaths.value = new Set(expandedPaths.value).add(path)
 }
@@ -134,6 +138,7 @@ export function useWorkspaceStore() {
     setLastScanDuration,
     setAutoSaveError,
     resetExpandedPaths,
+    setExpandedPaths,
     expandDirectory,
     toggleDirectory,
     containsPath,

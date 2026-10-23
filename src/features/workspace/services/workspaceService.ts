@@ -1,4 +1,5 @@
 import { t } from '@/app/i18n'
+import { readPreference, savePreference } from '@/app/preferences/preferenceStorage'
 import { isTauri } from '@/platform/tauri/client'
 import {
   createWorkspaceEntry,
@@ -14,6 +15,23 @@ import {
 import { readDroppedMarkdownFile } from '@/platform/tauri/files'
 
 const WORKSPACE_STORAGE_KEY = 'lume-workspace-path'
+const EXPANDED_PATHS_STORAGE_KEY = 'lume-workspace-expanded-paths'
+
+export const getStoredExpandedPaths = (workspacePath: string): string[] => {
+  try {
+    const saved: unknown = JSON.parse(readPreference(EXPANDED_PATHS_STORAGE_KEY) ?? 'null')
+    if (!saved || typeof saved !== 'object') return []
+    const state = saved as { workspacePath?: unknown; paths?: unknown }
+    if (state.workspacePath !== workspacePath || !Array.isArray(state.paths)) return []
+    return state.paths.filter((path): path is string => typeof path === 'string')
+  } catch {
+    return []
+  }
+}
+
+export const persistExpandedPaths = (workspacePath: string, paths: Set<string>) => {
+  savePreference(EXPANDED_PATHS_STORAGE_KEY, JSON.stringify({ workspacePath, paths: [...paths] }))
+}
 
 export function getStoredWorkspacePath() {
   return localStorage.getItem(WORKSPACE_STORAGE_KEY)

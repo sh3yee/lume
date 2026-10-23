@@ -10,6 +10,7 @@ import {
   clearStoredWorkspacePath,
   deleteEntry,
   getStoredWorkspacePath,
+  getStoredExpandedPaths,
   getWorkspaceErrorMessage,
   loadWorkspaceEntries,
   moveEntry,
@@ -33,7 +34,10 @@ export function useWorkspaceCommands() {
       if (!document.path) continue
       const path = replacePathPrefix(document.path, previousPath, nextPath)
       if (path !== document.path) {
-        updateDocumentMetadata(document.id, { path, name: path.split(/[\\/]/).pop() || document.name })
+        updateDocumentMetadata(document.id, {
+          path,
+          name: path.split(/[\\/]/).pop() || document.name,
+        })
       }
     }
   }
@@ -43,7 +47,9 @@ export function useWorkspaceCommands() {
     store.setWorkspaceError(null)
     try {
       const entries = await loadWorkspaceEntries(path)
+      const expandedPaths = store.workspacePath.value !== path ? getStoredExpandedPaths(path) : null
       store.setWorkspace(path, entries)
+      if (expandedPaths) store.setExpandedPaths(expandedPaths)
       persistWorkspacePath(path)
       return true
     } catch (error) {
@@ -59,7 +65,6 @@ export function useWorkspaceCommands() {
     try {
       const selected = await selectWorkspaceDirectory()
       if (!selected) return false
-      store.resetExpandedPaths()
       return loadWorkspace(selected)
     } catch (error) {
       store.setWorkspaceError(getWorkspaceErrorMessage(error))
@@ -125,10 +130,13 @@ export function useWorkspaceCommands() {
     try {
       await deleteEntry(root, path)
       for (const document of documents.value) {
-        if (!document.path
-          || document.path !== path
-          && !document.path.startsWith(`${path}\\`)
-          && !document.path.startsWith(`${path}/`)) continue
+        if (
+          !document.path ||
+          (document.path !== path &&
+            !document.path.startsWith(`${path}\\`) &&
+            !document.path.startsWith(`${path}/`))
+        )
+          continue
         store.setExternalConflict({
           documentId: document.id,
           fileName: document.name,

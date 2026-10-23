@@ -146,21 +146,16 @@ import { useWritingPreference } from '@/app/preferences/useWritingPreference'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
 import { useTabsPreference } from '@/app/preferences/useTabsPreference'
 import { useStatusBarPreference } from '@/app/preferences/useStatusBarPreference'
+import { useLayoutPreference, type ViewMode } from '@/app/preferences/useLayoutPreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
 import {
   useImageCommands,
   type ImageCommandEditor,
 } from '@/features/images/editor/useImageCommands'
 
-/** 工作模式：所见即所得 | 分栏（源码+预览） */
-type ViewMode = 'wysiwyg' | 'split'
-
-const viewMode = ref<ViewMode>('wysiwyg')
+const { viewMode, sidebarVisible, inspectorVisible, focusMode } = useLayoutPreference()
 const wysiwygPaneRef = ref<ImageCommandEditor | null>(null)
 const sourceEditorRef = ref<(ImageCommandEditor & { focus: () => void }) | null>(null)
-const sidebarVisible = ref(window.matchMedia('(min-width: 900px)').matches)
-const inspectorVisible = ref(window.matchMedia('(min-width: 1180px)').matches)
-const focusMode = ref(false)
 const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
 const exportSnapshot = ref<OpenDocument | null>(null)

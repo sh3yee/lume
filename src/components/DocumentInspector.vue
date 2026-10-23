@@ -3,6 +3,7 @@ import { t } from '@/app/i18n'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vLiquidGlass } from '@/ui/glass/directive'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
+import { useLayoutPreference } from '@/app/preferences/useLayoutPreference'
 import { useDocument } from '@/features/documents/model/useDocument'
 import {
   useDocumentOutline,
@@ -18,10 +19,9 @@ const { activeDocument, stats } = useDocument()
 const { outlineItems, navigateToHeading } = useDocumentOutline()
 const { interfaceFont, interfaceFontSize, outlineFontSize } = useInterfacePreference()
 const inspectorRef = ref<HTMLElement | null>(null)
-const activePanel = ref<'outline' | 'stats'>('outline')
+const { inspectorPanel: activePanel, inspectorWidth: manualWidth } = useLayoutPreference()
 const selectedHeading = ref<number | null>(null)
 const viewportWidth = ref(window.innerWidth)
-const manualWidth = ref<number | null>(null)
 const measuredWidth = ref(220)
 let resizeStartX = 0
 let resizeStartWidth = 0

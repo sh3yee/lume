@@ -3,6 +3,7 @@
 import { t } from '@/app/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useInterfacePreference } from '@/app/preferences/useInterfacePreference'
+import { useLayoutPreference } from '@/app/preferences/useLayoutPreference'
 import { vLiquidGlass } from '@/ui/glass/directive'
 import {
   ChevronRight,
@@ -49,12 +50,10 @@ const createName = ref('')
 const createInput = ref<HTMLInputElement | null>(null)
 const sidebarRef = ref<HTMLElement | null>(null)
 const { interfaceFont, interfaceFontSize } = useInterfacePreference()
-const manualWidth = ref<number | null>(null)
+const { sidebarWidth: manualWidth, openEditorsExpanded, workspaceExpanded } = useLayoutPreference()
 const measuredWidth = ref(228)
 const viewportWidth = ref(window.innerWidth)
 const resizing = ref(false)
-const openEditorsExpanded = ref(true)
-const workspaceExpanded = ref(true)
 let resizeStartX = 0
 let resizeStartWidth = 0
 
