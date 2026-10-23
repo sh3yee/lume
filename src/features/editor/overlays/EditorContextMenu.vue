@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { t } from '@/app/i18n'
+import { vLiquidGlass } from '@/ui/glass/directive'
 import { computed, nextTick, ref } from 'vue'
 import type { ContextMenuItem } from './contextMenuTypes'
 import { constrainOverlayPosition } from './overlayPosition'
@@ -89,6 +90,7 @@ defineExpose({ focusFirstItem, getBounds })
 <template>
   <div
     ref="menu"
+    v-liquid-glass
     class="lume-editor-context-menu"
     role="menu"
     :aria-label="t('编辑区操作')"
@@ -125,6 +127,7 @@ defineExpose({ focusFirstItem, getBounds })
     <div
       v-if="expanded"
       ref="submenu"
+      v-liquid-glass
       class="lume-editor-context-menu lume-editor-context-menu--submenu"
       role="menu"
       :aria-label="expanded.label"
@@ -163,13 +166,22 @@ defineExpose({ focusFirstItem, getBounds })
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   padding: var(--lume-space-2);
-  border: 1px solid var(--lume-border-subtle);
+  border: 1px solid var(--lume-glass-edge);
   border-radius: var(--lume-radius-md);
-  background-color: var(--lume-bg-overlay);
+  background-color: color-mix(in srgb, var(--lume-glass-overlay) 65%, var(--lume-bg-overlay));
+  background-image: var(--lume-glass-reflection);
   color: var(--lume-text-secondary);
-  box-shadow: var(--lume-shadow-md);
+  box-shadow:
+    inset 0 1px 0 var(--lume-glass-rim),
+    var(--lume-shadow-md);
   user-select: none;
-  backdrop-filter: blur(14px);
+  backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(3px);
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(3px);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .lume-editor-context-menu {
+    background: var(--lume-bg-overlay);
+  }
 }
 .lume-editor-context-menu--submenu {
   z-index: calc(var(--lume-z-tooltip) + 1);

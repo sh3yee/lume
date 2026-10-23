@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { t } from '@/app/i18n'
+import { vLiquidGlass } from '@/ui/glass/directive'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   Bold,
@@ -189,6 +190,7 @@ onBeforeUnmount(resetCopyFeedback)
 <template>
   <div
     ref="root"
+    v-liquid-glass
     class="lume-floating-toolbar lume-selection-toolbar"
     role="toolbar"
     :aria-label="t('{0}操作', model.title)"
