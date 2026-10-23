@@ -1,4 +1,5 @@
 import type { ImageInputAttributes } from '../wysiwyg/imageInput'
+import type { ImageClipboardOptions } from '@/features/images/editor/imageClipboard'
 import { type Editor } from '@milkdown/kit/core'
 import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
@@ -27,9 +28,8 @@ export { useSourceEmojiCompletion } from './emoji/useSourceEmojiCompletion'
 /** 按稳定顺序注册 WYSIWYG Markdown 扩展。 */
 export function useWysiwygMarkdownExtensions(
   editor: Editor,
-  options: {
+  options: ImageClipboardOptions & {
     importImageFile: (file: File) => Promise<string | null>
-    importImageSource?: (src: string) => Promise<string>
     selectImages?: () => Promise<ImageInputAttributes[]>
     isDocumentActive: () => boolean
     onImageSelect: (view: EditorView, selection: NodeSelection) => void
@@ -48,6 +48,7 @@ export function useWysiwygMarkdownExtensions(
   const imageEditor = useImagesWysiwygExtension(baseEditor, {
     importFile: options.importImageFile,
     importImageSource: options.importImageSource,
+    getImageClipboardOrigin: options.getImageClipboardOrigin,
     selectImages: options.selectImages,
     isActive: options.isDocumentActive,
     onSelect: options.onImageSelect,

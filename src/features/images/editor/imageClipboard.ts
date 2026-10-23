@@ -1,6 +1,74 @@
 import { isTauri } from '@/platform/tauri/client'
 import { readClipboardImagePaths } from '@/platform/tauri/images'
 import { normalizeImageSourceInput } from '@/utils/imageSource'
+import { DOMSerializer, type Schema } from '@milkdown/kit/prose/model'
+
+export interface ImageClipboardOrigin {
+  documentId: string
+  documentPath: string | null
+  rootUrl?: string
+}
+
+export interface ImageClipboardOptions {
+  getImageClipboardOrigin?: () => ImageClipboardOrigin | null
+  importImageSource?: (src: string, origin?: ImageClipboardOrigin) => Promise<string>
+}
+
+const IMAGE_ORIGIN_ATTRIBUTE = 'data-lume-image-origin'
+
+/** 来源信息只写入剪贴板 HTML，不进入文档节点或 Markdown。 */
+export const createImageClipboardSerializer = (
+  schema: Schema,
+  getOrigin?: ImageClipboardOptions['getImageClipboardOrigin'],
+) => {
+  const serializer = DOMSerializer.fromSchema(schema)
+  const serializeImage = serializer.nodes.image
+  if (!serializeImage || !getOrigin) return serializer
+  return new DOMSerializer(
+    {
+      ...serializer.nodes,
+      image: (node) => {
+        const image = DOMSerializer.renderSpec(document, serializeImage(node)).dom
+        const origin = getOrigin()
+        if (origin && node.attrs.src && !/^(?:https?:|data:|blob:|\/\/)/i.test(node.attrs.src))
+          (image as HTMLElement).setAttribute(IMAGE_ORIGIN_ATTRIBUTE, JSON.stringify(origin))
+        return image
+      },
+    },
+    serializer.marks,
+  )
+}
+
+export const getClipboardImageOrigins = (data: DataTransfer | null) => {
+  const origins = new Map<string, ImageClipboardOrigin>()
+  const html = data?.getData('text/html') ?? ''
+  if (!html.includes(IMAGE_ORIGIN_ATTRIBUTE)) return origins
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  for (const image of document.querySelectorAll(`img[${IMAGE_ORIGIN_ATTRIBUTE}]`)) {
+    const src = image.getAttribute('src')
+    if (!src) continue
+    try {
+      const origin: unknown = JSON.parse(image.getAttribute(IMAGE_ORIGIN_ATTRIBUTE) ?? '')
+      if (!origin || typeof origin !== 'object' || Array.isArray(origin)) continue
+      const value = origin as Record<string, unknown>
+      if (
+        typeof value.documentId !== 'string' ||
+        !/^[\w-]+$/.test(value.documentId) ||
+        (value.documentPath !== null && typeof value.documentPath !== 'string') ||
+        (value.rootUrl !== undefined && typeof value.rootUrl !== 'string')
+      )
+        continue
+      origins.set(src, {
+        documentId: value.documentId,
+        documentPath: value.documentPath,
+        rootUrl: value.rootUrl,
+      })
+    } catch {
+      // 外部 HTML 中无效的来源标记按普通图片处理。
+    }
+  }
+  return origins
+}
 
 const LOCAL_IMAGE =
   /^(?:file:\/\/|[a-z]:[\\/]|\\\\|\/)[^\r\n]+\.(?:png|jpe?g|gif|webp|bmp|avif|svg|ico|tiff?)(?:[?#][^\r\n]*)?$/i

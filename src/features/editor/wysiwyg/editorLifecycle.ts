@@ -1,4 +1,5 @@
 import type { ImageInputAttributes } from './imageInput'
+import type { ImageClipboardOptions } from '@/features/images/editor/imageClipboard'
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx, serializerCtx } from '@milkdown/kit/core'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
@@ -22,21 +23,22 @@ export const getPendingEditorMarkdown = (editor: Editor | null, synchronizedDoc:
   })
 }
 
-export async function createWysiwygEditor(options: {
-  initialMarkdown: string
-  root: HTMLElement
-  importImageFile: (file: File) => Promise<string | null>
-  importImageSource?: (src: string) => Promise<string>
-  selectImages?: () => Promise<ImageInputAttributes[]>
-  isDocumentActive: () => boolean
-  onImageSelect: (view: EditorView, selection: NodeSelection) => void
-  onMarkdownChange: (markdown: string, view: EditorView | null) => void
-  onSelectionChange: (view: EditorView | null, line: number, column: number) => void
-  resolveImageSource: (src: string) => string | Promise<string>
-  resolveHtmlSource?: (src: string) => string | Promise<string>
-  onViewUpdate?: (view: EditorView) => void
-  onAction?: (id: string, target: EditorContext) => void
-}) {
+export async function createWysiwygEditor(
+  options: ImageClipboardOptions & {
+    initialMarkdown: string
+    root: HTMLElement
+    importImageFile: (file: File) => Promise<string | null>
+    selectImages?: () => Promise<ImageInputAttributes[]>
+    isDocumentActive: () => boolean
+    onImageSelect: (view: EditorView, selection: NodeSelection) => void
+    onMarkdownChange: (markdown: string, view: EditorView | null) => void
+    onSelectionChange: (view: EditorView | null, line: number, column: number) => void
+    resolveImageSource: (src: string) => string | Promise<string>
+    resolveHtmlSource?: (src: string) => string | Promise<string>
+    onViewUpdate?: (view: EditorView) => void
+    onAction?: (id: string, target: EditorContext) => void
+  },
+) {
   return useWysiwygMarkdownExtensions(
     Editor.make().config((ctx) => {
       ctx.set(rootCtx, options.root)

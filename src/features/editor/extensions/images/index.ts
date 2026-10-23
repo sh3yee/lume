@@ -1,4 +1,5 @@
 import type { ImageInputAttributes } from '../../wysiwyg/imageInput'
+import type { ImageClipboardOptions } from '@/features/images/editor/imageClipboard'
 import { type Editor } from '@milkdown/kit/core'
 import type { NodeSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
@@ -16,9 +17,8 @@ const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 /** 注册图片 Schema、Markdown 往返、NodeView 和输入处理。 */
 export function useImagesWysiwygExtension(
   editor: Editor,
-  options: {
+  options: ImageClipboardOptions & {
     importFile: (file: File) => Promise<string | null>
-    importImageSource?: (src: string) => Promise<string>
     isActive: () => boolean
     onSelect: (view: EditorView, selection: NodeSelection) => void
     resolveSource: (src: string) => string | Promise<string>
@@ -34,6 +34,7 @@ export function useImagesWysiwygExtension(
   const imageInputPlugin = createImageInputPlugin({
     importFile: options.importFile,
     importImageSource: options.importImageSource,
+    getImageClipboardOrigin: options.getImageClipboardOrigin,
     isActive: options.isActive,
   })
 

@@ -355,12 +355,22 @@ onMounted(async () => {
         content.value,
       )
     },
-    importImageSource: (src) =>
+    getImageClipboardOrigin: () => {
+      const document = activeDocument.value
+      if (!document || document.id !== boundDocumentId) return null
+      return {
+        documentId: document.id,
+        documentPath: document.path,
+        rootUrl: getDocumentImageOptions(content.value).rootUrl,
+      }
+    },
+    importImageSource: (src, origin) =>
       importEditorImageSource(
         src,
         activeDocument.value?.path ?? null,
         boundDocumentId ?? '',
         content.value,
+        origin,
       ),
     isDocumentActive: () => activeDocument.value?.id === boundDocumentId,
     async selectImages() {

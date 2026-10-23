@@ -3,12 +3,14 @@ import { isTauri } from '@/platform/tauri/client'
 import { normalizeImageSourceInput } from '@/utils/imageSource'
 import {
   importImageFile,
+  resolveImagePath,
   resolveImageUrl,
   storeClipboardImage,
   transferImage,
   uploadImageFiles,
 } from '@/platform/tauri/images'
 import { getDocumentImageOptions } from '../model/imageSettings'
+import type { ImageClipboardOrigin } from './imageClipboard'
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:|data:|blob:|\/\/)/i
 const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
@@ -70,11 +72,28 @@ export const importEditorImageSource = async (
   documentPath: string | null,
   documentId: string,
   content = '',
+  origin?: ImageClipboardOrigin,
 ) => {
   src = normalizeImageSourceInput(src)
   if (!isTauri() || /^(?:data:|blob:)/i.test(src)) return src
-  if (!/^(?:https?:|\/\/)/i.test(src))
-    return importEditorImagePath(src, documentPath, documentId, content)
+  if (!/^(?:https?:|\/\/)/i.test(src)) {
+    if (!origin) return importEditorImagePath(src, documentPath, documentId, content)
+    const path = await resolveImagePath(src, origin.documentPath, origin.documentId, {
+      rootUrl: origin.rootUrl,
+    })
+    const options = getDocumentImageOptions(content, 'local')
+    // 跨文档的暂存图片必须归目标文档所有，避免关闭源标签后图片失效。
+    if (
+      origin.documentId !== documentId &&
+      options.insertAction === 'original' &&
+      path
+        .replace(/\\/g, '/')
+        .toLowerCase()
+        .includes(`/image-staging/${origin.documentId.toLowerCase()}/`)
+    )
+      options.insertAction = 'copy'
+    return (await importImageFile(path, documentPath, documentId, options)).markdownPath
+  }
   const options = getDocumentImageOptions(content, 'remote')
   if (options.insertAction === 'upload') {
     if (!options.uploader?.program) throw new Error(t('请先在偏好设置 → 图片中配置上传工具。'))

@@ -1,4 +1,5 @@
 import { t } from '@/app/i18n'
+import { schemaCtx } from '@milkdown/kit/core'
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model'
 import { closeHistory } from '@milkdown/kit/prose/history'
 import {
@@ -13,7 +14,13 @@ import type { EditorView } from '@milkdown/kit/prose/view'
 import { $prose } from '@milkdown/kit/utils'
 import { parseMarkdownImageAt } from '@/utils/imageMarkdown'
 import { parseSizedImageHtml } from '@/utils/imageHtml'
-import { getClipboardImageInput } from '@/features/images/editor/imageClipboard'
+import {
+  createImageClipboardSerializer,
+  getClipboardImageInput,
+  getClipboardImageOrigins,
+  type ImageClipboardOptions,
+  type ImageClipboardOrigin,
+} from '@/features/images/editor/imageClipboard'
 
 const IMAGE_SOURCE_PATTERN =
   /^(?:https?:\/\/\S+|file:\/\/[^\r\n]+|[a-z]:[\\/][^\r\n]+|\\\\[^\r\n]+)\.(?:png|jpe?g|gif|webp|bmp|avif|svg|ico)(?:[?#][^\r\n]*)?$/i
@@ -225,11 +232,12 @@ function deleteAdjacentImage(view: EditorView, event: KeyboardEvent) {
   return true
 }
 
-export function createImageInputPlugin(options: {
-  importFile: (file: File) => Promise<string | null>
-  importImageSource?: (src: string) => Promise<string>
-  isActive: () => boolean
-}) {
+export function createImageInputPlugin(
+  options: ImageClipboardOptions & {
+    importFile: (file: File) => Promise<string | null>
+    isActive: () => boolean
+  },
+) {
   let pasteAsPlainText = false
   let resetPlainTextTimer: number | undefined
   const importFiles = async (
@@ -286,7 +294,12 @@ export function createImageInputPlugin(options: {
     }
   }
 
-  const importClipboardImages = async (view: EditorView, slice: Slice, imageSources: string[]) => {
+  const importClipboardImages = async (
+    view: EditorView,
+    slice: Slice,
+    imageSources: string[],
+    origins?: ReadonlyMap<string, ImageClipboardOrigin>,
+  ) => {
     const importSource = options.importImageSource
     if (!importSource) return
     const id = beginImageImport(view)
@@ -294,7 +307,7 @@ export function createImageInputPlugin(options: {
     for (const source of imageSources) {
       if (!options.isActive() || view.isDestroyed || !view.editable) return
       try {
-        const src = await importSource(source)
+        const src = await importSource(source, origins?.get(source))
         if (src) sources.set(source, src)
       } catch (error) {
         if (options.isActive() && !view.isDestroyed) reportImageError(error)
@@ -309,7 +322,7 @@ export function createImageInputPlugin(options: {
   }
 
   return $prose(
-    () =>
+    (ctx) =>
       new Plugin({
         key: imageImportKey,
         state: {
@@ -357,6 +370,10 @@ export function createImageInputPlugin(options: {
           }
         },
         props: {
+          clipboardSerializer: createImageClipboardSerializer(
+            ctx.get(schemaCtx),
+            options.getImageClipboardOrigin,
+          ),
           decorations: (state) => imageImportKey.getState(state)?.decorations ?? null,
           handleClickOn(view, _pos, node, nodePos, event, direct) {
             if (!direct || node.type.name !== 'image') return false
@@ -388,14 +405,16 @@ export function createImageInputPlugin(options: {
             const hasImageFiles = Array.from(event.clipboardData?.files ?? []).some((file) =>
               file.type.startsWith('image/'),
             )
+            const origins = getClipboardImageOrigins(event.clipboardData)
             if (
               options.importImageSource &&
               imageSources.size &&
-              (!hasImageFiles ||
+              (origins.size > 0 ||
+                !hasImageFiles ||
                 Array.from(imageSources).every((src) => /^(?:file:|[a-z]:[\\/]|\\\\)/i.test(src)))
             ) {
               event.preventDefault()
-              void importClipboardImages(view, slice, Array.from(imageSources))
+              void importClipboardImages(view, slice, Array.from(imageSources), origins)
               return true
             }
             const clipboard = getClipboardImageInput(event.clipboardData)
