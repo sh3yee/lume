@@ -184,17 +184,25 @@
   border: 1px solid var(--lume-code-border);
   border-radius: var(--lume-radius-sm);
   background-color: var(--lume-code-bg);
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-family: var(--lume-font-mono);
   font-size: 0.875em;
 }
 
+.lume-markdown-content :is(pre, .milkdown-code-block, table) {
+  margin: var(--lume-space-6) 0;
+  border: 1px solid color-mix(in srgb, var(--lume-border-default) 78%, transparent);
+  border-radius: var(--lume-radius-xl);
+  box-shadow: var(--lume-shadow-xs);
+}
+
+.lume-markdown-content :is(pre, .milkdown-code-block) {
+  background-color: var(--lume-code-block-bg);
+  color: var(--lume-code-text);
+}
+
 .lume-markdown-content pre {
-  margin: var(--lume-space-4) 0;
-  padding: var(--lume-space-4) var(--lume-space-5);
+  padding: var(--lume-space-5) var(--lume-space-6);
   overflow-x: auto;
-  border: 1px solid var(--lume-code-border);
-  border-radius: var(--lume-radius-md);
-  background-color: var(--lume-code-bg);
 }
 
 .lume-markdown-content pre code {
@@ -211,20 +219,19 @@
 }
 .lume-markdown-content table {
   width: 100%;
-  margin: var(--lume-space-4) 0;
-  border: 1px solid var(--lume-border-default);
-  border-radius: var(--lume-radius-lg);
   border-collapse: separate;
   border-spacing: 0;
+  background-color: var(--lume-bg-surface);
+  color: var(--lume-text-primary);
   font-size: 0.875em;
   line-height: var(--lume-line-height-relaxed);
 }
 .lume-markdown-content th,
 .lume-markdown-content td {
-  padding: var(--lume-space-3) var(--lume-space-5);
+  padding: 10px var(--lume-space-6);
   border: 0;
-  border-right: 1px solid var(--lume-border-subtle);
-  border-bottom: 1px solid var(--lume-border-subtle);
+  border-right: 1px solid color-mix(in srgb, var(--lume-border-subtle) 80%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--lume-border-subtle) 80%, transparent);
   text-align: left;
   vertical-align: top;
 }
@@ -237,16 +244,32 @@
 }
 .lume-markdown-content table > tr:first-child > :first-child,
 .lume-markdown-content table > :is(thead, tbody):first-child > tr:first-child > :first-child {
-  border-top-left-radius: calc(var(--lume-radius-lg) - 1px);
+  border-top-left-radius: calc(var(--lume-radius-xl) - 1px);
 }
 .lume-markdown-content table > tr:first-child > :last-child,
 .lume-markdown-content table > :is(thead, tbody):first-child > tr:first-child > :last-child {
-  border-top-right-radius: calc(var(--lume-radius-lg) - 1px);
+  border-top-right-radius: calc(var(--lume-radius-xl) - 1px);
+}
+.lume-markdown-content table > tr:last-child > :first-child,
+.lume-markdown-content table > :is(thead, tbody, tfoot):last-child > tr:last-child > :first-child {
+  border-bottom-left-radius: calc(var(--lume-radius-xl) - 1px);
+}
+.lume-markdown-content table > tr:last-child > :last-child,
+.lume-markdown-content table > :is(thead, tbody, tfoot):last-child > tr:last-child > :last-child {
+  border-bottom-right-radius: calc(var(--lume-radius-xl) - 1px);
 }
 .lume-markdown-content th {
-  background-color: var(--lume-bg-surface-raised);
-  color: var(--lume-text-primary);
-  font-weight: var(--lume-font-weight-semibold);
+  background-color: color-mix(in srgb, var(--lume-bg-surface-raised) 45%, var(--lume-bg-surface));
+  background-image: linear-gradient(180deg, var(--lume-glass-highlight, transparent), transparent);
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-interface-font);
+  font-size: calc(var(--lume-interface-font-size) - 2px);
+  font-weight: var(--lume-font-weight-medium);
+  line-height: var(--lume-line-height-normal);
+  box-shadow: inset 0 1px 0 var(--lume-glass-rim, transparent);
+}
+.lume-markdown-content tr:hover > td {
+  background-color: color-mix(in srgb, var(--lume-accent-default) 3%, transparent);
 }
 .lume-markdown-content :is(th, td) > :first-child {
   margin-top: 0;

@@ -2,11 +2,7 @@ import { t } from '@/app/i18n'
 import { type Editor } from '@milkdown/kit/core'
 import { CodeMirrorBlock, codeBlockConfig } from '@milkdown/components/code-block'
 import { defaultKeymap, historyKeymap, indentWithTab } from '@codemirror/commands'
-import {
-  LanguageDescription,
-  syntaxHighlighting,
-  defaultHighlightStyle,
-} from '@codemirror/language'
+import { LanguageDescription, syntaxHighlighting } from '@codemirror/language'
 import { EditorView as CodeMirrorView, keymap } from '@codemirror/view'
 import { EditorState as CodeMirrorState } from '@codemirror/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
@@ -16,6 +12,7 @@ import { $view } from '@milkdown/kit/utils'
 import { codeBlockInteractionPlugin } from '../../wysiwyg/codeBlock'
 import { preservedCodeSchema } from '../../wysiwyg/codeSchema'
 import { getShortcutCommand } from '../../wysiwyg/editorInteraction'
+import { codeBlockHighlightStyle, codeBlockPreviewThemes } from './theme'
 
 let highlightSequence = 0
 const highlightRevisions = new WeakMap<HTMLElement, number>()
@@ -166,7 +163,7 @@ export function useCodeBlockWysiwygExtension(
             },
           }),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          syntaxHighlighting(codeBlockHighlightStyle),
         ],
         expandIcon: '',
         searchIcon: '⌕',
@@ -215,10 +212,7 @@ export function useCodeBlockPreviewExtension(markdown: MarkdownIt) {
 }
 
 /** 按需加载 Shiki，并增强当前 Preview 中尚未高亮的代码块。 */
-export async function highlightCodeBlocks(
-  container: HTMLElement,
-  colorScheme = document.documentElement.dataset.theme,
-) {
+export async function highlightCodeBlocks(container: HTMLElement) {
   const blocks = Array.from(
     container.querySelectorAll<HTMLElement>('.lume-code-block[data-code-source]'),
   )
@@ -227,7 +221,6 @@ export async function highlightCodeBlocks(
   const sequence = ++highlightSequence
   highlightRevisions.set(container, sequence)
   const { codeToHtml } = await import('shiki')
-  const theme = colorScheme === 'dark' ? 'github-dark' : 'github-light'
 
   await Promise.all(
     blocks.map(async (block) => {
@@ -238,7 +231,8 @@ export async function highlightCodeBlocks(
       try {
         const html = await codeToHtml(decodeURIComponent(encodedSource), {
           lang: decodeURIComponent(encodedLanguage),
-          theme,
+          themes: codeBlockPreviewThemes,
+          defaultColor: false,
         })
         if (sequence !== highlightRevisions.get(container) || !block.isConnected) return
         const template = document.createElement('template')

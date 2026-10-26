@@ -50,9 +50,18 @@
   --lume-color-warning-bg: rgba(212, 154, 43, 0.08);
   --lume-color-danger-bg: rgba(212, 67, 67, 0.08);
 
-  /* 代码高亮背景 */
   --lume-code-bg: #f3f5fa;
   --lume-code-border: #e1e6ef;
+
+  /* GitHub Light Default */
+  --lume-code-block-bg: #ffffff;
+  --lume-code-text: #1f2328;
+  --lume-code-comment: #6e7781;
+  --lume-code-keyword: #cf222e;
+  --lume-code-string: #0a3069;
+  --lume-code-number: #0550ae;
+  --lume-code-definition: #8250df;
+  --lume-code-invalid: #cf222e;
 
   /* ===== 排版 ===== */
   --lume-font-sans:
@@ -192,6 +201,16 @@
 
   --lume-code-bg: #242d3e;
   --lume-code-border: #354158;
+
+  /* GitHub Dark Default */
+  --lume-code-block-bg: #0d1117;
+  --lume-code-text: #e6edf3;
+  --lume-code-comment: #8b949e;
+  --lume-code-keyword: #ff7b72;
+  --lume-code-string: #a5d6ff;
+  --lume-code-number: #79c0ff;
+  --lume-code-definition: #d2a8ff;
+  --lume-code-invalid: #ff7b72;
 
   --lume-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
   --lume-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);

@@ -89,10 +89,7 @@ export const renderExport = async (
   document.body.append(host)
   try {
     if (styled)
-      await Promise.all([
-        highlightCodeBlocks(article, theme),
-        renderMermaidDiagrams(article, theme),
-      ])
+      await Promise.all([highlightCodeBlocks(article), renderMermaidDiagrams(article, theme)])
     else article.querySelectorAll('.katex-html').forEach((element) => element.remove())
     const resources = new Map<string, Promise<string>>()
     for (const element of article.querySelectorAll<HTMLElement>('[src], [poster]')) {
