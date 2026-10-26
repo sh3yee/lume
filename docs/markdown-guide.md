@@ -2,11 +2,11 @@
 
 **English** | [简体中文](markdown-guide.zh-CN.md)
 
-This guide follows the categories in [Typora's Markdown reference](https://support.typora.io/zh/Markdown-Reference/) and describes **the syntax, editing interactions, and commands currently implemented in Lume**. The categories follow Typora; the operations described here are specific to Lume.
+This guide describes **the Markdown syntax, editing interactions, and commands currently implemented in Lume**.
 
-Applies to repository version **0.8.0**. Reviewed on October 22, 2026.
+Applies to repository version **0.8.0** and the current repository implementation. Reviewed on October 26, 2026.
 
-[Editing modes and common operations](#editing-modes-and-common-operations) · [Block elements](#block-elements) · [Inline elements](#inline-elements) · [HTML and embedded content](#html-and-embedded-content) · [Keyboard shortcuts](#keyboard-shortcuts) · [Current limitations](#current-limitations)
+[Editing modes and common operations](#editing-modes-and-common-operations) · [Block elements](#block-elements) · [Inline elements](#inline-elements) · [HTML and embedded content](#html-and-embedded-content) · [Files and export](#files-and-export) · [Keyboard shortcuts](#keyboard-shortcuts) · [Current limitations](#current-limitations)
 
 ## Editing modes and common operations
 
@@ -32,7 +32,7 @@ This guide uses `Ctrl` for Windows / Linux shortcuts. On macOS, generally substi
 | Ordinary text | Drag over text or extend the selection with the keyboard | Bold, italic, strikethrough, inline code, links, and copy; the context menu provides more actions                      |
 | Image         | Click the image                                          | Alignment, description editing, scaling, and size reset                                                                |
 | Table         | Place the cursor in a cell or select multiple cells      | Row and column operations, column alignment, and table deletion; selecting text inside a cell provides text formatting |
-| Inline math   | Click to select; double-click to edit                    | Edit or copy LaTeX source, or delete the formula                                                                       |
+| Inline math   | Click to expand its Markdown source                      | Edit `$...$` in place; the context menu also offers formula properties, source copying, and deletion                   |
 | Math block    | Click the formula block                                  | Expand its source editor and live preview in place                                                                     |
 | Code          | Select text inside the code block                        | Copy or cut the selected code and paste plain text; whole-block copying and language settings have separate controls   |
 | HTML          | Use its in-place source control or context menu          | Edit HTML source and copy node Markdown; HTML objects do not display an additional “Source node” floating toolbar      |
@@ -45,6 +45,17 @@ Right-clicking inside an existing selection keeps that selection. Right-clicking
 **Convert current block** changes a paragraph or container type. **Insert after current block** adds content and generally keeps the existing text. YAML front matter is an exception: it is always inserted at the document start.
 
 Changes made in an in-place source editor generally become part of the document as you type. Finishing, collapsing, or pressing `Escape` does not consistently mean canceling changes. Use Undo to reverse edits; property dialogs also provide a Cancel button.
+
+### Edit inline Markdown in place
+
+Bold, italic, strikethrough, inline code, and enabled highlight / subscript / superscript formats share an in-place source editor. After you finish typing paired markers, the source stays visible while the cursor is inside it. Move the cursor out to render the formatted result.
+
+- Click formatted text or move into it with the arrow keys to expose its Markdown markers and edit the text or delimiters.
+- Click an inline formula or footnote reference to expose `$...$` or `[^label]` in the same way. Images and links have separate source-editing controls.
+- `Escape` leaves the source; Left / Right at its boundaries returns to surrounding text. `Enter` or `Tab` leaves source editing and continues the editor's normal key behavior, so `Enter` can also split the paragraph.
+- Moving focus away renders complete syntax. Incomplete syntax stays visible and is saved literally. `Escape` does not discard edits.
+
+Text selection still provides formatting actions; simply clicking formatted text opens its source rather than its selection toolbar.
 
 ### Enable optional extensions
 
@@ -156,7 +167,7 @@ console.log(message)
 **Create a block:**
 
 - Right-click **Insert after current block → Code block**, or press `Ctrl+Alt+C` to insert a code block after the current block.
-- In an empty paragraph, you can also type three backticks, optionally followed by a lowercase language tag such as `javascript`, then type a space to trigger conversion.
+- In an empty paragraph, type three backticks, optionally followed by a language tag such as `javascript`, then press `Enter` to create the code block. Typing a space alone does not confirm the fence.
 - Enter or paste complete fenced blocks in the source pane.
 
 **Edit and exit:**
@@ -166,6 +177,7 @@ console.log(message)
 - Click **Copy code** or choose **Copy entire code block** to copy the code body without Markdown fences.
 - Select part of the code to copy or cut it. Pasting inserts plain text rather than rich content such as tables.
 - Press `Ctrl+Enter` to exit to the paragraph after the code block. The context menu can also insert a paragraph before or after it.
+- Pressing `Enter` on an empty final line also continues in a paragraph after the block. `Backspace` in an entirely empty code block converts it to a paragraph.
 - Use the arrow keys at code boundaries to move to adjacent text.
 
 The code editor provides language support for JavaScript, TypeScript, HTML, CSS, JSON, Markdown, Python, Rust, Java, C/C++, Go, and SQL. Other languages can still be kept as code text; highlighting may differ.
@@ -224,7 +236,7 @@ A thought deserves an additional explanation[^reading].
 - Type `[^identifier]` in the text and `[^identifier]: ` in a separate paragraph, followed by the definition. Matching identifiers connect the reference and definition.
 - A reference without a matching definition may initially remain plain text. Adding the definition allows it to be recognized as a footnote.
 - Hover over a reference to see a text tooltip containing its definition.
-- Click a reference to expand `[^identifier]` in place and edit the identifier. Press `Enter` or `Escape`, or move focus away, to finish. `Escape` ends editing; it does not undo changes.
+- Click a reference to expand `[^identifier]` in place and edit the identifier. Move focus away or press `Escape` to finish; `Enter` leaves the source and follows the paragraph's normal behavior. `Escape` does not undo changes.
 - `Ctrl+click` a reference to jump to its definition, or choose **Go to / Edit footnote definition** in the context menu.
 - Click `↩` in the definition to return to its reference.
 
@@ -264,7 +276,7 @@ You can also choose **Insert after current block → YAML front matter**. Metada
 
 Metadata is edited as source and can retain comments, multiline values, and custom fields. A file without a closing metadata delimiter should not be expected to form a complete YAML block.
 
-Lume uses some document-level image fields, including `typora-root-url` and `typora-copy-images-to`, which can be set through image commands. Copying or uploading also depends on the corresponding permission options under **Preferences → Images**. Other custom fields are stored; this does not mean Lume executes every Typora configuration or export option.
+Lume uses some document-level image fields, including `typora-root-url` and `typora-copy-images-to`, which can be set through image commands. Copying or uploading also depends on the corresponding permission options under **Preferences → Images**. Other custom fields are stored as metadata without automatically enabling additional behavior.
 
 ### Table of contents (TOC)
 
@@ -302,7 +314,7 @@ flowchart LR
 - Turn off **Preferences → Markdown → Mermaid diagrams** to display code in the preview instead.
 - Invalid syntax retains the code and reports a rendering failure. Correct the left-hand source and check the preview again.
 
-Lume does not currently provide dedicated rendering for Typora's standalone `sequence` or `flow` / `flowchart` fences. Use the corresponding syntax inside a `mermaid` fence instead.
+Lume does not currently provide dedicated rendering for standalone `sequence` or `flow` / `flowchart` fences. Use the corresponding syntax inside a `mermaid` fence instead.
 
 ## Inline elements
 
@@ -380,11 +392,12 @@ Angle brackets create explicit links. With **Automatic links** enabled, plain UR
 - Press `Ctrl+Shift+I` or run **Insert image** from the command palette to create an image placeholder and enter its path in place.
 - Use **Insert local images…** to choose files, paste screenshots, drop image files, or use an image URL.
 - After typing complete image syntax in WYSIWYG, press Space or `Enter` to convert it to an image. `Enter` also provides a following paragraph.
-- The image path editor lets you change the Markdown and confirm with `Enter` / `Tab`, or use its local file selection button. In-place path editing primarily serves placeholders and images without an address; use the properties control for existing images.
+- The image source editor lets you edit the complete `![alt](path "title")` as one text range. Confirm with `Enter` / `Tab`; `Escape` leaves editing without undoing changes. The local file selection button appears for an empty path.
 
 **Adjust:**
 
 - Click an image to select it and reveal its toolbar and resize handle.
+- Double-click an existing image to open its Markdown source in place. Edit its address, alt text, or title while retaining the image preview. If you break the image syntax, it becomes ordinary editable text.
 - Drag the handle to resize, or choose a percentage under **Scale image** in the context menu.
 - The toolbar and context menu support left, center, and right alignment and **Reset image size**.
 - **Replace image / Edit description** changes the address, alt text, and title. The context menu can also copy the image address or image Markdown.
@@ -404,7 +417,7 @@ The context menu provides **Move / Rename image…**, **Copy image to…**, and 
 _Another italic form_
 ```
 
-Completing a pair of markers produces italic text. For existing text, use the selection toolbar, **Italic** in the context menu, or `Ctrl+I`. Do not place spaces immediately inside the opening or closing markers. Stars and underscores inside code remain code text.
+Complete the paired markers, then move the cursor out to render italic text. Click it again to edit the source in place. For existing text, use the selection toolbar, **Italic** in the context menu, or `Ctrl+I`. Do not place spaces immediately inside the opening or closing markers. Stars and underscores inside code remain code text.
 
 ### Bold
 
@@ -461,12 +474,12 @@ The area of a circle is $A = \pi r^2$.
 ```
 
 - **Preferences → Markdown → Inline math** is enabled by default.
-- Wrap the formula in paired `$` markers. Do not put spaces immediately inside the delimiters.
-- Click the formula to select it; double-click to open **Edit math source**, or use the formula toolbar or context menu.
-- Change the LaTeX field and save. The context menu can copy the source or delete the formula.
-- With a formula selected, Left / Right returns to the surrounding text.
+- Wrap the formula in paired `$` markers, then move the cursor out to render it. Do not put spaces immediately inside the delimiters.
+- Click the rendered formula to expand `$...$` in place and edit its LaTeX. Arrow-key navigation into the formula can also expose its source.
+- Move the cursor out or press `Escape` to render complete syntax. `Enter` leaves source editing and continues the paragraph's normal behavior; incomplete syntax remains literal text.
+- **Edit math source** in the context menu provides a property dialog. The menu can also copy LaTeX source or delete the formula.
 
-Inline math uses a property editor. A math block uses an in-place source editor with a live preview. These are separate interfaces. Lume does not currently provide Typora's interaction of typing `$` and pressing Escape to start an inline formula hint.
+Inline formulas use the shared inline Markdown source interaction; math blocks use a separate multiline source editor with a live preview.
 
 ### Subscript
 
@@ -476,7 +489,7 @@ H~2~O
 X~long\ text~
 ```
 
-Enable **Preferences → Markdown → Subscript**, then wrap content in paired `~` markers. Escape spaces with a backslash, as in `long\ text`. You can edit existing subscript text directly; use the source pane to inspect or change the delimiters.
+Enable **Preferences → Markdown → Subscript**, then wrap content in paired `~` markers. Escape spaces with a backslash, as in `long\ text`. Move out to render the result; click it again to edit text and delimiters in place.
 
 ### Superscript
 
@@ -492,7 +505,7 @@ Enable **Superscript**, then wrap content in paired `^` markers. `[^id]` still m
 ==A point to revisit later==
 ```
 
-Enable **Highlight**, then wrap content in paired `==` markers. Edit the highlighted text directly, or use the source pane to add or remove delimiters. Subscript, superscript, and highlight do not have separate buttons in the ordinary text toolbar; use syntax input and source editing.
+Enable **Highlight**, then wrap content in paired `==` markers. Move out to render the result; click the highlighted text to edit its source in place. Subscript, superscript, and highlight do not have separate buttons in the ordinary text toolbar; use syntax input and source editing.
 
 ### Escaping and literal markers
 
@@ -583,6 +596,29 @@ The five supported types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION
 - Use **Convert to paragraph / Exit container** to leave it.
 - Disabling **GitHub callout styles** shows ordinary quote styling and the type marker; it does not delete the callout content.
 
+## Files and export
+
+### Save and restore your workspace
+
+In the desktop app, save a new draft with `Ctrl+S` to choose its location. Subsequent changes to documents with a path are autosaved. `Ctrl+Shift+S` saves to another location. In a browser, saving downloads a file rather than writing back to the original.
+
+Open documents and draft contents are stored locally for session recovery. The app also remembers the workspace path and expanded folders, editing mode, focus mode, sidebar visibility and widths, the selected outline / statistics panel, and collapsed sidebar sections. Restoring a workspace requires that its folder still be accessible. Session recovery does not replace independent backups.
+
+### Export a document
+
+Open the command palette with `Ctrl+P` and choose **Export…**, use the title-bar context menu, or press the default `Ctrl+Alt+E`. Export uses the whole current document, including unsaved edits, as it was when the export dialog opened; it does not replace the Markdown file.
+
+| Format                | Result                                                                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PDF                   | Opens the system print dialog. Choose **Save as PDF** and adjust page and print settings there. The print layout uses a light theme.                 |
+| HTML                  | A styled HTML document using the current theme and writing typography, with rendered code highlighting, math, and Mermaid diagrams.                  |
+| HTML (without styles) | HTML without Lume's stylesheet or code / diagram rendering enhancements, for further processing or styling elsewhere.                                |
+| Image (PNG)           | A single image of the full document using the styled export layout. Very long documents may exceed image-size limits; use PDF or split the document. |
+
+Local images and supported media resources are embedded when readable. Remote resources may require network access; if they cannot be embedded, HTML can retain their public URLs, so it may still need a connection. PNG export requires document images to be embedded and can fail if they cannot be downloaded or cross-origin access is blocked. Embedded websites and media are not guaranteed to reproduce their interactive state in PDF or PNG. Save the document first when relative asset paths depend on its location.
+
+HTML and PNG use the desktop save dialog, or downloads in a browser. PDF depends on the system / browser print support and the available PDF destination.
+
 ## Keyboard shortcuts
 
 These formatting shortcuts primarily apply to **WYSIWYG text**. Code, HTML source, image paths, and formula editors use their own keyboard rules first.
@@ -601,6 +637,10 @@ These formatting shortcuts primarily apply to **WYSIWYG text**. Code, HTML sourc
 | Break a line within ordinary text            | `Shift+Enter`                              |
 | Exit code, math blocks, YAML, or HTML source | `Ctrl+Enter`; see each section for details |
 | Insert image                                 | `Ctrl+Shift+I`                             |
+| New / Open document                          | `Ctrl+T` / `Ctrl+O`                        |
+| Save / Save As                               | `Ctrl+S` / `Ctrl+Shift+S`                  |
+| Export                                       | `Ctrl+Alt+E`                               |
+| Close current document                       | `Ctrl+W`                                   |
 | Paste plain text                             | `Ctrl+Shift+V`                             |
 | Find and replace in the document             | `Ctrl+F`                                   |
 | Command palette / Preferences                | `Ctrl+P` / `Ctrl+,`                        |
@@ -609,6 +649,12 @@ These formatting shortcuts primarily apply to **WYSIWYG text**. Code, HTML sourc
 | Focus the visible selection toolbar          | `Alt+F10`                                  |
 
 Find and replace currently works in WYSIWYG mode. View matches, move to the previous or next match, replace the current match, or replace all. It performs text matching rather than regular-expression search and does not edit every object's internal source, such as image addresses or formula attributes.
+
+### Customize application shortcuts
+
+Open **Preferences → Shortcut**, search for a command or binding, click its shortcut, and press a new combination. `Escape` cancels recording, `Tab` moves to the next control, and `Backspace` / `Delete` clears a binding. Reset individual bindings or use **Reset all shortcuts**. Changes apply immediately and are saved locally; menus and command-palette hints update with them.
+
+File actions, image insertion, preferences, the command palette, and view actions are configurable. Focus mode and editing-mode switching have no default binding. Conflicting bindings and reserved editor combinations are rejected. Formatting, clipboard, cursor-navigation, and find shortcuts remain fixed; the tables above show defaults.
 
 ## Current limitations
 
@@ -629,7 +675,6 @@ This guide was checked against the current repository's syntax extensions, input
 
 ## Related documents
 
-- [Typora's Markdown reference](https://support.typora.io/zh/Markdown-Reference/): the category reference for this guide; Typora's operations do not necessarily match Lume's implementation.
 - [Product roadmap](roadmap.md): planned work and priorities.
 - [Development guide](development.md): setup, project structure, and development conventions.
 - [Back to the project introduction](../README.md).

@@ -48,7 +48,7 @@ Adjust language, typography, editing layout, Markdown extensions, and image pref
 
 </details>
 
-Screenshots show the current interface with a sample document and the Simplified Chinese UI. An English UI is also available.
+Screenshots were captured from the current browser preview with an English interface and sample document.
 
 ## Features
 
@@ -59,6 +59,7 @@ Screenshots show the current interface with a sample document and the Simplified
 - **Focus mode** — Hide the file panel, outline, and document tabs to make more room for writing.
 - **Comfortable typography** — Choose the writing font, size, line spacing, and page width. Set interface fonts and outline size separately.
 - **Your preferred appearance** — Light, dark, and system themes, plus Simplified Chinese and English interfaces. Document tabs and the status bar can be hidden independently.
+- **Custom application shortcuts** — Search, change, clear, or reset file and view shortcuts under **Preferences → Shortcut**. Changes take effect immediately and are saved locally.
 
 ### Keep your documents close
 
@@ -74,6 +75,10 @@ Screenshots show the current interface with a sample document and the Simplified
 - **Document search** — Find, replace, and highlight text matches in WYSIWYG mode.
 - **Command palette** — Create, open, and save documents, switch views, toggle focus mode, and run image commands from the keyboard.
 - **Writing statistics** — Check words, characters, lines, and estimated reading time in the statistics panel; the status bar also shows cursor position.
+
+### Share your writing
+
+Export the current document, including unsaved edits, as styled HTML, unstyled HTML, or a PNG image. PDF export opens the system print dialog, where you can choose **Save as PDF**. Open **Export…** from the command palette or the title-bar context menu, or press `Ctrl+Alt+E`. See the [guide](docs/markdown-guide.md#export-a-document) for format details and resource limits.
 
 ## Markdown support
 
@@ -121,9 +126,10 @@ Lume is a desktop application. The browser preview offers basic editing and down
 
 | Action                        | Windows / Linux           |
 | ----------------------------- | ------------------------- |
-| New document                  | `Ctrl+N` / `Ctrl+T`       |
+| New document                  | `Ctrl+T`                  |
 | Open file                     | `Ctrl+O`                  |
 | Save / Save As                | `Ctrl+S` / `Ctrl+Shift+S` |
+| Export                        | `Ctrl+Alt+E`              |
 | Close current document        | `Ctrl+W`                  |
 | Command palette               | `Ctrl+P`                  |
 | Preferences                   | `Ctrl+,`                  |
@@ -132,13 +138,15 @@ Lume is a desktop application. The browser preview offers basic editing and down
 | Find and replace (WYSIWYG)    | `Ctrl+F`                  |
 | Insert image                  | `Ctrl+Shift+I`            |
 
-On macOS, use `Command` instead of `Ctrl`. Focus mode and editing-mode switching are available in the command palette.
+These are the default bindings. On macOS, use `Command` instead of `Ctrl`. Customize application bindings under **Preferences → Shortcut**; editor formatting shortcuts are fixed. Focus mode and editing-mode switching are available in the command palette and can be assigned shortcuts.
 
 ## Status and feedback
 
 Lume is in early development; the current repository version is **0.8.0**. The interface and editing behavior continue to evolve. Keep independent backups of important documents; session recovery is a convenience, not a backup system.
 
-Workspace-wide full-text search, recent-file history, source-editor find and replace, and HTML / PDF export are not yet available. See the [roadmap](docs/roadmap.md) for planned work.
+The English interface is available, but its audience and usage are still uncertain, so it has had less real-world validation. Some layouts may not yet accommodate longer English labels: text can be clipped, wrap awkwardly, or outgrow a button or input. Reports and screenshots of these issues are welcome and will help guide further English-language improvements.
+
+Workspace-wide full-text search, recent-file history, and source-editor find and replace are not yet available. Future work will mainly focus on optional WebDAV and Git sync, self-hosted storage, and Baidu Netdisk / Alibaba Cloud Drive integrations. These integrations are planned, not currently available; see the [roadmap](docs/roadmap.md).
 
 Found a problem or have an idea? [Open an issue](https://github.com/sh3yee/lume/issues) with the steps to reproduce, your operating system, and a screenshot where helpful. Please remove private content from examples. Contributions are welcome; setup and development details live in the [development guide](docs/development.md).
 
