@@ -258,15 +258,25 @@
 .lume-markdown-content table > :is(thead, tbody, tfoot):last-child > tr:last-child > :last-child {
   border-bottom-right-radius: calc(var(--lume-radius-xl) - 1px);
 }
+.lume-markdown-content tr:has(> th) {
+  background-color: color-mix(
+    in srgb,
+    var(--lume-bg-surface-raised) 45%,
+    var(--lume-code-block-bg)
+  );
+  background-image: var(--lume-glass-reflection, none);
+  box-shadow: inset 0 1px 0 var(--lume-glass-rim, transparent);
+}
+.lume-markdown-content table > tr:first-child:has(> th),
+.lume-markdown-content table > :is(thead, tbody):first-child > tr:first-child:has(> th) {
+  clip-path: inset(0 round calc(var(--lume-radius-xl) - 1px) calc(var(--lume-radius-xl) - 1px) 0 0);
+}
 .lume-markdown-content th {
-  background-color: color-mix(in srgb, var(--lume-bg-surface-raised) 45%, var(--lume-bg-surface));
-  background-image: linear-gradient(180deg, var(--lume-glass-highlight, transparent), transparent);
   color: var(--lume-text-secondary);
   font-family: var(--lume-interface-font);
   font-size: calc(var(--lume-interface-font-size) - 2px);
   font-weight: var(--lume-font-weight-medium);
   line-height: var(--lume-line-height-normal);
-  box-shadow: inset 0 1px 0 var(--lume-glass-rim, transparent);
 }
 .lume-markdown-content tr:hover > td {
   background-color: color-mix(in srgb, var(--lume-accent-default) 3%, transparent);
