@@ -142,7 +142,7 @@ These are the default bindings. On macOS, use `Command` instead of `Ctrl`. Custo
 
 ## Status and feedback
 
-Lume is in early development; the current repository version is **0.8.0**. The interface and editing behavior continue to evolve. Keep independent backups of important documents; session recovery is a convenience, not a backup system.
+Lume is in early development; the current repository version is **0.8.5**. The interface and editing behavior continue to evolve. Keep independent backups of important documents; session recovery is a convenience, not a backup system.
 
 The English interface is available, but its audience and usage are still uncertain, so it has had less real-world validation. Some layouts may not yet accommodate longer English labels: text can be clipped, wrap awkwardly, or outgrow a button or input. Reports and screenshots of these issues are welcome and will help guide further English-language improvements.
 

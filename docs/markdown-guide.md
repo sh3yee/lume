@@ -4,7 +4,7 @@
 
 This guide describes **the Markdown syntax, editing interactions, and commands currently implemented in Lume**.
 
-Applies to repository version **0.8.0** and the current repository implementation. Reviewed on October 26, 2026.
+Applies to repository version **0.8.5** and the current repository implementation. Reviewed on October 26, 2026.
 
 [Editing modes and common operations](#editing-modes-and-common-operations) · [Block elements](#block-elements) · [Inline elements](#inline-elements) · [HTML and embedded content](#html-and-embedded-content) · [Files and export](#files-and-export) · [Keyboard shortcuts](#keyboard-shortcuts) · [Current limitations](#current-limitations)
 

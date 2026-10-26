@@ -73,6 +73,21 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Read release notes
+        id: release-notes
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          $notesPath = Join-Path 'docs/releases' "$env:RELEASE_TAG.md"
+          $notes = if (Test-Path -LiteralPath $notesPath) {
+            Get-Content -LiteralPath $notesPath -Raw -Encoding utf8
+          } else {
+            "此版本由 GitHub Actions 自动构建。`n`n本项目采用 PolyForm Noncommercial License 1.0.0，仅允许非商业用途。"
+          }
+          $delimiter = [guid]::NewGuid().ToString()
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "body<<$delimiter`n$notes`n$delimiter" -Encoding utf8
+
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -80,12 +95,7 @@ jobs:
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseName: Lume ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          releaseBody: |
-            ## Lume ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-
-            此版本由 GitHub Actions 自动构建。
-
-            > 本项目采用 PolyForm Noncommercial License 1.0.0，仅允许非商业用途。
+          releaseBody: ${{ steps.release-notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
