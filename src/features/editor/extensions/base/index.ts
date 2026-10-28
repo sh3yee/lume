@@ -22,6 +22,7 @@ import { linkDefinitionPlugin, referenceLinkSchema } from './referenceLinks'
 import { autoLinksPlugin, autoLinksRemark } from './autoLinks'
 import { markdownPreferences } from '@/app/preferences/useMarkdownPreference'
 import { headingInputPlugin } from './headingInput'
+import { listBackspaceKeymap } from './listInput'
 
 /** 注册 CommonMark 基础语法。 */
 export function useBaseWysiwygExtension(editor: Editor) {
@@ -45,6 +46,7 @@ export function useBaseWysiwygExtension(editor: Editor) {
     .use(inlineSourceInputRule)
     .use(inlineSourceEditingPlugin)
     .use(headingInputPlugin)
+    .use(listBackspaceKeymap)
     .use(preservedReferences)
     .use(autoLinksRemark)
     .use(referenceLinkSchema)
