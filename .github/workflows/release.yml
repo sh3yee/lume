@@ -10,6 +10,11 @@ on:
         description: '要创建的版本标签，例如 v0.1.0'
         required: true
         type: string
+      publish_only:
+        description: '仅校验并发布已有草稿（四个平台已构建成功时使用）'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -17,6 +22,7 @@ permissions:
 jobs:
   release:
     name: Build ${{ matrix.platform }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.publish_only) }}
     strategy:
       fail-fast: false
       matrix:
@@ -126,6 +132,7 @@ jobs:
   publish:
     name: Publish complete release
     needs: release
+    if: ${{ !cancelled() && (needs.release.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.publish_only && needs.release.result == 'skipped')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify updater manifest and publish release
@@ -149,7 +156,6 @@ jobs:
               }
             }
           }
-          $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json databaseId | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or !$release.databaseId) { throw '无法读取待发布的 Release。' }
-          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.databaseId)" -F draft=false -f make_latest=true
+          # gh release handles draft lookup; the REST releases/tags endpoint only finds published releases.
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --draft=false --latest
           if ($LASTEXITCODE -ne 0) { throw '发布 Release 失败。' }

@@ -39,6 +39,8 @@ npm run tauri -- signer generate -w $keyPath
 
 工作流要求签名配置完整，自动为 Windows、macOS Apple Silicon、macOS Intel 和 Linux 生成安装包、签名和更新清单。各平台构建先上传到草稿 Release，全部成功后检查清单版本、平台、签名及 HTTPS 地址，再公开发布，防止客户端读取尚未上传完整的版本。
 
+若四个平台构建成功、仅最后的发布步骤失败，在 Actions → Release → Run workflow 中选择包含修复的 `main` 分支，`tag` 填写原版本标签，并勾选 `publish_only`。工作流会跳过构建，重新校验已有草稿的更新清单后发布。不要对旧标签运行工作流或直接重跑旧任务来应用工作流修复：它们仍会使用旧提交中的工作流文件。
+
 第一次启用在线更新的版本仍需手动安装；安装该版本后，才能在应用内更新到之后发布的较新版本。旧的 v0.8.5 安装包不具备更新入口，也不会因发布新版本而自动获得此功能。
 
 Windows 使用 NSIS 更新包，安装器完成后重新打开应用。macOS 安装完成后由应用重启。Linux 在线更新适用于 AppImage；DEB、RPM 安装请使用对应包管理器或发布页面。
