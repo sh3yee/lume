@@ -8,7 +8,7 @@ export const useStatusBarPreference = () => {
 
   watch(statusBarEnabled, (value) => {
     savePreference(STATUS_BAR_ENABLED_KEY, String(value))
-  })
+  }, { flush: 'sync' })
 
   return { statusBarEnabled }
 }

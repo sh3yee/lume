@@ -1,13 +1,15 @@
 /**
  * useWindowPersistence - 桌面窗口状态生命周期
  *
- * 负责恢复、监听和持久化窗口尺寸与最大化状态。
+ * 负责恢复、监听和持久化窗口尺寸、位置与最大化状态。
  */
 import { onBeforeUnmount, onMounted } from 'vue'
+import { readPreference, savePreference } from '@/app/preferences/preferenceStorage'
 import {
   closeWindow,
   getWindowState,
   onWindowCloseRequested,
+  onWindowMoved,
   onWindowResized,
   restoreWindowState,
   showWindow,
@@ -22,12 +24,17 @@ function isValidWindowState(value: unknown): value is WindowState {
   return typeof state.width === 'number'
     && typeof state.height === 'number'
     && typeof state.maximized === 'boolean'
+    && Number.isFinite(state.width)
+    && Number.isFinite(state.height)
     && state.width >= 720
     && state.height >= 480
+    && ((state.x === undefined && state.y === undefined)
+      || (typeof state.x === 'number' && Number.isFinite(state.x)
+        && typeof state.y === 'number' && Number.isFinite(state.y)))
 }
 
 function getSavedWindowState(): WindowState | null {
-  const savedState = localStorage.getItem(WINDOW_STATE_STORAGE_KEY)
+  const savedState = readPreference(WINDOW_STATE_STORAGE_KEY)
   if (!savedState) return null
 
   try {
@@ -39,16 +46,48 @@ function getSavedWindowState(): WindowState | null {
 }
 
 function saveWindowState(state: WindowState) {
-  localStorage.setItem(WINDOW_STATE_STORAGE_KEY, JSON.stringify(state))
+  savePreference(WINDOW_STATE_STORAGE_KEY, JSON.stringify(state))
 }
 
 export function useWindowPersistence(handleCloseRequest?: () => void) {
   let unlistenWindowCloseRequested: (() => void) | null = null
   let unlistenWindowResized: (() => void) | null = null
+  let unlistenWindowMoved: (() => void) | null = null
+  let lastWindowState: WindowState | null = null
+  let saveTimer: ReturnType<typeof setTimeout> | undefined
+  let pendingSave = Promise.resolve()
+  let disposed = false
 
-  async function persistWindowState() {
-    const state = await getWindowState()
-    if (state) saveWindowState(state)
+  function persistWindowState() {
+    clearTimeout(saveTimer)
+    // 串行读取，避免移动和缩放事件的异步结果相互覆盖。
+    pendingSave = pendingSave.then(async () => {
+      const state = await getWindowState()
+      if (!state || !isValidWindowState(state)) return
+      // 最大化时保留普通窗口的尺寸和位置，以便下次还原。
+      lastWindowState = state.maximized && lastWindowState
+        ? { ...lastWindowState, maximized: true }
+        : state
+      saveWindowState(lastWindowState)
+    }).catch((error: unknown) => {
+      console.warn('保存窗口状态失败:', error)
+    })
+    return pendingSave
+  }
+
+  function scheduleSave() {
+    if (disposed) return
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => { void persistWindowState() }, 120)
+  }
+
+  async function listen(register: () => Promise<(() => void) | null>) {
+    const unlisten = await register().catch(() => null)
+    if (disposed) {
+      unlisten?.()
+      return null
+    }
+    return unlisten
   }
 
   async function closeApplicationWindow() {
@@ -58,21 +97,29 @@ export function useWindowPersistence(handleCloseRequest?: () => void) {
 
   onMounted(async () => {
     try {
-      const savedWindowState = getSavedWindowState()
-      if (savedWindowState) await restoreWindowState(savedWindowState)
+      lastWindowState = getSavedWindowState()
+      if (lastWindowState) await restoreWindowState(lastWindowState)
+    } catch (error) {
+      console.warn('恢复窗口状态失败:', error)
     } finally {
       await showWindow()
     }
 
-    unlistenWindowResized = await onWindowResized(saveWindowState).catch(() => null)
+    if (disposed) return
+    await persistWindowState()
+    unlistenWindowResized = await listen(() => onWindowResized(scheduleSave))
+    unlistenWindowMoved = await listen(() => onWindowMoved(scheduleSave))
     if (handleCloseRequest) {
-      unlistenWindowCloseRequested = await onWindowCloseRequested(handleCloseRequest).catch(() => null)
+      unlistenWindowCloseRequested = await listen(() => onWindowCloseRequested(handleCloseRequest))
     }
   })
 
   onBeforeUnmount(() => {
+    disposed = true
+    clearTimeout(saveTimer)
     unlistenWindowCloseRequested?.()
     unlistenWindowResized?.()
+    unlistenWindowMoved?.()
     void persistWindowState()
   })
 

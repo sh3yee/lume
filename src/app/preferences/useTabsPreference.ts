@@ -17,7 +17,7 @@ export function useTabsPreference() {
     } catch {
       // The preference still applies for the current session.
     }
-  })
+  }, { flush: 'sync' })
 
   return { tabsEnabled }
 }

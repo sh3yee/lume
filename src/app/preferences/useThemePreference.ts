@@ -4,18 +4,19 @@
  * 管理主题偏好的读取、持久化、系统主题监听和根元素主题应用。
  */
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { readPreference, savePreference } from './preferenceStorage'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'lume-theme'
 
-/** 读取已保存的主题偏好，无有效记录时跟随系统。 */
+/** 读取已保存的主题偏好，无有效记录时默认使用浅色。 */
 function getInitialTheme(): ThemePreference {
-  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+  const savedTheme = readPreference(THEME_STORAGE_KEY)
   return savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system'
     ? savedTheme
-    : 'system'
+    : 'light'
 }
 
 export function useThemePreference() {
@@ -36,9 +37,9 @@ export function useThemePreference() {
   }
 
   watch(themePreference, (theme) => {
-    localStorage.setItem(THEME_STORAGE_KEY, theme)
+    savePreference(THEME_STORAGE_KEY, theme)
     applyTheme()
-  }, { immediate: true })
+  }, { immediate: true, flush: 'sync' })
 
   systemTheme.addEventListener('change', handleSystemThemeChange)
 

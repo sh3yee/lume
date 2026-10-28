@@ -21,7 +21,7 @@ watch(
     savePreference('lume-interface-font-size', String(interfaceFontSize.value))
     savePreference('lume-outline-font-size', String(outlineFontSize.value))
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 )
 
 export const useInterfacePreference = () => ({

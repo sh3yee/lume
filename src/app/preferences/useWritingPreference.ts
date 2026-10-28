@@ -30,7 +30,7 @@ export function useWritingPreference() {
       savePreference('lume-writing-font-size', String(fontSize.value))
       savePreference('lume-writing-line-height', String(lineHeight.value))
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   )
 
   return { writingWidth, writingFont, fontSize, lineHeight }

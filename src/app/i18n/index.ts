@@ -29,5 +29,5 @@ watch(
     document.documentElement.lang = value
     savePreference('lume-language', value)
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 )

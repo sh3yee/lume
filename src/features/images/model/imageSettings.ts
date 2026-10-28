@@ -132,5 +132,5 @@ watch(
       console.warn('保存图片偏好设置失败:', error)
     }
   },
-  { deep: true, immediate: true },
+  { deep: true, immediate: true, flush: 'sync' },
 )
