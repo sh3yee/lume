@@ -149,7 +149,7 @@ jobs:
               }
             }
           }
-          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or !$release.id) { throw '无法读取待发布的 Release。' }
-          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false -f make_latest=true
+          $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json databaseId | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or !$release.databaseId) { throw '无法读取待发布的 Release。' }
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.databaseId)" -F draft=false -f make_latest=true
           if ($LASTEXITCODE -ne 0) { throw '发布 Release 失败。' }
