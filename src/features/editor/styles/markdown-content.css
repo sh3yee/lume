@@ -264,8 +264,8 @@
     var(--lume-bg-surface-raised) 45%,
     var(--lume-code-block-bg)
   );
-  background-image: var(--lume-glass-reflection, none);
-  box-shadow: inset 0 1px 0 var(--lume-glass-rim, transparent);
+  background-image: var(--lume-content-reflection, none);
+  box-shadow: inset 0 1px 0 var(--lume-content-rim, transparent);
 }
 .lume-markdown-content table > tr:first-child:has(> th),
 .lume-markdown-content table > :is(thead, tbody):first-child > tr:first-child:has(> th) {

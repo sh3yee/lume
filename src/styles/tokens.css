@@ -6,6 +6,7 @@
  */
 
 :root {
+  color-scheme: light;
   --lume-writing-width: 820px;
   /* ===== 颜色 - 亮色主题（默认） ===== */
 
@@ -167,28 +168,30 @@
 
 /* ===== 暗色主题 ===== */
 :root[data-theme='dark'] {
-  --lume-bg-base: #171c28;
-  --lume-bg-surface: #202735;
-  --lume-bg-surface-raised: #293244;
-  --lume-bg-overlay: rgba(32, 39, 53, 0.96);
-  --lume-chrome-bg: rgba(27, 34, 48, 0.94);
-  --lume-pane-bg: #1e2533;
-  --lume-panel-border: #303a4d;
+  color-scheme: dark;
+  /* 中性炭灰承托内容，玻璃层通过亮度与边缘反光区分。 */
+  --lume-bg-base: #161618;
+  --lume-bg-surface: #242426;
+  --lume-bg-surface-raised: #303033;
+  --lume-bg-overlay: rgb(42 42 45 / 94%);
+  --lume-chrome-bg: rgb(28 28 30 / 92%);
+  --lume-pane-bg: #1c1c1e;
+  --lume-panel-border: rgb(255 255 255 / 7%);
 
-  --lume-text-primary: #e6ecf8;
-  --lume-text-secondary: #adb9ce;
-  --lume-text-tertiary: #8492ab;
+  --lume-text-primary: #ededf0;
+  --lume-text-secondary: #b5b5bc;
+  --lume-text-tertiary: #8e8e96;
   --lume-text-inverse: #1a1a1a;
 
-  --lume-border-subtle: #2c3547;
-  --lume-border-default: #3b475e;
-  --lume-border-strong: #586982;
+  --lume-border-subtle: rgb(255 255 255 / 6%);
+  --lume-border-default: rgb(255 255 255 / 10%);
+  --lume-border-strong: rgb(255 255 255 / 22%);
 
-  --lume-accent-default: #78a7ff;
-  --lume-accent-hover: #99bdff;
-  --lume-accent-active: #b5cfff;
-  --lume-accent-subtle: rgba(120, 167, 255, 0.14);
-  --lume-accent-contrast: #15203a;
+  --lume-accent-default: #75b4ff;
+  --lume-accent-hover: #9ac8ff;
+  --lume-accent-active: #bddbff;
+  --lume-accent-subtle: rgb(10 132 255 / 16%);
+  --lume-accent-contrast: #10243a;
 
   --lume-color-info: #5a9fe8;
   --lume-color-success: #5cb87a;
@@ -199,11 +202,11 @@
   --lume-color-warning-bg: rgba(224, 176, 72, 0.1);
   --lume-color-danger-bg: rgba(224, 104, 104, 0.1);
 
-  --lume-code-bg: #242d3e;
-  --lume-code-border: #354158;
+  --lume-code-bg: #272729;
+  --lume-code-border: #333336;
 
   /* GitHub Dark Default */
-  --lume-code-block-bg: #0d1117;
+  --lume-code-block-bg: #18181a;
   --lume-code-text: #e6edf3;
   --lume-code-comment: #8b949e;
   --lume-code-keyword: #ff7b72;

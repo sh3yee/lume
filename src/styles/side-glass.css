@@ -16,49 +16,62 @@
   );
   --lume-glass-rim: rgb(255 255 255 / 90%);
   --lume-glass-depth: rgb(0 0 0 / 12%);
+  --lume-content-reflection: var(--lume-glass-reflection);
+  --lume-content-rim: var(--lume-glass-rim);
 }
 
+/* 参考 Apple Regular 材质：中性染色、柔和散射，反光集中在薄边缘。
+ * https://developer.apple.com/design/human-interface-guidelines/materials
+ */
 :root[data-theme='dark'] {
-  --lume-app-background: #1e2533;
-  --lume-glass-surface: rgb(255 255 255 / 4%);
-  --lume-glass-overlay: rgb(25 25 25 / 38%);
-  --lume-glass-highlight: rgb(255 255 255 / 12%);
-  --lume-glass-edge: rgb(0 0 0 / 18%);
-  --lume-glass-shadow: rgb(0 0 0 / 20%);
+  --lume-app-background: #1c1c1e;
+  --lume-glass-surface: rgb(255 255 255 / 5%);
+  --lume-glass-overlay: rgb(38 38 40 / 82%);
+  --lume-glass-highlight: rgb(255 255 255 / 8%);
+  --lume-glass-edge: rgb(255 255 255 / 8%);
+  --lume-glass-shadow: rgb(0 0 0 / 18%);
   --lume-glass-reflection: linear-gradient(
-    115deg,
-    rgb(255 255 255 / 10%) 0%,
-    rgb(255 255 255 / 2%) 28%,
-    rgb(255 255 255 / 6%) 45%,
-    rgb(255 255 255 / 0%) 54%,
-    rgb(0 0 0 / 12%) 100%
+    180deg,
+    rgb(255 255 255 / 4%) 0%,
+    rgb(255 255 255 / 1%) 55%,
+    rgb(255 255 255 / 0%) 100%
   );
-  --lume-glass-rim: rgb(255 255 255 / 28%);
-  --lume-glass-depth: rgb(0 0 0 / 40%);
+  --lume-glass-rim: rgb(255 255 255 / 16%);
+  --lume-glass-depth: rgb(0 0 0 / 24%);
+  --lume-glass-control-blur: 12px;
+  --lume-glass-popover-blur: 20px;
+  /* 内容层不叠玻璃：代码和表格使用平静的实色表面。 */
+  --lume-content-reflection: none;
+  --lume-content-rim: transparent;
 }
 
 .lume-side-glass {
   position: relative;
 }
 
-/* 大面积深色玻璃使用柔和反光，避免标签页的斜向光带铺满侧栏。 */
+/* 大面积面板增加漫射，确保背景内容透出时仍能辨识文字。 */
 :root[data-theme='dark'] .lume-side-glass {
-  --lume-glass-surface: rgb(30 37 51 / 76%);
-  --lume-glass-overlay: rgb(30 37 51 / 90%);
+  --lume-glass-surface: rgb(34 34 36 / 78%);
+  --lume-glass-overlay: rgb(34 34 36 / 92%);
+  --lume-glass-frost: 20px;
   --lume-glass-reflection: linear-gradient(
     180deg,
-    var(--lume-chrome-bg) 0%,
-    rgb(193 211 245 / 2%) 72px,
-    rgb(193 211 245 / 0%) 240px
+    rgb(255 255 255 / 2%) 0%,
+    rgb(255 255 255 / 0%) 180px
   );
   --lume-glass-rim: transparent;
-  --lume-glass-edge: rgb(193 211 245 / 7%);
+  --lume-glass-edge: rgb(255 255 255 / 6%);
 }
 
 /* 文件栏提高底色遮盖率，避免正文图片透出后影响文件名辨识。 */
 :root .lume-sidebar.lume-side-glass {
   --lume-glass-surface: color-mix(in srgb, var(--lume-app-background) 90%, transparent);
   --lume-glass-overlay: color-mix(in srgb, var(--lume-app-background) 96%, transparent);
+}
+
+:root[data-theme='dark'] .lume-sidebar.lume-side-glass {
+  --lume-glass-surface: rgb(34 34 36 / 84%);
+  --lume-glass-overlay: rgb(34 34 36 / 94%);
 }
 
 :root .lume-sidebar.lume-side-glass,

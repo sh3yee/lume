@@ -617,8 +617,8 @@ onBeforeUnmount(() => {
 .lume-tabs__tab--dragging:hover {
   z-index: 1;
   background: var(--lume-glass-reflection), var(--lume-glass-surface);
-  backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(0.4px);
-  -webkit-backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(0.4px);
+  backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(var(--lume-glass-control-blur, 0.4px));
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(8px)) blur(var(--lume-glass-control-blur, 0.4px));
   box-shadow:
     inset 0 0 0 1px var(--lume-glass-highlight),
     inset 0 1px 0 var(--lume-glass-rim),
