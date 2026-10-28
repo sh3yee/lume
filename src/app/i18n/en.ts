@@ -1,4 +1,58 @@
 export const en = {
+  关于: 'About',
+  '为文字留一束安静的光。': 'A quiet light for your words.',
+  版本: 'Version',
+  作者: 'Author',
+  许可证: 'License',
+  仅限非商业用途: 'For noncommercial use only',
+  软件更新: 'Updates',
+  检查更新: 'Check for updates',
+  '正在检查…': 'Checking…',
+  '正在检查更新…': 'Checking for updates…',
+  '检查是否有可用的新版本。': 'Check whether a new version is available.',
+  '当前已是最新版本。': 'You are up to date.',
+  '发现新版本 v{0}': 'Version {0} is available',
+  下载更新: 'Download update',
+  '正在下载…': 'Downloading…',
+  '正在下载更新…': 'Downloading the update…',
+  '正在下载更新… {0}%': 'Downloading the update… {0}%',
+  更新下载进度: 'Update download progress',
+  '更新已下载，可以安装并重启。': 'The update is ready to install.',
+  安装并重启: 'Install and restart',
+  '正在安装…': 'Installing…',
+  '正在安装更新，即将重启…': 'Installing the update. Restarting soon…',
+  '下载完成后可安装并重启，当前编辑会话将在重启后恢复。':
+    'Once downloaded, install and restart. Your editing session will be restored after restarting.',
+  更新说明: 'Release notes',
+  发布页面: 'Releases',
+  项目主页: 'Project homepage',
+  相关链接: 'Links',
+  '在线更新仅适用于桌面应用。': 'In-app updates are available in the desktop app.',
+  '无法打开网页，请稍后重试。': 'Could not open the webpage. Please try again later.',
+  '检查更新失败，请稍后重试。': 'Could not check for updates. Please try again later.',
+  '下载更新失败，请重试。': 'Could not download the update. Please try again.',
+  '安装更新失败，请重新下载后重试。': 'Could not install the update. Download it again and retry.',
+  '无法暂存文档，已取消安装更新。':
+    'Could not save your editing session. The update installation was canceled.',
+  '开发模式不执行在线更新，请安装正式版本后重试。':
+    'Updates are disabled in development mode. Install a release build to update.',
+  '当前安装方式不支持在线更新，请使用 AppImage 或前往发布页面下载。':
+    'This installation does not support in-app updates. Use AppImage or download from Releases.',
+  '此版本尚未启用在线更新，请前往发布页面下载。':
+    'In-app updates are not enabled in this build. Please download from Releases.',
+  '更新任务正在进行，请稍后重试。': 'An update task is already running. Please try again later.',
+  '更新已下载，请安装并重启。': 'The update is downloaded. Please install and restart.',
+  '更新包地址必须使用 HTTPS。': 'The update download URL must use HTTPS.',
+  '请先检查更新。': 'Please check for updates first.',
+  '请先下载更新。': 'Please download the update first.',
+  '暂时无法获取更新信息，请稍后重试或前往发布页面。':
+    'Update information is temporarily unavailable. Try again later or visit Releases.',
+  '此版本没有适合当前系统的更新包，请前往发布页面下载。':
+    'No update package is available for your system. Please download from Releases.',
+  '更新包签名校验失败，已停止更新。请稍后重试或前往发布页面。':
+    'The update signature could not be verified. The update was stopped. Retry later or visit Releases.',
+  '更新失败，请检查网络连接及安装权限后重试。':
+    'The update failed. Check your network connection and installation permissions, then retry.',
   '保存时会将文档中的本地图片复制到此目录；分享文档时请同时带上图片文件夹。':
     'Local images in the document are copied to this folder when saving. Include the image folder when sharing the document.',
   导出: 'Export',

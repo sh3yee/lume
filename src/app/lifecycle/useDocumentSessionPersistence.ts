@@ -9,7 +9,7 @@ import type { OpenDocument } from '@composables/useDocument'
 export function useDocumentSessionPersistence(
   documents: Ref<OpenDocument[]>,
   activeDocumentId: Ref<string>,
-  persistDocumentSession: () => void,
+  persistDocumentSession: () => boolean,
 ) {
   let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -26,14 +26,12 @@ export function useDocumentSessionPersistence(
   function flushDocumentSession() {
     if (sessionPersistTimer) clearTimeout(sessionPersistTimer)
     sessionPersistTimer = null
-    persistDocumentSession()
+    return persistDocumentSession()
   }
 
-  const stopSessionWatch = watch(
-    [documents, activeDocumentId],
-    scheduleSessionPersist,
-    { deep: true },
-  )
+  const stopSessionWatch = watch([documents, activeDocumentId], scheduleSessionPersist, {
+    deep: true,
+  })
 
   window.addEventListener('beforeunload', flushDocumentSession)
 

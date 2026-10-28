@@ -11,6 +11,7 @@ import {
   Columns2,
   Palette,
   Image,
+  Info,
   Keyboard,
   Monitor,
   Moon,
@@ -24,6 +25,8 @@ import {
   type MarkdownExtension,
 } from '@/app/preferences/useMarkdownPreference'
 import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
+import AboutSettingsPanel from '@/features/about/AboutSettingsPanel.vue'
+import { useAppUpdater } from '@/features/about/useAppUpdater'
 import type { WritingFont } from '@/app/preferences/useWritingPreference'
 import type { ThemePreference } from '@/app/preferences/useThemePreference'
 import { resolveFontFamily, type FontPreference } from '@/app/preferences/fontFamily'
@@ -37,7 +40,8 @@ import ShortcutSettings from './ShortcutSettings.vue'
 
 type ViewMode = 'wysiwyg' | 'split'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
-type SettingsCategory = 'general' | 'editor' | 'markdown' | 'appearance' | 'images' | 'shortcuts'
+type SettingsCategory =
+  'general' | 'editor' | 'markdown' | 'appearance' | 'images' | 'shortcuts' | 'about'
 interface MarkdownSettingsGroup {
   id: string
   label: string
@@ -84,6 +88,7 @@ const emit = defineEmits<{
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const activeCategory = ref<SettingsCategory>('general')
+const { installing } = useAppUpdater()
 const { getShortcutHint } = useShortcutPreference()
 const {
   options: systemFontOptions,
@@ -158,6 +163,7 @@ const categoryMeta = computed<
   { id: 'images', label: t('图片'), icon: Image },
   { id: 'appearance', label: t('外观'), icon: Palette },
   { id: 'shortcuts', label: t('快捷键'), icon: Keyboard },
+  { id: 'about', label: t('关于'), icon: Info },
 ])
 const activeCategoryLabel = computed(
   () => categoryMeta.value.find((category) => category.id === activeCategory.value)?.label ?? '',
@@ -204,10 +210,12 @@ watch(
 
 function handleCancel(event: Event) {
   event.preventDefault()
+  if (installing.value) return
   emit('close')
 }
 
 function handleBackdropClick(event: MouseEvent) {
+  if (installing.value) return
   if (event.target === dialogRef.value) emit('close')
 }
 
@@ -239,6 +247,7 @@ onBeforeUnmount(() => dialogRef.value?.close())
           class="lume-settings__close"
           type="button"
           :aria-label="t('关闭设置')"
+          :disabled="installing"
           @click="emit('close')"
         >
           <X :size="17" :stroke-width="1.6" />
@@ -653,7 +662,12 @@ onBeforeUnmount(() => dialogRef.value?.close())
 
           <ShortcutSettings v-if="open && activeCategory === 'shortcuts'" />
 
-          <footer v-if="getShortcutHint('toggle-settings')" class="lume-settings__footer">
+          <AboutSettingsPanel v-if="open && activeCategory === 'about'" />
+
+          <footer
+            v-if="activeCategory !== 'about' && getShortcutHint('toggle-settings')"
+            class="lume-settings__footer"
+          >
             <span>{{ t('快捷键') }}</span>
             <kbd>{{ getShortcutHint('toggle-settings') }}</kbd>
           </footer>

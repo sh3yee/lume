@@ -55,7 +55,9 @@ export function restoreDocumentSession(): DocumentSession | null {
 export function saveDocumentSession(session: DocumentSession) {
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+    return true
   } catch (error) {
     console.error('暂存编辑会话失败:', error)
+    return false
   }
 }

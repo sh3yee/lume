@@ -148,6 +148,7 @@ import { useTabsPreference } from '@/app/preferences/useTabsPreference'
 import { useStatusBarPreference } from '@/app/preferences/useStatusBarPreference'
 import { useLayoutPreference, type ViewMode } from '@/app/preferences/useLayoutPreference'
 import type { OpenDocument } from '@/features/documents/model/documentTypes'
+import { provideAppUpdater } from '@/features/about/useAppUpdater'
 import {
   useImageCommands,
   type ImageCommandEditor,
@@ -210,6 +211,10 @@ const { flushDocumentSession } = useDocumentSessionPersistence(
   activeDocumentId,
   persistDocumentSession,
 )
+const appUpdater = provideAppUpdater(() => {
+  wysiwygPaneRef.value?.flushPendingMarkdown?.()
+  if (!flushDocumentSession()) throw new Error(t('无法暂存文档，已取消安装更新。'))
+})
 const { fileDragPaths } = useFileDrop(viewMode, openFilesFromPaths, showMessage, dismissMessage)
 
 const handleEditSource = async () => {
@@ -256,6 +261,7 @@ function handleSplitScrollRatio(value: number) {
 
 /** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
 async function handleCloseWindow() {
+  if (appUpdater.installing.value) return
   wysiwygPaneRef.value?.flushPendingMarkdown?.()
   flushDocumentSession()
   requestCloseDocuments(

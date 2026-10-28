@@ -3,4 +3,5 @@
 pub mod files;
 pub mod images;
 pub mod system;
+pub mod updates;
 pub mod workspace;

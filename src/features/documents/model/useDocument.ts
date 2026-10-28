@@ -10,7 +10,7 @@ const documentStore = useDocumentStore()
 documentStore.hydrateDocumentSession(restoreDocumentSession())
 
 function persistDocumentSession() {
-  saveDocumentSession(documentStore.getDocumentSessionSnapshot())
+  return saveDocumentSession(documentStore.getDocumentSessionSnapshot())
 }
 
 const documentModel = {

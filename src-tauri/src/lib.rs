@@ -22,6 +22,7 @@ use commands::{
         lume_health_check, lume_list_system_fonts, lume_open_web_url, lume_reveal_file,
         lume_startup_file_paths,
     },
+    updates::{lume_check_for_update, lume_download_update, lume_install_update, AppUpdateState},
     workspace::{
         lume_create_workspace_entry, lume_delete_workspace_entry, lume_move_workspace_entry,
         lume_read_workspace, lume_rename_workspace_entry, lume_start_workspace_watcher,
@@ -36,14 +37,19 @@ use services::workspace_watcher::WorkspaceWatcherState;
 pub fn run() {
     tauri::Builder::default()
         .manage(WorkspaceWatcherState::default())
+        .manage(AppUpdateState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             lume_clear_staged_images,
             lume_delete_image_file,
             lume_create_workspace_entry,
             lume_delete_workspace_entry,
             lume_health_check,
+            lume_check_for_update,
+            lume_download_update,
+            lume_install_update,
             lume_list_system_fonts,
             lume_open_web_url,
             lume_import_image_file,

@@ -44,6 +44,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare signed updater configuration
+        id: updater-config
+        shell: pwsh
+        env:
+          LUME_UPDATER_PUBLIC_KEY: ${{ vars.LUME_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:LUME_UPDATER_PUBLIC_KEY) -or
+              [string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw '请先配置 LUME_UPDATER_PUBLIC_KEY 仓库变量和 TAURI_SIGNING_PRIVATE_KEY 仓库 Secret，参见 docs/online-updates.zh-CN.md。'
+          }
+          $config = @{
+            bundle = @{ createUpdaterArtifacts = $true }
+            plugins = @{ updater = @{ pubkey = $env:LUME_UPDATER_PUBLIC_KEY.Trim() } }
+          }
+          $configPath = Join-Path $env:RUNNER_TEMP 'lume-updater.json'
+          $config | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $configPath -Encoding utf8
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "path=$configPath" -Encoding utf8
+
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
@@ -92,10 +111,45 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseName: Lume ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseBody: ${{ steps.release-notes.outputs.body }}
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }} --config "${{ steps.updater-config.outputs.path }}"
+
+  publish:
+    name: Publish complete release
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify updater manifest and publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern latest.json --dir $env:RUNNER_TEMP
+          if ($LASTEXITCODE -ne 0) { throw '无法下载更新清单。' }
+          $manifest = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'latest.json') -Raw | ConvertFrom-Json
+          if ($manifest.version.TrimStart('v') -ne $env:RELEASE_TAG.TrimStart('v')) {
+            throw '更新清单版本与发布标签不一致。'
+          }
+          foreach ($target in @('windows-x86_64', 'darwin-aarch64', 'darwin-x86_64', 'linux-x86_64')) {
+            $packages = @($manifest.platforms.PSObject.Properties | Where-Object { $_.Name -eq $target -or $_.Name.StartsWith("$target-") })
+            if ($packages.Count -eq 0) { throw "更新清单缺少平台：$target" }
+            foreach ($package in $packages) {
+              if ([string]::IsNullOrWhiteSpace($package.Value.signature) -or $package.Value.url -notlike 'https://*') {
+                throw "平台更新包缺少签名或 HTTPS 下载地址：$($package.Name)"
+              }
+            }
+          }
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or !$release.id) { throw '无法读取待发布的 Release。' }
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -F draft=false -f make_latest=true
+          if ($LASTEXITCODE -ne 0) { throw '发布 Release 失败。' }
