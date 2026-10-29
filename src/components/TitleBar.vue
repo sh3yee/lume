@@ -87,16 +87,16 @@ const menuItems = computed<MenuItem[]>(() => {
       action: () => emit('toggle-inspector'),
     },
     {
-      id: 'settings',
-      label: t('偏好设置'),
-      hint: getShortcutHint('toggle-settings'),
-      action: () => emit('open-settings'),
-    },
-    {
       id: 'commands',
       label: t('命令面板'),
       hint: getShortcutHint('open-command-palette'),
       action: () => emit('open-command-palette'),
+    },
+    {
+      id: 'settings',
+      label: t('偏好设置'),
+      hint: getShortcutHint('toggle-settings'),
+      action: () => emit('open-settings'),
     },
   ]
 })
