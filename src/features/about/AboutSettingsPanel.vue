@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
 import { Download, ExternalLink, LoaderCircle, RefreshCw, RotateCw } from 'lucide-vue-next'
+import MarkdownIt from 'markdown-it'
 import { appInfo } from '@/app/appInfo'
 import { t } from '@/app/i18n'
 import appIcon from '../../../src-tauri/icons/128x128.png'
@@ -8,9 +9,14 @@ import { isTauri } from '@/platform/tauri/client'
 import { openWebUrl } from '@/platform/tauri/system'
 import { useAppUpdater } from './useAppUpdater'
 
+// 更新说明来自远程，仅解析 Markdown，不执行原始 HTML。
+const releaseNotesMarkdown = new MarkdownIt({ html: false, linkify: true })
+
 const { supported, status, update, error, busy, downloadPercent, check, download, install } =
   useAppUpdater()
 const linkError = shallowRef('')
+
+const renderedReleaseNotes = computed(() => releaseNotesMarkdown.render(update.value?.notes ?? ''))
 
 const statusMessage = computed(() => {
   if (!supported) return t('在线更新仅适用于桌面应用。')
@@ -35,6 +41,14 @@ const handleOpenUrl = async (url: string) => {
   } catch {
     linkError.value = t('无法打开网页，请稍后重试。')
   }
+}
+
+const handleReleaseNotesClick = (event: MouseEvent) => {
+  const link = event.target instanceof Element ? event.target.closest('a[href]') : null
+  if (!(link instanceof HTMLAnchorElement)) return
+  event.preventDefault()
+  if (link.protocol !== 'https:' && link.protocol !== 'http:') return
+  void handleOpenUrl(link.href)
 }
 </script>
 
@@ -134,7 +148,11 @@ const handleOpenUrl = async (url: string) => {
         </p>
         <details v-if="update?.notes" class="lume-about__release-notes">
           <summary>{{ t('更新说明') }}</summary>
-          <p class="lume-about__notes">{{ update.notes }}</p>
+          <div
+            class="lume-about__notes lume-markdown-content"
+            @click="handleReleaseNotesClick"
+            v-html="renderedReleaseNotes"
+          ></div>
         </details>
       </div>
     </section>
@@ -305,7 +323,8 @@ const handleOpenUrl = async (url: string) => {
   text-decoration: underline;
 }
 
-.lume-about :is(a, button, summary):focus-visible {
+.lume-about :is(a, button, summary):focus-visible,
+.lume-about__notes :deep(a:focus-visible) {
   outline: 2px solid var(--lume-accent-default);
   outline-offset: 3px;
 }
@@ -340,10 +359,12 @@ const handleOpenUrl = async (url: string) => {
 }
 
 .lume-about__notes {
+  min-width: 0;
   margin: var(--lume-space-4) 0 0;
-  white-space: pre-wrap;
+  overflow-x: auto;
   overflow-wrap: anywhere;
   line-height: var(--lume-line-height-relaxed);
+  user-select: text;
 }
 
 .lume-about__links {
