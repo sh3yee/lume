@@ -1,9 +1,8 @@
-import { joinBackward } from '@milkdown/kit/prose/commands'
 import { liftListItem } from '@milkdown/kit/prose/schema-list'
 import { TextSelection, type Command } from '@milkdown/kit/prose/state'
 import { $useKeymap } from '@milkdown/kit/utils'
 
-export const liftBlockedListItem: Command = (state, dispatch, view) => {
+export const liftListItemAtStart: Command = (state, dispatch) => {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !selection.empty) return false
   const { $from } = selection
@@ -16,15 +15,14 @@ export const liftBlockedListItem: Command = (state, dispatch, view) => {
   )
     return false
 
-  // 保留默认合并行为；首段后还有引用等块时，普通 lift 无法满足 list_item 的首段约束。
-  if (joinBackward(state, undefined, view)) return false
+  // 行首退格先退出当前列表层级，避免合并到前一项后留下正文缩进
   return liftListItem($from.node(-1).type)(state, dispatch)
 }
 
 export const listBackspaceKeymap = $useKeymap('lumeListBackspace', {
-  LiftBlockedListItem: {
+  LiftListItemAtStart: {
     shortcuts: 'Backspace',
     priority: 60,
-    command: () => liftBlockedListItem,
+    command: () => liftListItemAtStart,
   },
 })
