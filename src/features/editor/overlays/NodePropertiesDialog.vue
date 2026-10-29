@@ -140,9 +140,9 @@ textarea:hover {
 }
 input:focus,
 textarea:focus {
-  border-color: var(--lume-accent-default);
-  background: var(--lume-bg-surface);
-  box-shadow: 0 0 0 2px var(--lume-accent-subtle);
+  border-color: var(--lume-input-focus-border);
+  background: var(--lume-input-focus-bg);
+  box-shadow: none;
 }
 textarea {
   min-height: 120px;

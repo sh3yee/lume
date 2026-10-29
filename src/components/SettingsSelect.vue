@@ -449,14 +449,15 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 
-.lume-settings-select__trigger:hover,
-.lume-settings-select__trigger[aria-expanded='true'] {
-  border-color: var(--lume-accent-default);
+.lume-settings-select__trigger:hover {
+  border-color: var(--lume-border-strong);
 }
 
+.lume-settings-select__trigger[aria-expanded='true'],
 .lume-settings-select__trigger:focus-visible {
-  outline: 2px solid var(--lume-accent-default);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
 }
 
 .lume-settings-select__value {
@@ -526,7 +527,8 @@ onBeforeUnmount(() => {
 
 .lume-settings-select__search-input:focus {
   outline: none;
-  border-color: var(--lume-accent-default);
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
 }
 
 .lume-settings-select__list {

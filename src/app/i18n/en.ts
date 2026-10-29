@@ -349,6 +349,8 @@ export const en = {
   下一个: 'Next',
   替换: 'Replace',
   全部替换: 'Replace all',
+  展开替换: 'Show replace',
+  收起替换: 'Hide replace',
   '{0}操作': '{0} actions',
   只读文字: 'Read-only text',
   复制所选文字: 'Copy selected text',

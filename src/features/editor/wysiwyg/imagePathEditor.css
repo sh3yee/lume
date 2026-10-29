@@ -58,8 +58,9 @@
 }
 
 .lume-image-path__source[data-empty='true']:focus .lume-image-path__input {
-  border-color: var(--lume-accent-default);
-  box-shadow: 0 0 0 2px var(--lume-accent-subtle);
+  border-color: var(--lume-input-focus-border);
+  background: var(--lume-input-focus-bg);
+  box-shadow: none;
 }
 
 .lume-image-path__input[aria-invalid='true'] {
@@ -67,6 +68,7 @@
 }
 
 .lume-image-path__source[data-empty='true']:focus .lume-image-path__input[aria-invalid='true'] {
+  border-color: var(--lume-color-danger);
   box-shadow: 0 0 0 2px var(--lume-color-danger-bg);
 }
 

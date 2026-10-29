@@ -1,8 +1,11 @@
 <script setup lang="ts">
 /** 查找替换浮层：管理输入、焦点和键盘交互，不直接依赖编辑器内核。 */
 import { t } from '@/app/i18n'
-import { nextTick, ref } from 'vue'
-import { ChevronDown, ChevronUp, X } from 'lucide-vue-next'
+import { vLiquidGlass } from '@/ui/glass/directive'
+import { nextTick, ref, shallowRef, useId } from 'vue'
+import { ChevronDown, ChevronRight, ChevronUp, Replace, ReplaceAll, X } from 'lucide-vue-next'
+
+const replacementRowId = useId()
 
 defineProps<{
   activeIndex: number
@@ -18,8 +21,10 @@ const emit = defineEmits<{
 }>()
 
 const findInput = ref<HTMLInputElement | null>(null)
+const replacementInput = ref<HTMLInputElement | null>(null)
 const query = ref('')
 const replacement = ref('')
+const replacementExpanded = shallowRef(false)
 
 function focus(select = false) {
   void nextTick(() => {
@@ -28,8 +33,17 @@ function focus(select = false) {
   })
 }
 
+const handleToggleReplacement = () => {
+  replacementExpanded.value = !replacementExpanded.value
+  void nextTick(() => {
+    const input = replacementExpanded.value ? replacementInput.value : findInput.value
+    input?.focus()
+  })
+}
+
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
+  if (event.isComposing) return
+  if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
     event.preventDefault()
     emit('move', event.shiftKey ? -1 : 1, query.value)
     return
@@ -44,19 +58,33 @@ defineExpose({ focus })
 </script>
 
 <template>
-  <div class="lume-find-replace" @keydown="handleKeydown">
+  <div v-liquid-glass class="lume-find-replace" @keydown="handleKeydown">
     <div class="lume-find-replace__row">
-      <input
-        ref="findInput"
-        v-model="query"
-        class="lume-find-replace__input"
-        type="text"
-        :placeholder="t('查找')"
-        @input="emit('find', query)"
-      />
-      <span class="lume-find-replace__count">
-        {{ matchCount > 0 ? `${activeIndex + 1} / ${matchCount}` : '0 / 0' }}
-      </span>
+      <button
+        type="button"
+        class="lume-find-replace__toggle"
+        :title="t(replacementExpanded ? '收起替换' : '展开替换')"
+        :aria-label="t(replacementExpanded ? '收起替换' : '展开替换')"
+        :aria-expanded="replacementExpanded"
+        :aria-controls="replacementRowId"
+        @click="handleToggleReplacement"
+      >
+        <ChevronRight :size="14" :stroke-width="2" aria-hidden="true" />
+      </button>
+      <div class="lume-find-replace__field">
+        <input
+          ref="findInput"
+          v-model="query"
+          class="lume-find-replace__input"
+          type="text"
+          :placeholder="t('查找')"
+          :aria-label="t('查找')"
+          @input="emit('find', query)"
+        />
+        <span v-if="query" class="lume-find-replace__count" role="status">
+          {{ matchCount > 0 ? `${activeIndex + 1}/${matchCount}` : '0/0' }}
+        </span>
+      </div>
       <button
         type="button"
         :title="t('上一个')"
@@ -64,7 +92,7 @@ defineExpose({ focus })
         :disabled="matchCount === 0"
         @click="emit('move', -1, query)"
       >
-        <ChevronUp :size="14" :stroke-width="2" />
+        <ChevronUp :size="14" :stroke-width="2" aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -73,32 +101,44 @@ defineExpose({ focus })
         :disabled="matchCount === 0"
         @click="emit('move', 1, query)"
       >
-        <ChevronDown :size="14" :stroke-width="2" />
+        <ChevronDown :size="14" :stroke-width="2" aria-hidden="true" />
       </button>
       <button type="button" :title="t('关闭')" :aria-label="t('关闭')" @click="emit('close')">
-        <X :size="14" :stroke-width="2" />
+        <X :size="14" :stroke-width="2" aria-hidden="true" />
       </button>
     </div>
-    <div class="lume-find-replace__row">
-      <input
-        v-model="replacement"
-        class="lume-find-replace__input"
-        type="text"
-        :placeholder="t('替换')"
-      />
+    <div
+      v-show="replacementExpanded"
+      :id="replacementRowId"
+      class="lume-find-replace__row lume-find-replace__row--replacement"
+    >
+      <div class="lume-find-replace__field">
+        <input
+          ref="replacementInput"
+          v-model="replacement"
+          class="lume-find-replace__input"
+          type="text"
+          :placeholder="t('替换')"
+          :aria-label="t('替换')"
+        />
+      </div>
       <button
         type="button"
+        :title="t('替换')"
+        :aria-label="t('替换')"
         :disabled="matchCount === 0"
         @click="emit('replace', query, replacement)"
       >
-        {{ t('替换') }}
+        <Replace :size="14" :stroke-width="2" aria-hidden="true" />
       </button>
       <button
         type="button"
+        :title="t('全部替换')"
+        :aria-label="t('全部替换')"
         :disabled="matchCount === 0"
         @click="emit('replaceAll', query, replacement)"
       >
-        {{ t('全部替换') }}
+        <ReplaceAll :size="14" :stroke-width="2" aria-hidden="true" />
       </button>
     </div>
   </div>
@@ -108,73 +148,104 @@ defineExpose({ focus })
 .lume-find-replace {
   position: absolute;
   top: 14px;
-  right: 18px;
+  right: 14px;
   z-index: var(--lume-z-tooltip);
-  width: 348px;
+  width: min(260px, calc(100% - 28px));
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 9px;
-  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 70%, transparent);
-  border-radius: 12px;
-  background-color: color-mix(in srgb, var(--lume-bg-overlay) 82%, transparent);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--lume-glass-edge);
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--lume-glass-overlay) 85%, transparent);
+  background-image: var(--lume-glass-reflection);
   color: var(--lume-text-secondary);
   font-family: var(--lume-interface-font);
   box-shadow:
-    0 18px 48px rgb(0 0 0 / 16%),
-    0 2px 8px rgb(0 0 0 / 8%),
-    inset 0 1px 0 rgb(255 255 255 / 18%);
-  backdrop-filter: blur(28px) saturate(1.35);
+    inset 0 1px 0 var(--lume-glass-rim),
+    0 10px 28px var(--lume-glass-depth),
+    0 2px 6px var(--lume-glass-shadow);
+  backdrop-filter: var(--lume-glass-filter, blur(4px)) blur(var(--lume-glass-popover-blur, 6px));
+  -webkit-backdrop-filter: var(--lume-glass-filter, blur(4px))
+    blur(var(--lume-glass-popover-blur, 6px));
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .lume-find-replace {
+    background: var(--lume-bg-overlay);
+  }
 }
 
 .lume-find-replace__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+}
+
+.lume-find-replace__row--replacement {
+  padding-left: 26px;
+}
+
+.lume-find-replace__field {
+  min-width: 0;
+  flex: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--lume-glass-edge);
+  border-radius: 7px;
+  background-color: color-mix(in srgb, var(--lume-bg-surface) 48%, transparent);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.lume-find-replace__field:focus-within {
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
 }
 
 .lume-find-replace__input {
   min-width: 0;
+  width: 0;
   flex: 1;
-  height: 28px;
-  padding: 0 9px;
-  border: 1px solid color-mix(in srgb, var(--lume-border-subtle) 84%, transparent);
-  border-radius: 7px;
-  background-color: color-mix(in srgb, var(--lume-bg-surface-raised) 86%, transparent);
+  height: 100%;
+  padding: 0 7px;
+  border: 0;
+  border-radius: inherit;
+  outline: none;
+  background: transparent;
   color: var(--lume-text-primary);
   font-size: var(--lume-font-size-sm);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 5%);
-}
-
-.lume-find-replace__input:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--lume-accent-default) 72%, var(--lume-border-subtle));
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--lume-accent-default) 16%, transparent),
-    inset 0 1px 2px rgb(0 0 0 / 5%);
 }
 
 .lume-find-replace__count {
-  width: 52px;
+  flex: none;
+  padding-right: 6px;
   color: var(--lume-text-tertiary);
   font-size: calc(var(--lume-font-size-base) - 2px);
   text-align: center;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .lume-find-replace button {
-  height: 28px;
-  min-width: 28px;
+  width: 24px;
+  height: 24px;
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 9px;
+  padding: 0;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: var(--lume-text-secondary);
   font-size: var(--lume-font-size-sm);
+  white-space: nowrap;
   cursor: default;
+}
+
+.lume-find-replace__toggle[aria-expanded='true'] svg {
+  transform: rotate(90deg);
 }
 
 .lume-find-replace button:hover:not(:disabled),

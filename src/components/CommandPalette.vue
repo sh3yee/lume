@@ -173,8 +173,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 }
 
 .lume-command-palette__input:focus {
-  outline: 2px solid color-mix(in srgb, var(--lume-accent-default) 42%, transparent);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
 }
 
 .lume-command-palette__list {

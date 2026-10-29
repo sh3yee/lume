@@ -312,7 +312,14 @@ watch(argsText, (value) => {
   cursor: default;
 }
 
-.image-settings :is(input, select, textarea, button):focus-visible {
+.image-settings :is(input[type='text'], select, textarea):focus {
+  outline: none;
+  border-color: var(--lume-input-focus-border);
+  background: var(--lume-input-focus-bg);
+  box-shadow: none;
+}
+
+.image-settings :is(input[type='checkbox'], button):focus-visible {
   outline: 2px solid var(--lume-accent-default);
   outline-offset: 2px;
 }

@@ -48,10 +48,8 @@
 }
 
 .lume-markdown-content .milkdown-code-block:focus-within {
-  border-color: color-mix(in srgb, var(--lume-accent-default) 35%, var(--lume-border-default));
-  box-shadow:
-    var(--lume-shadow-xs),
-    0 0 0 3px color-mix(in srgb, var(--lume-accent-default) 6%, transparent);
+  border-color: var(--lume-input-focus-border);
+  box-shadow: var(--lume-shadow-xs);
 }
 
 .lume-markdown-content .milkdown-code-block .tools {

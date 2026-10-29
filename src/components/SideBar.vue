@@ -853,9 +853,14 @@ onBeforeUnmount(() => {
   gap: var(--lume-space-2);
   margin-top: var(--lume-space-2);
   padding: 0 var(--lume-space-2);
-  border: 1px solid var(--lume-accent-default);
+  border: 1px solid var(--lume-border-default);
   border-radius: var(--lume-radius-sm);
-  color: var(--lume-accent-default);
+  color: var(--lume-text-secondary);
+}
+
+.lume-sidebar__create-row:focus-within {
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
 }
 
 .lume-sidebar__create-row input {

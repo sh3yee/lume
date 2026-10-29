@@ -268,7 +268,8 @@ onBeforeUnmount(() => {
 }
 
 .lume-shortcut-settings__search:focus-within {
-  border-color: var(--lume-accent-default);
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
 }
 
 .lume-shortcut-settings__search input {
@@ -351,9 +352,10 @@ onBeforeUnmount(() => {
 }
 
 .lume-shortcut-settings__recorder--active {
-  border-color: var(--lume-accent-default);
-  background: var(--lume-accent-subtle);
-  color: var(--lume-accent-default);
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
+  color: var(--lume-text-primary);
+  font-weight: var(--lume-font-weight-medium);
 }
 
 .lume-shortcut-settings__action {
@@ -401,7 +403,12 @@ onBeforeUnmount(() => {
   color: var(--lume-text-primary);
 }
 
-.lume-shortcut-settings__recorder:focus-visible,
+.lume-shortcut-settings__recorder:focus-visible {
+  outline: none;
+  border-color: var(--lume-input-focus-border);
+  background-color: var(--lume-input-focus-bg);
+}
+
 .lume-shortcut-settings__action:focus-visible,
 .lume-shortcut-settings__reset:focus-visible {
   outline: 2px solid var(--lume-accent-default);

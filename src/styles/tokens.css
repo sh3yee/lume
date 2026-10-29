@@ -34,6 +34,13 @@
   --lume-border-default: #d9e0eb;
   --lume-border-strong: #b4bfd1;
 
+  --lume-input-focus-border: var(--lume-accent-default);
+  --lume-input-focus-bg: color-mix(
+    in srgb,
+    var(--lume-bg-surface) 62%,
+    var(--lume-accent-default) 3%
+  );
+
   /* 品牌色 - 晴蓝 */
   --lume-accent-default: #2671ff;
   --lume-accent-hover: #1b60e6;
@@ -186,6 +193,12 @@
   --lume-border-subtle: rgb(255 255 255 / 6%);
   --lume-border-default: rgb(255 255 255 / 10%);
   --lume-border-strong: rgb(255 255 255 / 22%);
+
+  --lume-input-focus-bg: color-mix(
+    in srgb,
+    var(--lume-bg-surface-raised) 62%,
+    var(--lume-accent-default) 3%
+  );
 
   --lume-accent-default: #75b4ff;
   --lume-accent-hover: #9ac8ff;
