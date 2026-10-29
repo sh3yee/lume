@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { Download, ExternalLink, LoaderCircle, RefreshCw, RotateCw } from 'lucide-vue-next'
+import {
+  ChevronRight,
+  Download,
+  ExternalLink,
+  LoaderCircle,
+  RefreshCw,
+  RotateCw,
+} from 'lucide-vue-next'
 import MarkdownIt from 'markdown-it'
 import { appInfo } from '@/app/appInfo'
 import { t } from '@/app/i18n'
@@ -159,7 +166,10 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
           {{ t('下载完成后可安装并重启，当前编辑会话将在重启后恢复。') }}
         </p>
         <details v-if="update?.notes" class="lume-about__release-notes">
-          <summary>{{ t('更新说明') }}</summary>
+          <summary class="lume-about__release-summary">
+            <ChevronRight class="lume-about__release-icon" :size="14" aria-hidden="true" />
+            {{ t('更新说明') }}
+          </summary>
           <div
             class="lume-about__notes lume-markdown-content"
             @click="handleReleaseNotesClick"
@@ -381,8 +391,24 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
   color: var(--lume-text-secondary);
 }
 
-.lume-about__release-notes summary {
+.lume-about__release-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-2);
+  list-style: none;
   cursor: pointer;
+}
+
+.lume-about__release-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lume-about__release-icon {
+  flex-shrink: 0;
+}
+
+.lume-about__release-notes[open] .lume-about__release-icon {
+  transform: rotate(90deg);
 }
 
 .lume-about__notes {
