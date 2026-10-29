@@ -4,7 +4,8 @@ import { Download, ExternalLink, LoaderCircle, RefreshCw, RotateCw } from 'lucid
 import MarkdownIt from 'markdown-it'
 import { appInfo } from '@/app/appInfo'
 import { t } from '@/app/i18n'
-import appIcon from '../../../src-tauri/icons/128x128.png'
+import appLogoLight from '@/assets/lume-logo-light.png'
+import appLogoDark from '@/assets/lume-logo-dark-v2.png'
 import { isTauri } from '@/platform/tauri/client'
 import { openWebUrl } from '@/platform/tauri/system'
 import { useAppUpdater } from './useAppUpdater'
@@ -55,7 +56,18 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
 <template>
   <div class="lume-about">
     <header class="lume-about__brand">
-      <img class="lume-about__logo" :src="appIcon" alt="" aria-hidden="true" />
+      <img
+        class="lume-about__logo lume-about__logo--light"
+        :src="appLogoLight"
+        alt=""
+        aria-hidden="true"
+      />
+      <img
+        class="lume-about__logo lume-about__logo--dark"
+        :src="appLogoDark"
+        alt=""
+        aria-hidden="true"
+      />
       <div>
         <h3 class="lume-about__name">{{ appInfo.name }}</h3>
         <p class="lume-about__tagline">{{ t('为文字留一束安静的光。') }}</p>
@@ -209,10 +221,25 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
 
 .lume-about__logo {
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
-  transform: translateX(-3px);
+  transform: translateX(-10px);
+}
+
+.lume-about__logo--dark {
+  width: 66px;
+  height: 66px;
+  transform: translateX(-11px);
+}
+
+.lume-about__logo--dark,
+:root[data-theme='dark'] .lume-about__logo--light {
+  display: none;
+}
+
+:root[data-theme='dark'] .lume-about__logo--dark {
+  display: block;
 }
 
 .lume-about__name {
