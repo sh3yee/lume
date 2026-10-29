@@ -71,6 +71,12 @@
 .lume-markdown-content ul {
   list-style-type: disc;
 }
+.lume-markdown-content :is(ul, ol) ul {
+  list-style-type: circle;
+}
+.lume-markdown-content :is(ul, ol) :is(ul, ol) ul {
+  list-style-type: square;
+}
 .lume-markdown-content ol {
   list-style-type: decimal;
 }
