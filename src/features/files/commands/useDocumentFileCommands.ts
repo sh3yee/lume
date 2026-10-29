@@ -15,20 +15,30 @@ import {
 } from '../services/documentFileService'
 
 export function useDocumentFileCommands() {
-  const { activeDocument, newDocument, openDocument, completeDocumentSave, updateDocumentContent } =
-    useDocument()
+  const {
+    activeDocument,
+    newDocument,
+    openDocument,
+    getReusableDocumentCandidate,
+    completeDocumentSave,
+    updateDocumentContent,
+  } = useDocument()
   const currentFileName = computed(() => activeDocument.value?.name ?? t('未命名文档'))
   const currentFilePath = computed(() => activeDocument.value?.path ?? null)
   const isDirty = computed(() => activeDocument.value?.isDirty ?? false)
 
   async function openFile() {
+    const reusableDocument = getReusableDocumentCandidate()
     const file = await selectDocumentFile()
-    if (file) openDocument(file.content, file.name, file.path)
+    if (!file) return
+    openDocument(file.content, file.name, file.path, reusableDocument)
   }
 
   async function openFilesFromPaths(paths: string[]) {
+    const reusableDocument = getReusableDocumentCandidate()
     const { files, result } = await readDroppedDocuments(paths)
-    for (const file of files) openDocument(file.content, file.name, file.path)
+    // 整批只复用最初的候选；替换后原 ID 失效，后续文件只会追加。
+    for (const file of files) openDocument(file.content, file.name, file.path, reusableDocument)
     return result
   }
 

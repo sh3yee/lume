@@ -1,6 +1,7 @@
-import type { DocumentSession, OpenDocument } from './documentTypes'
+import type { DocumentKind, DocumentSession, OpenDocument } from './documentTypes'
 
 const SESSION_STORAGE_KEY = 'lume-document-session'
+const DOCUMENT_KINDS: DocumentKind[] = ['placeholder', 'welcome', 'draft', 'file']
 
 function isOpenDocument(document: unknown): document is OpenDocument {
   if (!document || typeof document !== 'object') return false
@@ -29,7 +30,13 @@ export function parseDocumentSession(value: unknown): DocumentSession | null {
     return null
   }
 
-  const documents = session.documents.filter(isOpenDocument)
+  const documents = session.documents.filter(isOpenDocument).map<OpenDocument>((document) => ({
+    ...document,
+    kind:
+      document.kind === undefined || DOCUMENT_KINDS.includes(document.kind)
+        ? document.kind
+        : 'file',
+  }))
   if (documents.length === 0) return null
   const activeDocumentId =
     typeof session.activeDocumentId === 'string' &&

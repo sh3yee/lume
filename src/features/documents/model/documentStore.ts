@@ -6,9 +6,13 @@
 import { t } from '@/app/i18n'
 import { computed, ref } from 'vue'
 import { calculateDocumentStats } from './documentStats'
+import { flushDocumentEdits } from './documentEditorSync'
+import { isSameDocumentPath } from './documentPath'
 import type {
   CursorPosition,
   DocumentDropPosition,
+  DocumentKind,
+  DocumentReuseCandidate,
   DocumentSession,
   DocumentStats,
   OpenDocument,
@@ -57,9 +61,20 @@ console.log(greet('Lume'))
 开始你的创作之旅吧！
 `
 
+// 只匹配旧版编辑器写回内置欢迎页的确定格式，不规整用户草稿。
+const NORMALIZED_WELCOME_CONTENT = WELCOME_DOCUMENT_CONTENT.replace(/^- /gm, '* ').replace(
+  /\n---\n/,
+  '\n***\n',
+)
+const LEGACY_NORMALIZED_WELCOME_CONTENT = NORMALIZED_WELCOME_CONTENT.replace(
+  /^(\* .+)\n(?=\* )/gm,
+  '$1\n\n',
+)
+
 let documentSequence = 0
 
 function createDocumentRecord(
+  kind: DocumentKind,
   content = '',
   name = t('未命名文档'),
   path: string | null = null,
@@ -67,6 +82,7 @@ function createDocumentRecord(
   documentSequence += 1
   return {
     id: `document-${documentSequence}`,
+    kind,
     name,
     path,
     content,
@@ -77,12 +93,13 @@ function createDocumentRecord(
 }
 
 const documents = ref<OpenDocument[]>([
-  createDocumentRecord(WELCOME_DOCUMENT_CONTENT, WELCOME_DOCUMENT_NAME),
+  createDocumentRecord('welcome', WELCOME_DOCUMENT_CONTENT, WELCOME_DOCUMENT_NAME),
 ])
 const activeDocumentId = ref(documents.value[0].id)
 const pendingCloseDocument = ref<OpenDocument | null>(null)
 const pendingCloseDocumentIds: string[] = []
 const legacyWelcomeDocuments = new Map<string, string>()
+const documentEditRevisions = new Map<string, number>()
 let closeQueueCompletion: ((completed: boolean) => void) | null = null
 let sessionHydrated = false
 
@@ -100,18 +117,51 @@ function hydrateDocumentSession(session: DocumentSession | null) {
   if (!session) return
   documents.value = session.documents
   for (const document of documents.value) {
+    const legacyDocument = document.kind === undefined
+    if (
+      document.path === null &&
+      document.name === WELCOME_DOCUMENT_NAME &&
+      (legacyDocument || document.kind === 'welcome')
+    ) {
+      // 仅记录待核对的旧内容，精确匹配内置欢迎页后才修复。
+      legacyWelcomeDocuments.set(document.id, document.content)
+    }
+    if (document.path !== null) {
+      document.kind = 'file'
+    } else if (legacyDocument) {
+      if (
+        document.name === WELCOME_DOCUMENT_NAME &&
+        (document.content === WELCOME_DOCUMENT_CONTENT ||
+          document.savedContent === WELCOME_DOCUMENT_CONTENT)
+      ) {
+        document.kind = 'welcome'
+      } else if (
+        !document.isDirty &&
+        document.content === '' &&
+        (document.savedContent === undefined || document.savedContent === '') &&
+        ['未命名文档', 'Untitled document'].includes(document.name)
+      ) {
+        document.kind = 'draft'
+      }
+    }
     if (document.savedContent === undefined) {
       if (!document.isDirty) {
         document.savedContent = document.content
-      } else if (document.path === null && document.name === WELCOME_DOCUMENT_NAME) {
+      } else if (
+        document.path === null &&
+        document.name === WELCOME_DOCUMENT_NAME &&
+        (legacyDocument || document.kind === 'welcome')
+      ) {
         // 旧欢迎页可恢复内置基准，未知草稿继续保留未保存状态。
-        legacyWelcomeDocuments.set(document.id, document.content)
         document.savedContent = WELCOME_DOCUMENT_CONTENT
       }
     }
     if (document.savedContent !== undefined) {
       document.isDirty = document.content !== document.savedContent
     }
+    // 会话恢复不依赖编辑器模式，双击文件时也能立即复用未编辑欢迎页。
+    restoreWelcomeDocumentBaseline(document.id, NORMALIZED_WELCOME_CONTENT)
+    restoreWelcomeDocumentBaseline(document.id, LEGACY_NORMALIZED_WELCOME_CONTENT)
   }
   activeDocumentId.value = session.activeDocumentId
   syncDocumentSequence()
@@ -120,7 +170,13 @@ function hydrateDocumentSession(session: DocumentSession | null) {
 /** 仅修复内置欢迎页的格式化写回，不清除真正编辑过的内容或保存基准。 */
 function restoreWelcomeDocumentBaseline(id: string, normalizedWelcomeContent: string) {
   const document = documents.value.find((item) => item.id === id)
-  if (!document || document.path !== null || document.name !== WELCOME_DOCUMENT_NAME) return false
+  if (
+    !document ||
+    document.path !== null ||
+    document.kind === 'file' ||
+    document.name !== WELCOME_DOCUMENT_NAME
+  )
+    return false
   if (legacyWelcomeDocuments.get(id) !== document.content) return false
   if (
     document.content !== WELCOME_DOCUMENT_CONTENT &&
@@ -128,23 +184,25 @@ function restoreWelcomeDocumentBaseline(id: string, normalizedWelcomeContent: st
   )
     return false
 
-  legacyWelcomeDocuments.delete(id)
   if (
     document.savedContent !== undefined &&
     document.savedContent !== WELCOME_DOCUMENT_CONTENT &&
     document.savedContent !== normalizedWelcomeContent
   )
     return false
+  legacyWelcomeDocuments.delete(id)
   if (
     document.content === WELCOME_DOCUMENT_CONTENT &&
     document.savedContent === WELCOME_DOCUMENT_CONTENT &&
-    !document.isDirty
+    !document.isDirty &&
+    document.kind === 'welcome'
   )
     return false
 
   document.content = WELCOME_DOCUMENT_CONTENT
   document.savedContent = WELCOME_DOCUMENT_CONTENT
   document.isDirty = false
+  document.kind = 'welcome'
   return true
 }
 
@@ -179,9 +237,19 @@ function updateDocumentCursor(id: string, line: number, column: number) {
 function updateDocumentContent(id: string, text: string, markDirty = true) {
   const document = documents.value.find((item) => item.id === id)
   if (!document || document.content === text) return false
+  if (markDirty) markDocumentEdited(id)
   document.content = text
   if (markDirty) document.isDirty = text !== document.savedContent
   return true
+}
+
+/** 编辑版本独立于保存状态，读取期间输入后再撤销也不能覆盖原标签。 */
+const markDocumentEdited = (id: string) => {
+  const document = documents.value.find((item) => item.id === id)
+  if (!document) return
+  documentEditRevisions.set(id, (documentEditRevisions.get(id) ?? 0) + 1)
+  legacyWelcomeDocuments.delete(id)
+  if (document.kind === 'welcome' || document.kind === 'placeholder') document.kind = 'draft'
 }
 
 function setContent(text: string, markDirty = true) {
@@ -190,26 +258,62 @@ function setContent(text: string, markDirty = true) {
 }
 
 function newDocument() {
-  const document = createDocumentRecord()
+  const document = createDocumentRecord('draft')
   documents.value.push(document)
   activeDocumentId.value = document.id
   return document
 }
 
-function openDocument(text: string, name: string, path: string | null) {
-  const existing = path ? documents.value.find((document) => document.path === path) : undefined
+const canReuseDocument = (document: OpenDocument | undefined) => {
+  if (
+    !document ||
+    document.path !== null ||
+    document.isDirty ||
+    document.content !== document.savedContent ||
+    pendingCloseDocument.value?.id === document.id ||
+    pendingCloseDocumentIds.includes(document.id)
+  )
+    return false
+
+  if (document.kind === 'welcome') return document.content === WELCOME_DOCUMENT_CONTENT
+  return (document.kind === 'placeholder' || document.kind === 'draft') && document.content === ''
+}
+
+const getReusableDocumentCandidate = (): DocumentReuseCandidate | null => {
+  flushDocumentEdits()
+  const document = activeDocument.value
+  if (!document) return null
+  return { id: document.id, revision: documentEditRevisions.get(document.id) ?? 0 }
+}
+
+function openDocument(
+  text: string,
+  name: string,
+  path: string | null,
+  reusableDocument: DocumentReuseCandidate | null = getReusableDocumentCandidate(),
+) {
+  flushDocumentEdits()
+  const existing = documents.value.find((document) => isSameDocumentPath(document.path, path))
   if (existing) {
-    if (!existing.isDirty || existing.content === text) {
-      existing.content = text
-      existing.savedContent = text
-      existing.isDirty = false
-    }
     activeDocumentId.value = existing.id
     return existing
   }
 
-  const document = createDocumentRecord(text, name, path)
-  documents.value.push(document)
+  const document = createDocumentRecord('file', text, name, path)
+  const reusableIndex = documents.value.findIndex(
+    (item) =>
+      item.id === reusableDocument?.id &&
+      (documentEditRevisions.get(item.id) ?? 0) === reusableDocument.revision &&
+      canReuseDocument(item),
+  )
+  if (reusableIndex >= 0) {
+    const replacedId = documents.value[reusableIndex].id
+    legacyWelcomeDocuments.delete(replacedId)
+    documentEditRevisions.delete(replacedId)
+    documents.value.splice(reusableIndex, 1, document)
+  } else {
+    documents.value.push(document)
+  }
   activeDocumentId.value = document.id
   return document
 }
@@ -234,10 +338,11 @@ function closeDocument(id: string) {
   if (index < 0) return
   const wasActive = activeDocumentId.value === id
   legacyWelcomeDocuments.delete(id)
+  documentEditRevisions.delete(id)
   documents.value.splice(index, 1)
 
   if (documents.value.length === 0) {
-    const document = createDocumentRecord()
+    const document = createDocumentRecord('placeholder')
     documents.value.push(document)
     activeDocumentId.value = document.id
   } else if (wasActive) {
@@ -269,6 +374,7 @@ function processCloseDocumentQueue() {
 
 function requestCloseDocuments(ids: string[], onComplete?: (completed: boolean) => void) {
   if (pendingCloseDocument.value) return false
+  flushDocumentEdits()
   if (onComplete) closeQueueCompletion = onComplete
 
   const existingIds = new Set(documents.value.map((document) => document.id))
@@ -311,6 +417,7 @@ function updateDocumentMetadata(
   const document = documents.value.find((item) => item.id === id)
   if (!document) return false
   Object.assign(document, metadata)
+  if (document.path !== null) document.kind = 'file'
   if (metadata.isDirty === false) document.savedContent = document.content
   return true
 }
@@ -326,6 +433,7 @@ const completeDocumentSave = (
   if (document.content === sourceContent) document.content = saved.content
   document.name = saved.name
   document.path = saved.path
+  document.kind = 'file'
   document.savedContent = saved.content
   document.isDirty = document.content !== saved.content
 }
@@ -351,8 +459,10 @@ export function useDocumentStore() {
     updateCursor,
     updateDocumentCursor,
     updateDocumentContent,
+    markDocumentEdited,
     setContent,
     newDocument,
+    getReusableDocumentCandidate,
     openDocument,
     activateDocument,
     moveDocument,
@@ -370,4 +480,4 @@ export function useDocumentStore() {
   }
 }
 
-export type { CursorPosition, DocumentDropPosition, DocumentStats, OpenDocument }
+export type { CursorPosition, DocumentDropPosition, DocumentKind, DocumentStats, OpenDocument }

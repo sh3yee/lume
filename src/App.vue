@@ -32,6 +32,7 @@
               <div v-else class="lume-app__split-view">
                 <SourceEditor
                   ref="sourceEditorRef"
+                  :key="activeDocumentId"
                   :sync-ratio="splitScrollRatio"
                   @scroll-ratio="handleSplitScrollRatio"
                 />

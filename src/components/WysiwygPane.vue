@@ -14,6 +14,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { useDocument } from '@composables/useDocument'
 import { WELCOME_DOCUMENT_CONTENT } from '@/features/documents/model/documentStore'
+import { registerDocumentFlush } from '@/features/documents/model/documentEditorSync'
 import { constrainOverlayPosition } from '@/features/editor/overlays/overlayPosition.ts'
 import FindReplaceWidget from '@/features/editor/overlays/FindReplaceWidget.vue'
 import EditorContextMenu from '@/features/editor/overlays/EditorContextMenu.vue'
@@ -61,9 +62,11 @@ const {
   documents,
   persistDocumentSession,
   updateDocumentContent,
+  markDocumentEdited,
   updateDocumentCursor,
   restoreWelcomeDocumentBaseline,
   openDocument,
+  getReusableDocumentCandidate,
 } = useDocument()
 const boundDocumentId = activeDocument.value?.id ?? null
 const overlayId = boundDocumentId ?? 'lume-editor'
@@ -87,6 +90,7 @@ let editor: Editor | null = null
 let disposed = false
 let editorMarkdown = content.value
 let synchronizedDoc: ProseNode | null = null
+let observedDoc: ProseNode | null = null
 let sourceDocument: { doc: ProseNode; markdown: string } | null = null
 let commandNoticeTimer: ReturnType<typeof setTimeout> | undefined
 const handleCommandSuccess = (message: string) => {
@@ -124,13 +128,16 @@ const {
   },
   onAfterAction: (view) => selectionControls.schedule(view),
   replaceImageSources: (replacements) => replaceImageSources(replacements),
-  onOpenLink: (href) =>
-    openEditorLink(href, {
+  onOpenLink: (href) => {
+    const reusableDocument = getReusableDocumentCandidate()
+    return openEditorLink(href, {
       documentPath: activeDocument.value?.path ?? null,
       root: editorRef.value,
       isActive: () => !disposed && activeDocument.value?.id === boundDocumentId,
-      onOpenDocument: openDocument,
-    }),
+      onOpenDocument: (markdown, name, path) =>
+        openDocument(markdown, name, path, reusableDocument),
+    })
+  },
 })
 const contextMenuOpen = computed(() => menuContext.value !== null)
 
@@ -198,6 +205,10 @@ const flushPendingMarkdown = () => {
   if (markdown === null) return
   editor?.action((ctx) => synchronizeMarkdown(markdown, ctx.get(editorViewCtx)))
 }
+
+const unregisterDocumentFlush = boundDocumentId
+  ? registerDocumentFlush(boundDocumentId, flushPendingMarkdown)
+  : () => {}
 
 const insertLocalImages = async () => {
   const document = activeDocument.value
@@ -403,7 +414,26 @@ onMounted(async () => {
       if (!synchronizedDoc) {
         synchronizedDoc = view.state.doc
         sourceDocument = { doc: view.state.doc, markdown: editorMarkdown }
+      } else if (
+        editor &&
+        observedDoc &&
+        !view.state.doc.eq(observedDoc) &&
+        activeDocument.value?.id === boundDocumentId &&
+        activeDocument.value.path === null &&
+        activeDocument.value.kind !== 'file' &&
+        (activeDocument.value.kind === undefined ||
+          activeDocument.value.kind === 'welcome' ||
+          activeDocument.value.content === '')
+      ) {
+        const previousDoc = observedDoc
+        const changed = editor.action((ctx) => {
+          const serialize = ctx.get(serializerCtx)
+          return serialize(view.state.doc) !== serialize(previousDoc)
+        })
+        // 在防抖写回之前记录编辑，保护读取期间输入后又撤销的草稿。
+        if (changed && boundDocumentId) markDocumentEdited(boundDocumentId)
       }
+      observedDoc = view.state.doc
       invalidateMenuTarget(view)
       selectionControls.schedule(view)
     },
@@ -445,7 +475,9 @@ onMounted(async () => {
   if (
     boundDocumentId &&
     activeDocument.value?.id === boundDocumentId &&
-    documents.value.some((document) => document.path === null && document.isDirty)
+    documents.value.some(
+      (document) => document.path === null && (document.isDirty || document.kind === undefined),
+    )
   ) {
     const normalizedWelcomeContent = editor.action((ctx) => {
       const welcomeDoc = ctx.get(parserCtx)(WELCOME_DOCUMENT_CONTENT)
@@ -509,6 +541,7 @@ watch(
 onBeforeUnmount(() => {
   // 模式或标签切换时，补齐 Milkdown 防抖回调尚未写入 Store 的编辑。
   flushPendingMarkdown()
+  unregisterDocumentFlush()
   disposed = true
   clearTimeout(commandNoticeTimer)
   closeContextMenu()

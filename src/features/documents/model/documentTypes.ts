@@ -12,9 +12,19 @@ export interface DocumentStats {
   readingTime: number
 }
 
+export type DocumentKind = 'placeholder' | 'welcome' | 'draft' | 'file'
+
+/** 开始读取时记录的活动标签，成功后再检查复用条件。 */
+export interface DocumentReuseCandidate {
+  id: string
+  revision: number
+}
+
 /** 编辑器中打开的文档。 */
 export interface OpenDocument {
   id: string
+  /** 旧会话可能缺少来源，无法确认的文档不自动复用。 */
+  kind?: DocumentKind
   name: string
   path: string | null
   content: string
