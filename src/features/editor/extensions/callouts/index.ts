@@ -20,13 +20,6 @@ export const alertLabels: Record<string, string> = {
   WARNING: 'Warning',
   CAUTION: 'Caution',
 }
-export const alertIcons: Record<string, string> = {
-  NOTE: 'ⓘ',
-  TIP: '◇',
-  IMPORTANT: '❕',
-  WARNING: '⚠',
-  CAUTION: '⊘',
-}
 type Ast = Node & { children?: Ast[]; value?: string; alertType?: string }
 export function transformCallouts(tree: Ast, file?: { value: unknown }) {
   if (tree.type === 'blockquote') {
@@ -92,7 +85,7 @@ export const calloutSchema = $nodeSchema('callout', () => ({
         contenteditable: 'false',
         'data-marker': `[!${node.attrs.kind}]`,
       },
-      ['span', `${alertIcons[node.attrs.kind]} ${alertLabels[node.attrs.kind]}`],
+      ['span', alertLabels[node.attrs.kind]],
     ],
     ['div', { class: 'lume-callout-body' }, 0],
   ],
@@ -143,7 +136,7 @@ export function useCalloutsPreviewExtension(markdown: MarkdownIt) {
   })
   markdown.renderer.rules.callout_open = (tokens, i) => {
     const kind = tokens[i].meta.kind as string
-    return `<div class="lume-callout" data-callout="${kind}"><div class="lume-callout-title" data-marker="[!${kind}]"><span>${alertIcons[kind]} ${alertLabels[kind]}</span></div><div class="lume-callout-body">\n`
+    return `<div class="lume-callout" data-callout="${kind}"><div class="lume-callout-title" data-marker="[!${kind}]"><span>${alertLabels[kind]}</span></div><div class="lume-callout-body">\n`
   }
   markdown.renderer.rules.callout_close = () => '</div></div>\n'
   return markdown

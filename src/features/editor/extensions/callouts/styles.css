@@ -1,27 +1,51 @@
 .lume-markdown-content .lume-callout {
-  --callout-color: #4493f8;
-  border-left: 4px solid var(--callout-color);
-  padding: 12px 18px;
+  --callout-color: var(--lume-color-info, #2b7fd4);
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11l5-5V5a2 2 0 0 0-2-2zM16 21v-5h5M7 8h10M7 12h6'/%3E%3C/svg%3E");
+  border: 1px solid color-mix(in srgb, var(--callout-color) 16%, transparent);
+  border-left: 3px solid var(--callout-color);
+  border-radius: var(--lume-radius-lg, 8px);
+  padding: 12px 16px;
   margin: 1em 0;
-  background: color-mix(in srgb, var(--callout-color) 7%, transparent);
+  background: color-mix(in srgb, var(--callout-color) 5%, transparent);
 }
 .lume-markdown-content .lume-callout[data-callout='TIP'] {
-  --callout-color: #3fb950;
+  --callout-color: var(--lume-color-success, #2e8b57);
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 18h6m-5 3h4M9 15c0-2-3-3-3-6a6 6 0 0 1 12 0c0 3-3 4-3 6v1H9z'/%3E%3C/svg%3E");
 }
 .lume-markdown-content .lume-callout[data-callout='IMPORTANT'] {
   --callout-color: #ab7df8;
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3 9 9-9 9-9-9zM12 8v5m0 3h.01'/%3E%3C/svg%3E");
 }
 .lume-markdown-content .lume-callout[data-callout='WARNING'] {
   --callout-color: #bf8700;
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 4a2 2 0 0 1 3.4 0l7.5 13a2 2 0 0 1-1.7 3H4.5a2 2 0 0 1-1.7-3zM12 9v4m0 3h.01'/%3E%3C/svg%3E");
 }
 .lume-markdown-content .lume-callout[data-callout='CAUTION'] {
-  --callout-color: #f85149;
+  --callout-color: var(--lume-color-danger, #d44343);
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3h8l5 5v8l-5 5H8l-5-5V8zM9 9l6 6m0-6-6 6'/%3E%3C/svg%3E");
 }
 .lume-callout-title {
   color: var(--callout-color);
+  font-family: var(--lume-font-sans);
+  font-size: 0.875em;
   font-weight: 600;
-  margin-bottom: 8px;
+  line-height: 1.5;
+  margin-bottom: 6px;
   user-select: none;
+}
+.lume-callout-title > span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.lume-callout-title > span::before {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  background: currentColor;
+  content: '';
+  -webkit-mask: var(--callout-icon) center / contain no-repeat;
+  mask: var(--callout-icon) center / contain no-repeat;
 }
 .lume-callout-body > :first-child {
   margin-top: 0;
@@ -30,12 +54,18 @@
   margin-bottom: 0;
 }
 [data-github-alerts='false'] .lume-markdown-content .lume-callout {
-  border-left-color: var(--lume-border-default, #8885);
+  border: 0;
+  border-left: 3px solid var(--lume-border-default, #8885);
+  border-radius: 0;
   background: none;
 }
 [data-github-alerts='false'] .lume-callout-title {
   color: inherit;
+  font-family: inherit;
+  font-size: inherit;
   font-weight: inherit;
+  line-height: inherit;
+  margin-bottom: 8px;
   user-select: text;
 }
 [data-github-alerts='false'] .lume-callout-title > span {
