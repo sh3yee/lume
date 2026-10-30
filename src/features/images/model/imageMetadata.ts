@@ -54,7 +54,7 @@ const readYamlScalar = (source: string): string | undefined => {
   if (value.startsWith("'")) {
     return value.endsWith("'") ? value.slice(1, -1).replace(/''/g, "'") : undefined
   }
-  if (/^[\[\]{&*!|>]/.test(value)) return undefined
+  if (/^[[\]{&*!|>]/.test(value)) return undefined
   return value
 }
 

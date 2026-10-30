@@ -96,8 +96,8 @@ onMounted(() => void renderPreviewExtensions())
     <div
       ref="previewContentRef"
       class="lume-preview-pane__content lume-markdown-content"
-      v-html="renderedHtml"
       @scroll="handleScroll"
+      v-html="renderedHtml"
     ></div>
   </section>
   <Teleport to="body">

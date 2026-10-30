@@ -11,7 +11,10 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "check": "npm run lint && npm run type-check && npm run check:editor",
+    "check:editor": "node scripts/check-inline-source.mjs",
+    "lint": "eslint .",
+    "lint:fix": "npm run lint -- --fix",
     "format": "prettier --write \"src/**/*.{vue,js,jsx,cjs,mjs,ts,tsx,cts,mts,css,scss,html,md}\"",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
@@ -53,6 +56,7 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@tauri-apps/cli": "^2.1.0",
     "@types/markdown-it-footnote": "^3.0.4",
     "@types/node": "^22.10.0",

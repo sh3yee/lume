@@ -89,15 +89,24 @@ npm run tauri:build
 
 ## Common Commands
 
-| Command               | Description                                             |
-| --------------------- | ------------------------------------------------------- |
-| `npm run dev`         | Start the Vite frontend development server on port 1420 |
-| `npm run build`       | Run type checking and build the frontend for production |
-| `npm run type-check`  | Run TypeScript type checking only                       |
-| `npm run lint`        | Run ESLint with automatic fixes                         |
-| `npm run format`      | Format source files with Prettier                       |
-| `npm run tauri:dev`   | Start the Tauri desktop app in development mode         |
-| `npm run tauri:build` | Build desktop installation packages                     |
+| Command                | Description                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `npm run dev`          | Start the Vite frontend development server on port 1420 |
+| `npm run build`        | Run type checking and build the frontend for production |
+| `npm run type-check`   | Run TypeScript type checking only                       |
+| `npm run check`        | Run ESLint, type checking, and editor validation        |
+| `npm run check:editor` | Run the existing editor model and interaction checks    |
+| `npm run lint`         | Run ESLint without modifying files                      |
+| `npm run lint:fix`     | Run ESLint and apply available automatic fixes          |
+| `npm run format`       | Format source files with Prettier                       |
+| `npm run tauri:dev`    | Start the Tauri desktop app in development mode         |
+| `npm run tauri:build`  | Build desktop installation packages                     |
+
+Run `npm run check` before committing. To apply automatic fixes, run `npm run lint:fix` separately, review the changes, and rerun the full checks.
+
+ESLint 9 uses [eslint.config.js](../eslint.config.js) at the repository root to check Vue, TypeScript, JavaScript, and project scripts. Dependencies, build output, and the Rust directory are excluded from ESLint. Prettier continues to handle formatting rules.
+
+The [Check workflow](../.github/workflows/check.yml) runs on branch pushes, pull requests, and manual dispatches using Node.js 22, `npm ci`, and the same `npm run check` entry point. It requires neither release signing secrets nor a Rust environment and does not build installation packages. Version tags remain handled by the separate Release workflow.
 
 ## Publishing a GitHub Release
 
@@ -156,7 +165,7 @@ lume/
 ├── package.json                # Frontend dependencies and scripts
 ├── tsconfig.json               # TypeScript configuration
 ├── vite.config.ts              # Vite configuration
-├── .eslintrc.cjs               # ESLint configuration
+├── eslint.config.js            # ESLint 9 flat config
 ├── .prettierrc.json            # Prettier configuration
 └── .editorconfig               # Editor formatting conventions
 ```

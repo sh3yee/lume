@@ -173,8 +173,8 @@ onBeforeUnmount(() => {
 
 <template>
   <aside
-    v-liquid-glass
     ref="inspectorRef"
+    v-liquid-glass
     class="lume-document-inspector lume-side-glass"
     :style="{ width: `${panelWidth}px` }"
     :aria-label="t('文档信息')"

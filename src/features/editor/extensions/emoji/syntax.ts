@@ -37,7 +37,7 @@ export const getEmojiQuery = (textBefore: string): { from: number; query: string
   if (!match || isEmojiEscaped(textBefore, match.index)) return null
   const prefix = textBefore.slice(0, match.index)
   const word = prefix.match(/\S*$/)?.[0] ?? ''
-  if (/(?:[a-z][\w+.-]*:\/\/|www\.|mailto:)/i.test(word) || /[\/@]$/.test(prefix)) return null
+  if (/(?:[a-z][\w+.-]*:\/\/|www\.|mailto:)/i.test(word) || /[/@]$/.test(prefix)) return null
   // 已闭合的 :name: 的末尾冒号不能再次触发候选列表。
   if (/:[a-z0-9_+-]+$/i.test(prefix)) return null
   return { from: match.index, query: match[1].toLowerCase() }

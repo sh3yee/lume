@@ -77,6 +77,7 @@ export const isLocalHtmlResource = (source: string) =>
   Boolean(source) && !/^(?:https?:|data:|blob:|asset:|\/\/|#)/i.test(source)
 
 const safeUrl = (value: string, resource: boolean, frame = false) => {
+  // eslint-disable-next-line no-control-regex -- 过滤控制字符，防止 URL 协议检查被绕过。
   const compact = value.replace(/[\u0000-\u0020\u007f-\u009f]/g, '')
   if (frame) return /^(?:https?:)?\/\//i.test(compact)
   if (!/^[a-z][\w+.-]*:/i.test(compact)) return true

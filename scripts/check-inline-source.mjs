@@ -192,8 +192,17 @@ try {
     assert.equal(state.doc.firstChild.lastChild.text, 'x')
     const doc = state.doc
     const node = doc.firstChild.firstChild
-    assert.equal(editing.props.handleClickOn(view, 1, node, 1, { button: 0 }, true), true)
-    assert.equal(state.selection.$from.parent.type.name, 'inline_source')
+    const handled = editing.props.handleClickOn(view, 1, node, 1, { button: 0 }, true)
+    if (kind === 'image') {
+      // 图片由专用交互处理，点击和节点选中均不能变成通用源码节点。
+      assert.equal(handled, false)
+      view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, 1)))
+      assert.ok(state.selection instanceof NodeSelection)
+      assert.equal(state.selection.node.type.name, 'image')
+    } else {
+      assert.equal(handled, true)
+      assert.equal(state.selection.$from.parent.type.name, 'inline_source')
+    }
     view.dispatch(state.tr.setMeta(editing.spec.key, 'blur'))
     assert.ok(state.doc.eq(doc))
   }

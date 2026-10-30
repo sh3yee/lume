@@ -89,15 +89,24 @@ npm run tauri:build
 
 ## 常用命令
 
-| 命令                  | 说明                                  |
-| --------------------- | ------------------------------------- |
-| `npm run dev`         | 启动 Vite 前端开发服务器（端口 1420） |
-| `npm run build`       | 类型检查 + 前端生产构建               |
-| `npm run type-check`  | 仅运行 TypeScript 类型检查            |
-| `npm run lint`        | ESLint 检查并自动修复                 |
-| `npm run format`      | Prettier 格式化源码                   |
-| `npm run tauri:dev`   | 启动 Tauri 桌面应用开发模式           |
-| `npm run tauri:build` | 构建桌面应用安装包                    |
+| 命令                   | 说明                                  |
+| ---------------------- | ------------------------------------- |
+| `npm run dev`          | 启动 Vite 前端开发服务器（端口 1420） |
+| `npm run build`        | 类型检查 + 前端生产构建               |
+| `npm run type-check`   | 仅运行 TypeScript 类型检查            |
+| `npm run check`        | 依次运行 ESLint、类型检查和编辑器验证 |
+| `npm run check:editor` | 运行已有编辑器模型与交互验证          |
+| `npm run lint`         | 仅运行 ESLint 检查，不修改文件        |
+| `npm run lint:fix`     | 运行 ESLint 并自动修复可修复的问题    |
+| `npm run format`       | Prettier 格式化源码                   |
+| `npm run tauri:dev`    | 启动 Tauri 桌面应用开发模式           |
+| `npm run tauri:build`  | 构建桌面应用安装包                    |
+
+提交前运行 `npm run check`。需要自动修复时单独运行 `npm run lint:fix`，检查修改内容后再运行完整检查。
+
+ESLint 9 使用根目录的 [eslint.config.js](../eslint.config.js)，覆盖 Vue、TypeScript、JavaScript 和工程脚本；构建产物、依赖和 Rust 目录不参与 ESLint 检查。格式规则继续交给 Prettier。
+
+[Check 工作流](../.github/workflows/check.yml) 在普通分支 push、PR 和手动触发时运行，使用 Node.js 22、`npm ci` 和相同的 `npm run check` 入口，无需发布签名密钥或 Rust 环境。检查只验证代码，不构建安装包；版本标签仍由独立的 Release 工作流处理。
 
 ## 发布 GitHub Release
 
@@ -156,7 +165,7 @@ lume/
 ├── package.json                # 前端依赖与脚本
 ├── tsconfig.json               # TypeScript 配置
 ├── vite.config.ts              # Vite 配置
-├── .eslintrc.cjs               # ESLint 配置
+├── eslint.config.js            # ESLint 9 flat config
 ├── .prettierrc.json            # Prettier 配置
 └── .editorconfig               # 编辑器格式约定
 ```
