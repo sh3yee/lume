@@ -24,6 +24,9 @@ export const en = {
   '下载完成后可安装并重启，当前编辑会话将在重启后恢复。':
     'Once downloaded, install and restart. Your editing session will be restored after restarting.',
   更新说明: 'Release notes',
+  'Lume v{0} 更新说明.md': 'Lume v{0} Release Notes.md',
+  '欢迎使用 Lume v{0}': 'Welcome to Lume v{0}',
+  '此版本的更新说明请查看发布页面。': 'See the release page for what is new in this version.',
   发布页面: 'Releases',
   项目主页: 'Project homepage',
   相关链接: 'Links',

@@ -16,9 +16,10 @@ import type {
   DocumentSession,
   DocumentStats,
   OpenDocument,
+  StartupDocument,
 } from './documentTypes'
 
-const WELCOME_DOCUMENT_NAME = '欢迎使用 Lume.md'
+export const WELCOME_DOCUMENT_NAME = '欢迎使用 Lume.md'
 export const WELCOME_DOCUMENT_CONTENT = `# 欢迎使用 Lume
 
 Lume 是一款面向个人创作与本地知识管理的桌面 Markdown 编辑器。
@@ -92,9 +93,7 @@ function createDocumentRecord(
   }
 }
 
-const documents = ref<OpenDocument[]>([
-  createDocumentRecord('welcome', WELCOME_DOCUMENT_CONTENT, WELCOME_DOCUMENT_NAME),
-])
+const documents = ref<OpenDocument[]>([createDocumentRecord('placeholder')])
 const activeDocumentId = ref(documents.value[0].id)
 const pendingCloseDocument = ref<OpenDocument | null>(null)
 const pendingCloseDocumentIds: string[] = []
@@ -116,6 +115,7 @@ function hydrateDocumentSession(session: DocumentSession | null) {
   sessionHydrated = true
   if (!session) return
   documents.value = session.documents
+  syncDocumentSequence()
   for (const document of documents.value) {
     const legacyDocument = document.kind === undefined
     if (
@@ -163,8 +163,25 @@ function hydrateDocumentSession(session: DocumentSession | null) {
     restoreWelcomeDocumentBaseline(document.id, NORMALIZED_WELCOME_CONTENT)
     restoreWelcomeDocumentBaseline(document.id, LEGACY_NORMALIZED_WELCOME_CONTENT)
   }
-  activeDocumentId.value = session.activeDocumentId
-  syncDocumentSequence()
+  // 启动介绍只展示一次；真正编辑过的内容仍按普通草稿恢复。
+  documents.value = documents.value.filter((document) => {
+    if (document.path !== null || document.isDirty || document.content !== document.savedContent)
+      return true
+    if (
+      (document.kind === 'welcome' && document.content === WELCOME_DOCUMENT_CONTENT) ||
+      document.kind === 'release-notes'
+    ) {
+      legacyWelcomeDocuments.delete(document.id)
+      return false
+    }
+    return true
+  })
+  if (documents.value.length === 0) documents.value.push(createDocumentRecord('placeholder'))
+  activeDocumentId.value = documents.value.some(
+    (document) => document.id === session.activeDocumentId,
+  )
+    ? session.activeDocumentId
+    : documents.value[0].id
 }
 
 /** 仅修复内置欢迎页的格式化写回，不清除真正编辑过的内容或保存基准。 */
@@ -249,7 +266,8 @@ const markDocumentEdited = (id: string) => {
   if (!document) return
   documentEditRevisions.set(id, (documentEditRevisions.get(id) ?? 0) + 1)
   legacyWelcomeDocuments.delete(id)
-  if (document.kind === 'welcome' || document.kind === 'placeholder') document.kind = 'draft'
+  if (['welcome', 'release-notes', 'placeholder'].includes(document.kind ?? ''))
+    document.kind = 'draft'
 }
 
 function setContent(text: string, markDirty = true) {
@@ -276,7 +294,18 @@ const canReuseDocument = (document: OpenDocument | undefined) => {
     return false
 
   if (document.kind === 'welcome') return document.content === WELCOME_DOCUMENT_CONTENT
+  if (document.kind === 'release-notes') return true
   return (document.kind === 'placeholder' || document.kind === 'draft') && document.content === ''
+}
+
+const openStartupDocument = (page: StartupDocument) => {
+  const document = createDocumentRecord(page.kind, page.content, page.name)
+  const placeholderIndex = documents.value.findIndex(
+    (item) => item.kind === 'placeholder' && canReuseDocument(item),
+  )
+  if (placeholderIndex >= 0) documents.value.splice(placeholderIndex, 1, document)
+  else documents.value.unshift(document)
+  activeDocumentId.value = document.id
 }
 
 const getReusableDocumentCandidate = (): DocumentReuseCandidate | null => {
@@ -462,6 +491,7 @@ export function useDocumentStore() {
     markDocumentEdited,
     setContent,
     newDocument,
+    openStartupDocument,
     getReusableDocumentCandidate,
     openDocument,
     activateDocument,

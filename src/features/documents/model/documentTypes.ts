@@ -12,7 +12,7 @@ export interface DocumentStats {
   readingTime: number
 }
 
-export type DocumentKind = 'placeholder' | 'welcome' | 'draft' | 'file'
+export type DocumentKind = 'placeholder' | 'welcome' | 'release-notes' | 'draft' | 'file'
 
 /** 开始读取时记录的活动标签，成功后再检查复用条件。 */
 export interface DocumentReuseCandidate {
@@ -32,6 +32,10 @@ export interface OpenDocument {
   savedContent?: string
   isDirty: boolean
   cursor: CursorPosition
+}
+
+export type StartupDocument = Pick<OpenDocument, 'name' | 'content'> & {
+  kind: 'welcome' | 'release-notes'
 }
 
 /** 标签拖放到目标标签的相对位置。 */

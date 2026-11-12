@@ -423,6 +423,7 @@ onMounted(async () => {
         activeDocument.value.kind !== 'file' &&
         (activeDocument.value.kind === undefined ||
           activeDocument.value.kind === 'welcome' ||
+          activeDocument.value.kind === 'release-notes' ||
           activeDocument.value.content === '')
       ) {
         const previousDoc = observedDoc

@@ -1,7 +1,7 @@
 import type { DocumentKind, DocumentSession, OpenDocument } from './documentTypes'
 
 const SESSION_STORAGE_KEY = 'lume-document-session'
-const DOCUMENT_KINDS: DocumentKind[] = ['placeholder', 'welcome', 'draft', 'file']
+const DOCUMENT_KINDS: DocumentKind[] = ['placeholder', 'welcome', 'release-notes', 'draft', 'file']
 
 function isOpenDocument(document: unknown): document is OpenDocument {
   if (!document || typeof document !== 'object') return false

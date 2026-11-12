@@ -5,9 +5,13 @@
  */
 import { restoreDocumentSession, saveDocumentSession } from './documentSession'
 import { useDocumentStore } from './documentStore'
+import { getStartupDocument } from './startupDocument'
 
 const documentStore = useDocumentStore()
-documentStore.hydrateDocumentSession(restoreDocumentSession())
+const session = restoreDocumentSession()
+documentStore.hydrateDocumentSession(session)
+const startupDocument = getStartupDocument(session !== null)
+if (startupDocument) documentStore.openStartupDocument(startupDocument)
 
 function persistDocumentSession() {
   return saveDocumentSession(documentStore.getDocumentSessionSnapshot())
