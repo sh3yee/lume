@@ -63,9 +63,9 @@ Open **Preferences → Markdown**.
 
 | Setting               | Default | Purpose                                                           |
 | --------------------- | ------- | ----------------------------------------------------------------- |
-| Highlight             | Off     | Render `==important==` as highlighted text                        |
-| Subscript             | Off     | Render `H~2~O` with a subscript                                   |
-| Superscript           | Off     | Render `X^2^` with a superscript                                  |
+| Highlight             | On      | Render `==important==` as highlighted text                        |
+| Subscript             | On      | Render `H~2~O` with a subscript                                   |
+| Superscript           | On      | Render `X^2^` with a superscript                                  |
 | Inline math           | On      | Render `$...$` inline formulas; this does not control math blocks |
 | Mermaid diagrams      | On      | Render `mermaid` code blocks in split preview                     |
 | Automatic links       | On      | Recognize plain URLs and similar addresses as links               |
@@ -489,7 +489,7 @@ H~2~O
 X~long\ text~
 ```
 
-Enable **Preferences → Markdown → Subscript**, then wrap content in paired `~` markers. Escape spaces with a backslash, as in `long\ text`. Move out to render the result; click it again to edit text and delimiters in place.
+Subscript is enabled by default. Wrap content in paired `~` markers. Escape spaces with a backslash, as in `long\ text`. Move out to render the result; click it again to edit text and delimiters in place.
 
 ### Superscript
 
@@ -497,7 +497,7 @@ Enable **Preferences → Markdown → Subscript**, then wrap content in paired `
 X^2^
 ```
 
-Enable **Superscript**, then wrap content in paired `^` markers. `[^id]` still means a footnote reference and is a different syntax. As with subscripts, spaces in the content must be escaped.
+Superscript is enabled by default. Wrap content in paired `^` markers. `[^id]` still means a footnote reference and is a different syntax. As with subscripts, spaces in the content must be escaped.
 
 ### Highlight
 
@@ -505,7 +505,7 @@ Enable **Superscript**, then wrap content in paired `^` markers. `[^id]` still m
 ==A point to revisit later==
 ```
 
-Enable **Highlight**, then wrap content in paired `==` markers. Move out to render the result; click the highlighted text to edit its source in place. Subscript, superscript, and highlight do not have separate buttons in the ordinary text toolbar; use syntax input and source editing.
+Highlight is enabled by default. Wrap content in paired `==` markers. Move out to render the result; click the highlighted text to edit its source in place. Subscript, superscript, and highlight do not have separate buttons in the ordinary text toolbar; use syntax input and source editing.
 
 ### Escaping and literal markers
 

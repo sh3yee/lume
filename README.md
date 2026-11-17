@@ -94,11 +94,11 @@ For syntax examples, editing interactions, and differences between modes, see th
 | Mermaid                   | Edit `mermaid` code blocks in WYSIWYG mode; render diagrams in split-view preview                                 |
 | Document structure        | Edit YAML front matter and insert a clickable heading list with a standalone `[toc]` marker                       |
 | Alerts                    | Use GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` blocks                                      |
-| Extra inline formatting   | Enable `==highlight==`, `H~2~O` subscripts, and `X^2^` superscripts in preferences                                |
+| Extra inline formatting   | Use `==highlight==`, `H~2~O` subscripts, and `X^2^` superscripts, enabled by default                                |
 | Emoji and automatic links | Use emoji shortcodes and completion, and recognize plain URLs as links                                            |
 | HTML and media            | Work with supported inline HTML, HTML blocks, SVG, audio, video, and iframe embeds; edit the HTML source in place |
 
-Under **Preferences → Markdown**, you can choose which optional extensions to enable. Highlight, subscript, and superscript are off by default. Media playback and remote embeds depend on the system webview and the source website.
+Under **Preferences → Markdown**, you can adjust optional extensions. Highlight, subscript, and superscript are on by default. Media playback and remote embeds depend on the system webview and the source website.
 
 ## Images and assets
 

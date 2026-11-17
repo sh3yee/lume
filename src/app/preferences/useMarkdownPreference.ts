@@ -1,9 +1,9 @@
 import { reactive, watch } from 'vue'
 
 export const MARKDOWN_EXTENSION_DEFAULTS = {
-  highlight: false,
-  subscript: false,
-  superscript: false,
+  highlight: true,
+  subscript: true,
+  superscript: true,
   inlineMath: true,
   mermaid: true,
   autoLink: true,
