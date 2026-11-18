@@ -5,6 +5,7 @@
  */
 import { useWorkspaceStore } from '../model/workspaceStore'
 import { useDocument } from '@/features/documents/model/useDocument'
+import { runWorkspaceWrite } from '../services/workspaceOperations'
 import {
   createEntry,
   clearStoredWorkspacePath,
@@ -158,9 +159,12 @@ export function useWorkspaceCommands() {
     selectWorkspace,
     closeWorkspace,
     restoreWorkspace,
-    createWorkspaceEntry,
-    renameWorkspaceEntry,
-    moveWorkspaceEntry,
-    deleteWorkspaceEntry,
+    createWorkspaceEntry: (parentPath: string, name: string, isDirectory: boolean) =>
+      runWorkspaceWrite(() => createWorkspaceEntry(parentPath, name, isDirectory)),
+    renameWorkspaceEntry: (path: string, newName: string) =>
+      runWorkspaceWrite(() => renameWorkspaceEntry(path, newName)),
+    moveWorkspaceEntry: (path: string, targetDirectory: string) =>
+      runWorkspaceWrite(() => moveWorkspaceEntry(path, targetDirectory)),
+    deleteWorkspaceEntry: (path: string) => runWorkspaceWrite(() => deleteWorkspaceEntry(path)),
   }
 }

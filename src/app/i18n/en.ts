@@ -653,4 +653,176 @@ export const en = {
   目标目录中存在同名条目: 'An entry with this name already exists in the destination directory',
   '不支持 .{0} 图片': 'Unsupported image extension: .{0}',
   '读取系统字体任务失败：{0}': 'Failed to read system fonts: {0}',
+  版本管理: 'Version control',
+  请先打开本地工作区以管理版本: 'Open a local workspace to manage versions',
+  刷新: 'Refresh',
+  已启用本地版本管理: 'Local version control enabled',
+  已创建本地提交: 'Local commit created',
+  作者信息已保存到当前仓库: 'Author details saved to this repository',
+  版本管理仅在桌面应用中可用: 'Version control is only available in the desktop app',
+  已暂存: 'Staged',
+  未暂存: 'Unstaged',
+  工作区没有变更: 'The workspace has no changes',
+  提交说明: 'Commit message',
+  描述这次修改: 'Describe these changes',
+  '仅提交已暂存内容；保存后的新修改仍需暂存。':
+    'Only staged changes are committed. Newly saved changes still need to be staged.',
+  提交已暂存内容: 'Commit staged changes',
+  提交作者: 'Commit author',
+  姓名: 'Name',
+  邮箱: 'Email',
+  保存到当前仓库: 'Save to this repository',
+  选择文件查看差异: 'Select a file to view changes',
+  版本内容: 'Version contents',
+  '正在读取…': 'Loading…',
+  没有可显示的文本差异: 'No text differences to display',
+  按文件路径筛选历史: 'Filter history by file path',
+  '仓库相对文件路径，留空查看全部历史':
+    'Repository-relative file path; leave blank for all history',
+  查看历史: 'View history',
+  暂无提交历史: 'No commits yet',
+  加载更多: 'Load more',
+  选择提交查看变更文件: 'Select a commit to view changed files',
+  此提交没有文件差异: 'This commit has no file differences',
+  差异: 'Changes',
+  文件内容: 'File contents',
+  '恢复此文件…': 'Restore this file…',
+  '取消暂存 {0}': 'Unstage {0}',
+  '暂存 {0}': 'Stage {0}',
+  二进制或较大文件不提供文本预览: 'Text preview is unavailable for binary or large files',
+  此版本中没有可显示的普通文件: 'This version has no regular file to display',
+  '文档在确认后发生变化，请重新查看后再恢复。':
+    'The document changed after confirmation. Review it again before restoring.',
+  '文件已恢复为未暂存修改，历史与暂存区保持原样。':
+    'File restored as an unstaged change. History and the index are unchanged.',
+  '正在处理版本操作…': 'Processing version operation…',
+  '点击刷新重新检查 Git 环境': 'Refresh to check the Git environment again',
+  为这个工作区保存版本: 'Keep versions of this workspace',
+  '创建本地 Git 仓库后，可以提交修改、查看历史和恢复文件。':
+    'Create a local Git repository to commit changes, browse history, and restore files.',
+  启用本地版本管理: 'Enable local version control',
+  '独立 HEAD': 'Detached HEAD',
+  尚无提交: 'No commits',
+  '当前工作区是仓库的子目录，仅可查看。请打开上方仓库根目录以提交或恢复文件。':
+    'This workspace is a repository subdirectory and is read-only here. Open the repository root shown above to commit or restore files.',
+  '仓库有未完成操作或锁占用（{0}），请先在 Git 工具中处理。':
+    'The repository has an unfinished operation or lock ({0}). Resolve it in a Git tool first.',
+  '仓库存在未解决冲突，请先在 Git 工具中处理。':
+    'The repository has unresolved conflicts. Resolve them in a Git tool first.',
+  '当前处于独立 HEAD，请先在 Git 工具中切换到分支。':
+    'HEAD is detached. Switch to a branch in a Git tool first.',
+  变更: 'Changes',
+  未跟踪: 'Untracked',
+  已新增: 'Added',
+  已修改: 'Modified',
+  已删除: 'Deleted',
+  已重命名: 'Renamed',
+  文件类型已更改: 'File type changed',
+  未合并: 'Unmerged',
+  历史: 'History',
+  确认恢复文件: 'Confirm file restoration',
+  '将用此历史版本覆盖当前文件。当前内容已保存到磁盘，但未提交的内容可能被覆盖。恢复不会修改提交历史或暂存区。':
+    'This historical version will replace the current file. Current contents have been saved to disk, but uncommitted contents may be overwritten. Commit history and the index will be unchanged.',
+  确认恢复: 'Restore file',
+  远程推送: 'Remote push',
+  当前分支尚未连接远程: 'This branch has no remote tracking branch',
+  等待获取远程状态: 'Remote status is pending',
+  '本地有 {0} 个提交待推送，远程有 {1} 个新提交，请先整合更新。':
+    'There are {0} local commit(s) to push and {1} new remote commit(s). Integrate the updates first.',
+  '远程有 {0} 个新提交，请先整合更新。':
+    'The remote has {0} new commit(s). Integrate the updates first.',
+  '{0} 个提交待推送': '{0} commit(s) to push',
+  没有待推送的提交: 'No commits to push',
+  '根据上次获取或推送的结果显示。': 'Based on the last fetch or push.',
+  获取远程状态: 'Fetch remote status',
+  推送: 'Push',
+  连接远程仓库: 'Connect remote repository',
+  远程仓库: 'Remote repository',
+  添加远程仓库: 'Add a remote',
+  仓库地址: 'Repository URL',
+  目标分支: 'Destination branch',
+  '将把当前分支的已提交记录推送到目标分支。':
+    'This publishes the current branch’s committed history to the destination branch.',
+  确认并推送: 'Confirm and push',
+  '已推送到 {0}': 'Pushed to {0}',
+  '无法读取远程分支状态。': 'Unable to read remote branch status.',
+  '远程地址已变化或无法使用，请刷新后重新确认。':
+    'The remote URL has changed or is unavailable. Refresh and confirm it again.',
+  '当前分支或提交已变化，请刷新后重新确认。':
+    'The current branch or commit has changed. Refresh and confirm it again.',
+  '请输入不含凭据的 HTTPS 或 SSH 仓库地址。':
+    'Enter an HTTPS or SSH repository URL without embedded credentials.',
+  '请输入有效的目标分支名。': 'Enter a valid destination branch name.',
+  '推送失败，请检查远程地址、写入权限或仓库规则后重试。':
+    'Push failed. Check the remote URL, write permissions, or repository rules, then retry.',
+  '无法获取远程状态，请检查远程地址和访问权限后重试。':
+    'Unable to fetch remote status. Check the remote URL and permissions, then retry.',
+  '远程分支有新提交，请用 Git 工具获取并整合更新后重试。':
+    'The remote branch has new commits. Use a Git tool to fetch and integrate them, then retry.',
+  'SSH 主机验证失败，请在系统 Git 中检查并确认主机密钥后重试。':
+    'SSH host verification failed. Check and verify the host key in system Git, then retry.',
+  '远程身份验证失败，请检查系统 Git 凭据或 SSH 密钥后重试。':
+    'Remote authentication failed. Check your system Git credentials or SSH key, then retry.',
+  '无法连接远程仓库，请检查网络后重试。':
+    'Unable to reach the remote repository. Check your connection and retry.',
+  '找不到远程仓库，请检查地址和访问权限。':
+    'The remote repository was not found. Check the URL and your permissions.',
+  '找不到远程分支，请检查目标分支。':
+    'The remote branch was not found. Check the destination branch.',
+  '远程拒绝推送，请检查写入权限或分支保护规则。':
+    'The remote rejected the push. Check write permissions and branch protection rules.',
+  '远程仓库拒绝访问，请检查当前凭据的权限。':
+    'The remote denied access. Check the permissions of your current credentials.',
+  '远程 Git 操作超时，请检查网络或身份验证后重试。':
+    'The remote Git operation timed out. Check your connection or authentication and retry.',
+  版本管理的文档协调服务尚未就绪: 'Document coordination for version control is not ready',
+  请先处理工作区文档的外部修改冲突: 'Resolve external changes to workspace documents first',
+  '工作区文档尚未保存，已停止版本操作。':
+    'Workspace documents are not saved. The version operation was stopped.',
+  '磁盘文件已恢复，但文档又有新修改，请处理外部修改冲突。':
+    'The file was restored on disk, but the document has newer edits. Resolve the external change conflict.',
+  '未找到 Git，请安装 Git 并重新打开 Lume。': 'Git was not found. Install Git and reopen Lume.',
+  '无法读取 Git 输出': 'Unable to read Git output',
+  'Git 输出过大，请缩小操作范围。': 'Git output is too large. Reduce the scope of the operation.',
+  'Git 操作超时，请检查 Git hooks、签名或仓库状态后重试。':
+    'Git timed out. Check hooks, signing, or repository state and retry.',
+  'Git 输出读取超时': 'Timed out reading Git output',
+  'Git 操作失败': 'Git operation failed',
+  'Git 内容不是有效的 UTF-8，无法按文本显示。':
+    'Git content is not valid UTF-8 and cannot be displayed as text.',
+  '请打开仓库根目录后进行版本写操作。': 'Open the repository root before making version changes.',
+  '仓库有未完成操作或被占用，请先在 Git 工具中处理。':
+    'The repository has an unfinished operation or is locked. Resolve it in a Git tool first.',
+  '无法读取 Git 作者配置': 'Unable to read Git author configuration',
+  '无法解析 Git 文件状态': 'Unable to parse Git file status',
+  '无法解析 Git 重命名状态': 'Unable to parse Git rename status',
+  '仓库变更超过 5000 项，请先缩小变更范围。':
+    'The repository has more than 5,000 changed files. Reduce the scope first.',
+  无效的仓库相对路径: 'Invalid repository-relative path',
+  不支持对符号链接进行此操作: 'This operation does not support symbolic links',
+  无效的提交版本: 'Invalid commit revision',
+  历史分页超出范围: 'History pagination is out of range',
+  '无法解析 Git 提交历史': 'Unable to parse Git commit history',
+  '无法解析 Git 历史文件': 'Unable to parse Git historical files',
+  '提交中的文件过多，无法显示。': 'This commit has too many files to display.',
+  '二进制文件无法按文本显示。': 'Binary files cannot be displayed as text.',
+  '内容超过预览大小限制（512 KB）。': 'Content exceeds the preview limit (512 KB).',
+  无法解析历史文件: 'Unable to parse historical file',
+  '此工作区已位于 Git 仓库中': 'This workspace is already inside a Git repository',
+  '第一阶段不支持暂存目录或子模块，请在 Git 工具中处理。':
+    'Staging directories or submodules is not supported yet. Use a Git tool.',
+  '文件状态已变化，请刷新后重试。': 'File status has changed. Refresh and retry.',
+  '请填写有效的 Git 作者姓名和邮箱。': 'Enter a valid Git author name and email.',
+  '请填写提交说明（最多 10000 字节）。': 'Enter a commit message (up to 10,000 bytes).',
+  '请先配置 Git 作者姓名和邮箱。': 'Configure a Git author name and email first.',
+  没有已暂存的变更: 'There are no staged changes',
+  '暂存内容已变化，请重新检查后提交。':
+    'Staged contents have changed. Review them again before committing.',
+  此版本中没有可恢复的普通文件: 'This version has no regular file to restore',
+  不支持恢复符号链接或子模块: 'Restoring symbolic links or submodules is not supported',
+  '文件在确认后发生变化，请重新查看后再恢复。':
+    'The file changed after confirmation. Review it again before restoring.',
+  'Git 操作状态不可用': 'Git operation state is unavailable',
+  '检测到 Git 元数据但仓库不可读取，请先修复仓库。':
+    'Git metadata was found, but the repository cannot be read. Repair it first.',
 } as const

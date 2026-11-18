@@ -5,6 +5,7 @@
  */
 import { t } from '@/app/i18n'
 import { computed } from 'vue'
+import { runWorkspaceWrite } from '@/features/workspace/services/workspaceOperations'
 import { useDocument } from '../../documents/model/useDocument.ts'
 import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
 import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
@@ -42,7 +43,9 @@ export function useDocumentFileCommands() {
     return result
   }
 
-  async function saveFile(saveAs = false) {
+  const saveFile = (saveAs = false) => runWorkspaceWrite(() => saveFileNow(saveAs))
+
+  async function saveFileNow(saveAs = false) {
     const document = activeDocument.value
     if (!document) return false
     const snapshot = { ...document }

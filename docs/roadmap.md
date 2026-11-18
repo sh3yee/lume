@@ -11,11 +11,13 @@ Future development will mainly focus on syncing ordinary Markdown files and thei
 | Direction           | Planned work                                                                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | WebDAV              | Connect to a chosen server, select a remote folder, and sync documents and assets; support personal NAS and self-hosted services.                                        |
-| Git                 | Connect a local workspace to a repository, commit and sync changes, and expose history and conflicts; support user-chosen Git hosts, including self-hosted repositories. |
+| Git                 | Clone remote repositories, apply remote updates to the workspace, and resolve merge conflicts in the app.                                                 |
 | Baidu Netdisk       | Evaluate available integration methods for authorization, folder mapping, and document / asset synchronization.                                                          |
 | Alibaba Cloud Drive | Evaluate available integration methods for authorization, folder mapping, and document / asset synchronization.                                                          |
 
 ## Sync Behavior to Work Through
+
+Local version control, remote status, and manual pushing are available. See the [guide](git-version-control.md) and the [phased implementation plan](git-integration-plan.zh-CN.md).
 
 - Keep local writing usable offline and make every remote connection optional.
 - Sync Markdown and referenced assets together, preserving relative paths and handling moves, renames, and deletions.

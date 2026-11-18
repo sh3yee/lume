@@ -25,7 +25,7 @@ const lastScanDurationMs = ref<number | null>(null)
 const autoSaveError = ref<string | null>(null)
 
 const workspaceName = computed(
-  () => workspacePath.value?.split(/[\\/]/).filter(Boolean).at(-1) ?? t('工作区'),
+  () => workspacePath.value?.split(/[\\/]/).filter(Boolean).pop() ?? t('工作区'),
 )
 
 const visibleWorkspaceEntries = computed(() => {

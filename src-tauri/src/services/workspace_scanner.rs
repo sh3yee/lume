@@ -58,6 +58,7 @@ fn scan(directory: &Path, depth: usize, count: &mut usize) -> LumeResult<Vec<Wor
             continue;
         }
         let name = entry.file_name().to_string_lossy().into_owned();
+        if name.eq_ignore_ascii_case(".git") { continue; }
         if metadata.is_dir() {
             let children = scan(&path, depth + 1, count).unwrap_or_default();
             *count += 1;
@@ -248,6 +249,7 @@ fn collect_file_stamps(
         if *count >= MAX_WORKSPACE_ENTRIES {
             break;
         }
+        if entry.file_name().to_string_lossy().eq_ignore_ascii_case(".git") { continue; }
         let path = entry.path();
         let Ok(metadata) = std::fs::symlink_metadata(&path) else {
             continue;

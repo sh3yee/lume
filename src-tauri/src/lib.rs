@@ -12,6 +12,11 @@ mod services;
 
 use commands::{
     files::lume_read_markdown_file,
+    git::{GitState, lume_git_status, lume_git_init, lume_git_stage, lume_git_diff,
+        lume_git_author, lume_git_index_tree, lume_git_commit, lume_git_history,
+        lume_git_history_files, lume_git_history_diff, lume_git_file_version,
+        lume_git_restore_preview, lume_git_restore, lume_git_remote_status,
+        lume_git_push, lume_git_fetch},
     images::{
         lume_clear_staged_images, lume_delete_image_file, lume_import_image_file,
         lume_materialize_staged_images, lume_read_clipboard_image_paths,
@@ -37,11 +42,28 @@ use services::workspace_watcher::WorkspaceWatcherState;
 pub fn run() {
     tauri::Builder::default()
         .manage(WorkspaceWatcherState::default())
+        .manage(GitState::default())
         .manage(AppUpdateState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            lume_git_status,
+            lume_git_init,
+            lume_git_stage,
+            lume_git_diff,
+            lume_git_author,
+            lume_git_index_tree,
+            lume_git_commit,
+            lume_git_remote_status,
+            lume_git_push,
+            lume_git_fetch,
+            lume_git_history,
+            lume_git_history_files,
+            lume_git_history_diff,
+            lume_git_file_version,
+            lume_git_restore_preview,
+            lume_git_restore,
             lume_clear_staged_images,
             lume_delete_image_file,
             lume_create_workspace_entry,

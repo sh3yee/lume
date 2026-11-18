@@ -95,7 +95,7 @@ export const chooseImageFolder = async (title: string) => {
 
 export const chooseImageDestination = async (src: string, title: string) => {
   const { save } = await import('@tauri-apps/plugin-dialog')
-  const name = src.split(/[\\/]/).at(-1)?.split(/[?#]/)[0] || 'image.png'
+  const name = src.split(/[\\/]/).pop()?.split(/[?#]/)[0] || 'image.png'
   return save({ title, defaultPath: name })
 }
 

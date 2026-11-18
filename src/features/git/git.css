@@ -1,0 +1,431 @@
+.lume-git-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--lume-z-modal);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(10 10 10 / 34%);
+  backdrop-filter: blur(5px);
+}
+
+.lume-git {
+  display: flex;
+  flex-direction: column;
+  width: min(1060px, 100%);
+  height: min(780px, calc(100dvh - 48px));
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-lg);
+  background: var(--lume-bg-surface);
+  color: var(--lume-text-primary);
+  box-shadow: var(--lume-shadow-lg);
+  font-size: var(--lume-font-size-sm);
+  outline: none;
+}
+
+.lume-git button,
+.lume-git input,
+.lume-git select,
+.lume-git textarea {
+  border: 1px solid var(--lume-border-default);
+  border-radius: 6px;
+  background: var(--lume-bg-surface);
+  color: inherit;
+  font: inherit;
+}
+
+.lume-git button {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.lume-git button:hover:not(:disabled) {
+  background: var(--lume-bg-surface-raised);
+}
+.lume-git button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.lume-git button:focus-visible,
+.lume-git input:focus-visible,
+.lume-git select:focus-visible,
+.lume-git textarea:focus-visible,
+.lume-git summary:focus-visible,
+.lume-git__diff:focus-visible {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: -2px;
+}
+.lume-git h2,
+.lume-git h3,
+.lume-git p {
+  margin: 0;
+}
+.lume-git h2 {
+  font-size: 17px;
+}
+.lume-git h3 {
+  font-size: 13px;
+}
+.lume-git input,
+.lume-git select,
+.lume-git textarea {
+  min-width: 0;
+  padding: 8px;
+}
+.lume-git textarea {
+  resize: vertical;
+  min-height: 70px;
+  max-height: 180px;
+}
+.lume-git__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 12px;
+}
+.lume-git__header > div {
+  flex: 1;
+  min-width: 0;
+}
+.lume-git__header p {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lume-text-tertiary);
+  font-size: 12px;
+}
+.lume-git__header > button {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+}
+.lume-git__feedback {
+  padding: 0 20px;
+}
+.lume-git__feedback:has(p) {
+  padding-bottom: 10px;
+}
+.lume-git__error {
+  color: var(--lume-color-danger, #c42b1c);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  max-height: 110px;
+  overflow: auto;
+}
+.lume-git__notice {
+  color: var(--lume-accent-default);
+}
+.lume-git__hint,
+.lume-git__empty {
+  color: var(--lume-text-tertiary);
+  line-height: 1.6;
+}
+.lume-git__hint {
+  font-size: 12px;
+}
+.lume-git__empty {
+  padding: 20px;
+}
+.lume-git__repository-state {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 0 20px 12px;
+}
+.lume-git__repository-state > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lume-git__repository-state code {
+  color: var(--lume-text-tertiary);
+  font-size: 12px;
+}
+.lume-git__warning {
+  padding: 8px 20px;
+  background: var(--lume-accent-subtle);
+  line-height: 1.6;
+}
+.lume-git__tabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--lume-border-subtle);
+}
+.lume-git__tabs > button {
+  border: 0;
+}
+.lume-git [aria-pressed='true'],
+.lume-git .is-selected {
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
+.lume-git__body,
+.lume-git__history {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.lume-git__columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.lume-git__list-pane {
+  width: 310px;
+  max-width: 40%;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid var(--lume-border-subtle);
+}
+.lume-git__group {
+  padding: 12px 10px 0;
+}
+.lume-git__group > h3 {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6px 8px;
+}
+.lume-git__group > h3 > span {
+  color: var(--lume-text-tertiary);
+  font-weight: normal;
+}
+.lume-git__file-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+}
+.lume-git__file {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 0 !important;
+  text-align: left;
+}
+.lume-git__file > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lume-git__file-status {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
+.lume-git__file-status[data-tone='added'] {
+  background: var(--lume-color-success-bg);
+  color: var(--lume-color-success);
+}
+.lume-git__file-status[data-tone='alert'] {
+  background: var(--lume-color-danger-bg);
+  color: var(--lume-color-danger);
+}
+.lume-git__small-action {
+  flex: 0 0 auto;
+  width: 28px;
+  padding: 4px !important;
+  border: 0 !important;
+  font-size: 18px !important;
+}
+.lume-git__commit,
+.lume-git__author {
+  margin: 16px;
+}
+.lume-git__commit,
+.lume-git__author form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lume-git__author summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.lume-git__author summary::-webkit-details-marker {
+  display: none;
+}
+.lume-git__author-chevron {
+  flex-shrink: 0;
+  color: var(--lume-text-secondary);
+}
+.lume-git__author[open] .lume-git__author-chevron {
+  transform: rotate(90deg);
+}
+.lume-git .lume-git__primary {
+  background: var(--lume-accent-default);
+  color: var(--lume-accent-contrast);
+  border-color: var(--lume-accent-default);
+}
+.lume-git .lume-git__primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--lume-accent-default);
+}
+.lume-git__preview-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.lume-git__preview-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--lume-border-subtle);
+}
+.lume-git__preview-heading > span {
+  flex: 1 1 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lume-git__preview-heading > small {
+  color: var(--lume-text-tertiary);
+}
+.lume-git__preview-heading > button {
+  font-size: 12px;
+  padding: 4px 7px;
+}
+.lume-git__diff {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--lume-pane-bg);
+  user-select: text;
+}
+.lume-git__diff pre {
+  margin: 0;
+  padding: 14px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  tab-size: 4;
+}
+.lume-git__diff code {
+  display: block;
+  min-width: max-content;
+}
+.lume-git__line {
+  display: block;
+  min-width: 100%;
+  min-height: 1.7em;
+  padding: 0 14px;
+}
+.lume-git__line--added {
+  background: rgb(45 160 75 / 13%);
+}
+.lume-git__line--removed {
+  background: rgb(220 60 60 / 13%);
+}
+.lume-git__line--hunk {
+  color: var(--lume-accent-default);
+  background: var(--lume-accent-subtle);
+}
+.lume-git__history-filter {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--lume-border-subtle);
+}
+.lume-git__history-filter > input {
+  flex: 1;
+}
+.lume-git__history > .lume-git__error {
+  padding: 8px 16px;
+  flex-shrink: 0;
+}
+.lume-git__commit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: calc(100% - 16px);
+  margin: 8px;
+  padding: 10px !important;
+  text-align: left;
+  border: 0 !important;
+  overflow-wrap: anywhere;
+}
+.lume-git__commit-row > span,
+.lume-git__commit-row > code {
+  color: var(--lume-text-tertiary);
+  font-size: 11px;
+}
+.lume-git__load-more {
+  margin: 10px;
+}
+.lume-git__history-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+  max-height: 150px;
+  overflow: auto;
+  padding: 10px;
+  border-bottom: 1px solid var(--lume-border-subtle);
+}
+.lume-git__history-files > button {
+  text-align: left;
+  border: 0;
+  overflow-wrap: anywhere;
+}
+.lume-git__welcome {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 30px;
+  text-align: center;
+}
+.lume-git__welcome > p {
+  color: var(--lume-text-secondary);
+  max-width: 400px;
+  line-height: 1.8;
+}
+.lume-git__restore {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.lume-git__restore > div {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .lume-git-backdrop {
+    padding: 10px;
+  }
+  .lume-git {
+    height: calc(100dvh - 20px);
+  }
+  .lume-git__list-pane {
+    width: 240px;
+    max-width: 42%;
+  }
+}

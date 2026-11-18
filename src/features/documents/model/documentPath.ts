@@ -9,6 +9,9 @@ const normalizeSegments = (path: string) => {
 }
 
 const getDocumentPathKey = (path: string) => {
+  // Windows canonicalize 会返回扩展路径，需与文件对话框的普通路径视为同一文件。
+  if (path.startsWith('\\\\?\\UNC\\')) path = `\\\\${path.slice(8)}`
+  else if (path.startsWith('\\\\?\\')) path = path.slice(4)
   const windowsPath = path.replace(/\\/g, '/')
   const drive = windowsPath.match(/^([a-z]):\//i)
   if (drive) {
@@ -34,3 +37,6 @@ export const isSameDocumentPath = (left: string | null, right: string | null) =>
   if (!left || !right) return false
   return getDocumentPathKey(left) === getDocumentPathKey(right)
 }
+
+export const isDocumentInDirectory = (path: string, directory: string) =>
+  getDocumentPathKey(path).startsWith(`${getDocumentPathKey(directory).replace(/\/+$/, '')}/`)

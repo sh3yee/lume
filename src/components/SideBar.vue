@@ -12,6 +12,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  GitBranch,
   Pencil,
   Trash2,
   Move,
@@ -21,6 +22,8 @@ import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
 import type { WorkspaceEntry } from '@/platform/tauri/workspace'
+
+const emit = defineEmits<{ openVersions: [] }>()
 
 const { activeDocument, activeDocumentId, documents, activateDocument, requestCloseDocument } =
   useDocument()
@@ -283,6 +286,15 @@ onBeforeUnmount(() => {
     <div class="lume-sidebar__toolbar">
       <span>{{ t('资源管理器') }}</span>
       <div class="lume-sidebar__toolbar-actions">
+        <button
+          v-if="workspacePath"
+          type="button"
+          :title="t('版本管理')"
+          :aria-label="t('版本管理')"
+          @click="emit('openVersions')"
+        >
+          <GitBranch :size="16" :stroke-width="1.6" />
+        </button>
         <button
           type="button"
           :title="t('打开文件')"

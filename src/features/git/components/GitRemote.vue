@@ -1,0 +1,220 @@
+<script setup lang="ts">
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import { t } from '@/app/i18n'
+import type { GitPushTarget, GitRemoteStatus } from '@/platform/tauri/git'
+
+const props = defineProps<{
+  branch: string
+  remote: GitRemoteStatus
+  disabled: boolean
+}>()
+const emit = defineEmits<{
+  push: [target: GitPushTarget]
+  fetch: [target: GitPushTarget]
+}>()
+
+const connectButton = useTemplateRef<HTMLButtonElement>('connectButton')
+const form = useTemplateRef<HTMLFormElement>('form')
+const connecting = shallowRef(false)
+const remoteName = shallowRef('')
+const url = shallowRef('')
+const targetBranch = shallowRef('')
+
+const upstreamTarget = computed<GitPushTarget | null>(() => {
+  const upstream = props.remote.upstream
+  const address = props.remote.remotes.find(({ name }) => name === upstream?.remoteName)?.url
+  if (!upstream || !address) return null
+  return { remoteName: upstream.remoteName, url: address, targetBranch: upstream.targetBranch }
+})
+
+const selectedRemote = computed(() =>
+  props.remote.remotes.find(({ name }) => name === remoteName.value),
+)
+
+const firstTarget = computed<GitPushTarget>(() => ({
+  remoteName: selectedRemote.value?.name ?? null,
+  url: selectedRemote.value?.url ?? url.value.trim(),
+  targetBranch: targetBranch.value.trim(),
+}))
+
+const statusLabel = computed(() => {
+  const upstream = props.remote.upstream
+  if (!upstream) return t('当前分支尚未连接远程')
+  const { ahead, behind } = upstream
+  if (ahead === null || behind === null) return t('等待获取远程状态')
+  if (behind > 0 && ahead > 0)
+    return t('本地有 {0} 个提交待推送，远程有 {1} 个新提交，请先整合更新。', ahead, behind)
+  if (behind > 0) return t('远程有 {0} 个新提交，请先整合更新。', behind)
+  if (ahead > 0) return t('{0} 个提交待推送', ahead)
+  return t('没有待推送的提交')
+})
+
+const canPush = computed(() => {
+  const upstream = props.remote.upstream
+  return upstream && upstream.ahead !== 0 && !upstream.behind
+})
+const canConfirm = computed(
+  () => !props.disabled && Boolean(firstTarget.value.url && firstTarget.value.targetBranch),
+)
+
+const handleConnect = async () => {
+  remoteName.value = props.remote.remotes.length === 1 ? (props.remote.remotes[0]?.name ?? '') : ''
+  url.value = ''
+  targetBranch.value = props.branch
+  connecting.value = true
+  await nextTick()
+  form.value?.querySelector<HTMLElement>('select, input')?.focus()
+}
+
+const handleCancel = () => {
+  connecting.value = false
+  connectButton.value?.focus()
+}
+
+const handleConfirm = () => {
+  if (canConfirm.value) emit('push', firstTarget.value)
+}
+
+watch(
+  () => Boolean(upstreamTarget.value),
+  (hasUpstream) => {
+    if (hasUpstream) connecting.value = false
+  },
+)
+</script>
+
+<template>
+  <section class="git-remote" :aria-label="t('远程推送')">
+    <div class="git-remote__row">
+      <div class="git-remote__summary" aria-live="polite">
+        <code v-if="upstreamTarget" :title="upstreamTarget.url">
+          {{ upstreamTarget.remoteName }}/{{ upstreamTarget.targetBranch }}
+        </code>
+        <span :title="upstreamTarget ? t('根据上次获取或推送的结果显示。') : undefined">
+          {{ statusLabel }}
+        </span>
+      </div>
+      <template v-if="upstreamTarget">
+        <button type="button" :disabled="disabled" @click="emit('fetch', upstreamTarget)">
+          {{ t('获取远程状态') }}
+        </button>
+        <button
+          type="button"
+          class="lume-git__primary"
+          :disabled="disabled || !canPush"
+          @click="emit('push', upstreamTarget)"
+        >
+          {{ t('推送') }}
+        </button>
+      </template>
+      <button
+        v-else
+        ref="connectButton"
+        type="button"
+        :disabled="disabled || connecting"
+        :aria-expanded="connecting"
+        @click="handleConnect"
+      >
+        {{ t('连接远程仓库') }}
+      </button>
+    </div>
+    <form v-if="connecting" ref="form" class="git-remote__form" @submit.prevent="handleConfirm">
+      <label v-if="remote.remotes.length" class="git-remote__field">
+        <span>{{ t('远程仓库') }}</span>
+        <select v-model="remoteName" :disabled="disabled">
+          <option value="">{{ t('添加远程仓库') }}</option>
+          <option v-for="item in remote.remotes" :key="item.name" :value="item.name">
+            {{ item.name }}
+          </option>
+        </select>
+      </label>
+      <label v-if="!selectedRemote" class="git-remote__field git-remote__address">
+        <span>{{ t('仓库地址') }}</span>
+        <input
+          v-model="url"
+          placeholder="https://host/owner/repo.git"
+          autocomplete="off"
+          spellcheck="false"
+          required
+          :disabled="disabled"
+        />
+      </label>
+      <label class="git-remote__field">
+        <span>{{ t('目标分支') }}</span>
+        <input
+          v-model="targetBranch"
+          autocomplete="off"
+          spellcheck="false"
+          required
+          :disabled="disabled"
+        />
+      </label>
+      <p v-if="selectedRemote" class="git-remote__hint">{{ selectedRemote.url }}</p>
+      <p class="git-remote__hint">{{ t('将把当前分支的已提交记录推送到目标分支。') }}</p>
+      <div class="git-remote__actions">
+        <button type="button" :disabled="disabled" @click="handleCancel">{{ t('取消') }}</button>
+        <button type="submit" class="lume-git__primary" :disabled="!canConfirm">
+          {{ t('确认并推送') }}
+        </button>
+      </div>
+    </form>
+  </section>
+</template>
+
+<style scoped>
+.git-remote {
+  padding: 8px 20px;
+  border-top: 1px solid var(--lume-border-subtle);
+  overflow: auto;
+}
+
+.git-remote__row,
+.git-remote__summary,
+.git-remote__form,
+.git-remote__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.git-remote__summary {
+  flex: 1 1 220px;
+  min-width: 0;
+  color: var(--lume-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.git-remote__summary > code {
+  color: var(--lume-text-primary);
+}
+
+.git-remote__form {
+  margin-top: 10px;
+  align-items: end;
+}
+
+.git-remote__field {
+  display: flex;
+  flex: 1 1 125px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.git-remote__address {
+  flex-grow: 2;
+}
+
+.git-remote__hint {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--lume-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.git-remote__actions {
+  flex-basis: 100%;
+  justify-content: flex-end;
+}
+</style>

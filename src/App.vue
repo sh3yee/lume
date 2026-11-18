@@ -1,5 +1,9 @@
 <template>
-  <div class="lume-app" :class="{ 'lume-app--focus': focusMode }">
+  <div
+    class="lume-app"
+    :class="{ 'lume-app--focus': focusMode }"
+    :inert="gitDialogOpen && !!workspacePath"
+  >
     <TitleBar
       :sidebar-visible="sidebarVisible && !focusMode"
       :inspector-visible="inspectorVisible && !focusMode"
@@ -17,7 +21,7 @@
     </TitleBar>
 
     <div class="lume-app__body">
-      <SideBar v-if="sidebarVisible && !focusMode" />
+      <SideBar v-if="sidebarVisible && !focusMode" @open-versions="gitDialogOpen = true" />
 
       <div class="lume-app__workspace">
         <div class="lume-app__content">
@@ -100,13 +104,19 @@
       @exported="showMessage(t('导出成功'))"
     />
     <ExternalConflictDialog
-      v-if="externalConflict"
+      v-if="externalConflict && !gitDialogOpen"
       :file-name="externalConflict.fileName"
       :deleted="externalConflict.kind === 'deleted'"
       @keep="keepLocalChanges"
       @reload="reloadConflictedDocument"
     />
     <FileDropMessage :message="fileDropMessage" @dismiss="dismissMessage" />
+    <GitDialog
+      v-if="gitDialogOpen && workspacePath"
+      :key="workspacePath"
+      :workspace="workspacePath"
+      @close="gitDialogOpen = false"
+    />
   </div>
 </template>
 
@@ -132,6 +142,9 @@ import UnsavedChangesDialog from '@components/UnsavedChangesDialog.vue'
 import FileDropMessage from '@components/FileDropMessage.vue'
 import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
 import ExportDialog from '@/features/export/components/ExportDialog.vue'
+import GitDialog from '@/features/git/components/GitDialog.vue'
+import { useWorkspaceStore } from '@/features/workspace/model/workspaceStore'
+import { versionOperationActive } from '@/features/workspace/services/workspaceOperations'
 import { nextTick, ref } from 'vue'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
@@ -160,6 +173,8 @@ const wysiwygPaneRef = ref<ImageCommandEditor | null>(null)
 const sourceEditorRef = ref<(ImageCommandEditor & { focus: () => void }) | null>(null)
 const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
+const gitDialogOpen = ref(false)
+const { workspacePath } = useWorkspaceStore()
 const exportSnapshot = ref<OpenDocument | null>(null)
 const { newFile, openFile, openFilesFromPaths, saveFile } = useFileOps()
 const commandPalette = useCommandPalette({
@@ -168,6 +183,10 @@ const commandPalette = useCommandPalette({
   saveFile: saveCurrentFile,
   saveFileAs: () => saveCurrentFile(true),
   openExport: () => handleOpenExport(),
+  openVersions: () => {
+    if (workspacePath.value) gitDialogOpen.value = true
+    else showMessage(t('请先打开本地工作区以管理版本'))
+  },
   toggleSidebar,
   toggleInspector: () => handleToggleInspector(),
   toggleFocusMode: () => {
@@ -262,7 +281,7 @@ function handleSplitScrollRatio(value: number) {
 
 /** 关闭应用前同步暂存，确保最后一次输入也能恢复。 */
 async function handleCloseWindow() {
-  if (appUpdater.installing.value) return
+  if (appUpdater.installing.value || versionOperationActive.value) return
   wysiwygPaneRef.value?.flushPendingMarkdown?.()
   flushDocumentSession()
   requestCloseDocuments(
