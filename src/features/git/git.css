@@ -102,10 +102,64 @@
   padding: 6px;
 }
 .lume-git__feedback {
-  padding: 0 20px;
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+  margin-top: auto;
 }
-.lume-git__feedback:has(p) {
-  padding-bottom: 10px;
+.lume-git__feedback[data-kind] {
+  padding: 8px 20px;
+  border-top: 1px solid var(--lume-border-subtle);
+  background: var(--lume-bg-surface-raised);
+  color: var(--lume-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.lume-git__feedback[data-kind='success'] {
+  background: var(--lume-color-success-bg);
+}
+.lume-git__feedback[data-kind='error'] {
+  background: var(--lume-color-danger-bg);
+}
+.lume-git__feedback-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lume-git__feedback-message > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.lume-git__feedback[data-kind='success'] .lume-git__feedback-message > svg {
+  color: var(--lume-color-success);
+}
+.lume-git__feedback [role='alert'] > svg {
+  color: var(--lume-color-danger);
+}
+.lume-git__feedback .lume-git__error {
+  margin-right: 8px;
+  color: inherit;
+}
+.lume-git .lume-git__feedback-dismiss {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lume-git__feedback-spinner {
+    animation: lume-git-feedback-spin 1s linear infinite;
+  }
+}
+@keyframes lume-git-feedback-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .lume-git__error {
   color: var(--lume-color-danger, #c42b1c);
@@ -113,9 +167,6 @@
   white-space: pre-wrap;
   max-height: 110px;
   overflow: auto;
-}
-.lume-git__notice {
-  color: var(--lume-accent-default);
 }
 .lume-git__hint,
 .lume-git__empty {

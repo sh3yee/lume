@@ -1,5 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue'
-import { t } from '@/app/i18n'
+import { t, type MessageKey } from '@/app/i18n'
 import {
   gitAuthor,
   gitCommit,
@@ -21,13 +21,17 @@ import { runVersionWrite } from '@/features/workspace/services/workspaceOperatio
 export const gitErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
 
+interface GitFeedback {
+  kind: 'pending' | 'success' | 'error'
+  message: string
+}
+
 export const useGitRepository = (workspace: string) => {
   const status = shallowRef<GitStatus | null>(null)
   const remote = shallowRef<GitRemoteStatus | null>(null)
   const remoteError = shallowRef('')
   const busy = shallowRef(false)
-  const error = shallowRef('')
-  const notice = shallowRef('')
+  const feedback = shallowRef<GitFeedback | null>(null)
   const message = shallowRef('')
   const diff = shallowRef('')
   const diffPath = shallowRef('')
@@ -36,6 +40,7 @@ export const useGitRepository = (workspace: string) => {
   let disposed = false
   let diffRequest = 0
   let indexTree = ''
+  let feedbackTimeout = 0
 
   const hasConflicts = (snapshot: GitStatus) =>
     snapshot.changes.some((change) =>
@@ -69,13 +74,24 @@ export const useGitRepository = (workspace: string) => {
     }
   }
 
-  const execute = async (action: () => Promise<void>) => {
+  const dismissFeedback = () => {
+    window.clearTimeout(feedbackTimeout)
+    feedback.value = null
+  }
+
+  const execute = async (progress: MessageKey | null, action: () => Promise<string | void>) => {
     if (busy.value || disposed) return false
     busy.value = true
-    error.value = ''
-    notice.value = ''
+    if (progress) {
+      dismissFeedback()
+      feedback.value = { kind: 'pending', message: t(progress) }
+    }
     try {
-      await action()
+      const success = await action()
+      if (!disposed && progress) {
+        feedback.value = success ? { kind: 'success', message: success } : null
+        if (success) feedbackTimeout = window.setTimeout(dismissFeedback, 4500)
+      }
       return true
     } catch (failure) {
       // hooks 或超时前操作可能已改变仓库，重新读取实际结果，保留原始错误。
@@ -86,15 +102,17 @@ export const useGitRepository = (workspace: string) => {
           /* 原始失败信息更有用。 */
         }
       }
-      if (!disposed) error.value = gitErrorMessage(failure)
+      if (!disposed && (progress || !feedback.value)) {
+        feedback.value = { kind: 'error', message: gitErrorMessage(failure) }
+      }
       return false
     } finally {
       if (!disposed) busy.value = false
     }
   }
 
-  const refresh = () =>
-    execute(async () => {
+  const refresh = (showProgress = true) =>
+    execute(showProgress ? '正在读取仓库状态…' : null, async () => {
       await readStatus()
       diffRequest++
       diff.value = ''
@@ -102,14 +120,14 @@ export const useGitRepository = (workspace: string) => {
     })
 
   const initialize = () =>
-    execute(async () => {
+    execute('正在启用本地版本管理…', async () => {
       await runVersionWrite(workspace, () => gitInit(workspace))
       await readStatus()
-      notice.value = t('已启用本地版本管理')
+      return t('已启用本地版本管理')
     })
 
   const stage = (path: string, staged: boolean) =>
-    execute(async () => {
+    execute(staged ? '正在暂存文件…' : '正在取消暂存…', async () => {
       await runVersionWrite(workspace, () => gitStage(workspace, path, staged), staged)
       await readStatus()
       diffRequest++
@@ -118,7 +136,7 @@ export const useGitRepository = (workspace: string) => {
     })
 
   const commit = () =>
-    execute(async () => {
+    execute('正在创建本地提交…', async () => {
       const expected = indexTree
       await runVersionWrite(workspace, () => gitCommit(workspace, message.value, expected))
       message.value = ''
@@ -126,31 +144,32 @@ export const useGitRepository = (workspace: string) => {
       diffRequest++
       diffPath.value = ''
       diff.value = ''
-      notice.value = t('已创建本地提交')
+      return t('已创建本地提交')
     })
 
   const configureAuthor = (name: string, email: string) =>
-    execute(async () => {
+    execute('正在保存提交作者…', async () => {
       await runVersionWrite(workspace, () => gitAuthor(workspace, name, email))
       await readStatus()
-      notice.value = t('作者信息已保存到当前仓库')
+      return t('作者信息已保存到当前仓库')
     })
 
   const push = (target: GitPushTarget) =>
-    execute(async () => {
+    execute('正在推送提交…', async () => {
       const { branch, head } = status.value ?? {}
       if (!branch || !head) return
       await gitPush(workspace, branch, head, target)
       await readStatus()
-      if (!disposed) notice.value = t('已推送到 {0}', target.targetBranch)
+      return t('已推送到 {0}', target.targetBranch)
     })
 
   const fetchRemote = (target: GitPushTarget) =>
-    execute(async () => {
+    execute('正在获取远程状态…', async () => {
       const branch = status.value?.branch
       if (!branch) return
       await gitFetch(workspace, branch, target)
       await readStatus()
+      return t('已更新远程状态')
     })
 
   const showDiff = async (path: string, staged: boolean) => {
@@ -170,17 +189,18 @@ export const useGitRepository = (workspace: string) => {
   }
 
   const handleFocus = () => {
-    if (!busy.value) void refresh()
+    void refresh(false)
   }
   onMounted(() => {
     if (isTauri()) {
       void refresh()
       window.addEventListener('focus', handleFocus)
-    } else error.value = t('版本管理仅在桌面应用中可用')
+    } else feedback.value = { kind: 'error', message: t('版本管理仅在桌面应用中可用') }
   })
   onBeforeUnmount(() => {
     disposed = true
     diffRequest++
+    window.clearTimeout(feedbackTimeout)
     window.removeEventListener('focus', handleFocus)
   })
 
@@ -189,8 +209,8 @@ export const useGitRepository = (workspace: string) => {
     remote,
     remoteError,
     busy,
-    error,
-    notice,
+    feedback,
+    dismissFeedback,
     message,
     writable,
     diff,

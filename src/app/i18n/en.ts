@@ -693,9 +693,18 @@ export const en = {
   此版本中没有可显示的普通文件: 'This version has no regular file to display',
   '文档在确认后发生变化，请重新查看后再恢复。':
     'The document changed after confirmation. Review it again before restoring.',
-  '文件已恢复为未暂存修改，历史与暂存区保持原样。':
-    'File restored as an unstaged change. History and the index are unchanged.',
-  '正在处理版本操作…': 'Processing version operation…',
+  文件已恢复: 'File restored',
+  '正在读取仓库状态…': 'Reading repository status…',
+  '正在启用本地版本管理…': 'Enabling local version control…',
+  '正在暂存文件…': 'Staging file…',
+  '正在取消暂存…': 'Unstaging file…',
+  '正在创建本地提交…': 'Creating local commit…',
+  '正在保存提交作者…': 'Saving commit author…',
+  '正在推送提交…': 'Pushing commits…',
+  '正在获取远程状态…': 'Fetching remote status…',
+  已更新远程状态: 'Remote status updated',
+  '正在检查要恢复的文件…': 'Checking file before restoration…',
+  '正在恢复文件…': 'Restoring file…',
   '点击刷新重新检查 Git 环境': 'Refresh to check the Git environment again',
   为这个工作区保存版本: 'Keep versions of this workspace',
   '创建本地 Git 仓库后，可以提交修改、查看历史和恢复文件。':

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, shallowRef } from 'vue'
-import { GitBranch, RefreshCw, X } from 'lucide-vue-next'
+import { CircleAlert, CircleCheck, GitBranch, LoaderCircle, RefreshCw, X } from 'lucide-vue-next'
 import { t } from '@/app/i18n'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { isSameDocumentPath } from '@/features/documents/model/documentPath'
@@ -23,8 +23,7 @@ const {
   remote,
   remoteError,
   busy,
-  error,
-  notice,
+  feedback,
   message,
   writable,
   diff,
@@ -52,7 +51,7 @@ const getDocumentSnapshot = (path: string) =>
   )
 
 const handlePrepareRestore = async (revision: string, path: string) => {
-  const prepared = await repository.execute(async () => {
+  const prepared = await repository.execute('正在检查要恢复的文件…', async () => {
     await runVersionWrite(
       props.workspace,
       async () => {
@@ -75,7 +74,7 @@ const handlePrepareRestore = async (revision: string, path: string) => {
 }
 
 const handleRestore = () =>
-  repository.execute(async () => {
+  repository.execute('正在恢复文件…', async () => {
     const restore = restoration.value
     if (!restore) return
     await runVersionWrite(props.workspace, async () => {
@@ -92,8 +91,13 @@ const handleRestore = () =>
       await reloadVersionDocument(path)
     })
     await repository.readStatus()
-    notice.value = t('文件已恢复为未暂存修改，历史与暂存区保持原样。')
+    return t('文件已恢复')
   })
+
+const handleDismissFeedback = () => {
+  repository.dismissFeedback()
+  dialog.value?.focus()
+}
 
 const handleClose = () => {
   if (!busy.value) emit('close')
@@ -151,7 +155,6 @@ onBeforeUnmount(() => {
         aria-modal="true"
         aria-labelledby="git-dialog-title"
         tabindex="-1"
-        :aria-busy="busy"
       >
         <header class="lume-git__header">
           <GitBranch :size="20" />
@@ -178,14 +181,9 @@ onBeforeUnmount(() => {
             <X :size="18" />
           </button>
         </header>
-        <div class="lume-git__feedback" aria-live="polite">
-          <p v-if="error" class="lume-git__error" role="alert">{{ error }}</p>
-          <p v-else-if="busy" class="lume-git__hint">{{ t('正在处理版本操作…') }}</p>
-          <p v-else-if="notice" class="lume-git__notice">{{ notice }}</p>
-        </div>
-        <div v-if="!status" class="lume-git__empty">
-          {{ busy ? t('正在读取…') : t('点击刷新重新检查 Git 环境') }}
-        </div>
+        <template v-if="!status">
+          <p v-if="!busy" class="lume-git__empty">{{ t('点击刷新重新检查 Git 环境') }}</p>
+        </template>
         <div v-else-if="!status.root" class="lume-git__welcome">
           <GitBranch :size="36" :stroke-width="1.4" />
           <h3>{{ t('为这个工作区保存版本') }}</h3>
@@ -281,7 +279,7 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <div v-else class="lume-git__body">
+          <div v-else class="lume-git__body" :aria-busy="busy">
             <GitChanges
               v-if="tab === 'changes'"
               v-model:message="message"
@@ -306,6 +304,36 @@ onBeforeUnmount(() => {
             />
           </div>
         </template>
+        <footer class="lume-git__feedback" :data-kind="feedback?.kind">
+          <div class="lume-git__feedback-message" role="status" aria-atomic="true">
+            <template v-if="feedback && feedback.kind !== 'error'">
+              <LoaderCircle
+                v-if="feedback.kind === 'pending'"
+                class="lume-git__feedback-spinner"
+                :size="15"
+                aria-hidden="true"
+              />
+              <CircleCheck v-else :size="15" aria-hidden="true" />
+              <p>{{ feedback.message }}</p>
+            </template>
+          </div>
+          <div class="lume-git__feedback-message" role="alert" aria-atomic="true">
+            <template v-if="feedback?.kind === 'error'">
+              <CircleAlert :size="15" aria-hidden="true" />
+              <p class="lume-git__error">{{ feedback.message }}</p>
+            </template>
+          </div>
+          <button
+            v-if="feedback?.kind === 'error'"
+            type="button"
+            class="lume-git__feedback-dismiss"
+            :aria-label="t('关闭提示')"
+            :title="t('关闭提示')"
+            @click="handleDismissFeedback"
+          >
+            <X :size="14" aria-hidden="true" />
+          </button>
+        </footer>
       </section>
     </div>
   </Teleport>
