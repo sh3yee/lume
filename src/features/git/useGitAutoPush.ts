@@ -1,4 +1,4 @@
-import { shallowRef, watch, type Ref } from 'vue'
+import { computed, shallowRef, watch, type Ref } from 'vue'
 import { readPreference, savePreference } from '@/app/preferences/preferenceStorage'
 import { isTauri } from '@/platform/tauri/client'
 import { gitAutoPush } from '@/platform/tauri/git'
@@ -12,6 +12,12 @@ export interface GitAutoPushPreference {
   intervalMinutes: number
 }
 
+interface GitAutoPushSchedule {
+  path: string | null
+  preference: GitAutoPushPreference
+  savedPushAt: number | null
+}
+
 const defaults: GitAutoPushPreference = { enabled: false, intervalMinutes: 30 }
 const preferenceKey = (path: string) => `lume-git-auto-push:${path}`
 const validInterval = (minutes: unknown): minutes is number =>
@@ -20,26 +26,39 @@ const validInterval = (minutes: unknown): minutes is number =>
   minutes >= MIN_AUTO_PUSH_MINUTES &&
   minutes <= MAX_AUTO_PUSH_MINUTES
 
-const loadPreference = (path: string | null): GitAutoPushPreference => {
+const loadSchedule = (path: string | null): GitAutoPushSchedule => {
   const saved = path && readPreference(preferenceKey(path))
   if (saved) {
     try {
-      const value = JSON.parse(saved) as Partial<GitAutoPushPreference> | null
+      const value = JSON.parse(saved) as
+        (Partial<GitAutoPushPreference> & { nextPushAt?: unknown }) | null
       if (value && typeof value.enabled === 'boolean' && validInterval(value.intervalMinutes)) {
-        return { enabled: value.enabled, intervalMinutes: value.intervalMinutes }
+        const { enabled, intervalMinutes, nextPushAt } = value
+        return {
+          path,
+          preference: { enabled, intervalMinutes },
+          savedPushAt:
+            typeof nextPushAt === 'number' && Number.isSafeInteger(nextPushAt) && nextPushAt > 0
+              ? nextPushAt
+              : null,
+        }
       }
     } catch {
       // 忽略无法解析的本地设置。
     }
   }
-  return defaults
+  return { path, preference: defaults, savedPushAt: null }
 }
 
+const saveSchedule = (path: string, preference: GitAutoPushPreference, nextPushAt: number | null) =>
+  savePreference(preferenceKey(path), JSON.stringify({ ...preference, nextPushAt }))
+
 export const useGitAutoPush = (workspace: Readonly<Ref<string | null>>) => {
-  const preference = shallowRef(defaults)
+  const schedule = shallowRef(loadSchedule(workspace.value))
+  const preference = computed(() => schedule.value.preference)
   const error = shallowRef('')
   const revision = shallowRef(0)
-  let running = false
+  let pendingPush: Promise<boolean> | null = null
 
   const updatePreference = (next: GitAutoPushPreference) => {
     const path = workspace.value
@@ -49,29 +68,35 @@ export const useGitAutoPush = (workspace: Readonly<Ref<string | null>>) => {
       preference.value.intervalMinutes === next.intervalMinutes
     )
       return
-    savePreference(preferenceKey(path), JSON.stringify(next))
-    preference.value = next
+    if (!next.enabled) saveSchedule(path, next, null)
+    schedule.value = { path, preference: next, savedPushAt: null }
   }
 
   watch(
     workspace,
     (path) => {
-      preference.value = loadPreference(path)
+      schedule.value = loadSchedule(path)
     },
-    { immediate: true, flush: 'sync' },
+    { flush: 'sync' },
   )
 
   watch(
-    [workspace, preference],
-    ([path, { enabled, intervalMinutes }], _, onCleanup) => {
+    schedule,
+    ({ path, preference, savedPushAt }, _, onCleanup) => {
       error.value = ''
-      if (!path || !enabled || !isTauri()) return
+      if (!path || !preference.enabled || !isTauri()) return
+
+      const intervalMs = preference.intervalMinutes * 60_000
       let active = true
+      let timer: number | undefined
+
       const push = async () => {
-        if (!active || running) return
-        running = true
+        if (pendingPush) await pendingPush.catch(() => false)
+        if (!active) return
+
         try {
-          const pushed = await gitAutoPush(path)
+          pendingPush = gitAutoPush(path)
+          const pushed = await pendingPush
           if (active) {
             error.value = ''
             if (pushed) revision.value++
@@ -79,14 +104,23 @@ export const useGitAutoPush = (workspace: Readonly<Ref<string | null>>) => {
         } catch (failure) {
           if (active) error.value = gitErrorMessage(failure)
         } finally {
-          running = false
+          pendingPush = null
+          if (active) schedulePush(Date.now() + intervalMs)
         }
       }
-      const timer = window.setInterval(() => void push(), intervalMinutes * 60_000)
+
+      const schedulePush = (nextPushAt: number) => {
+        saveSchedule(path, preference, nextPushAt)
+        timer = window.setTimeout(() => void push(), Math.max(0, nextPushAt - Date.now()))
+      }
+
       onCleanup(() => {
         active = false
-        window.clearInterval(timer)
+        window.clearTimeout(timer)
       })
+
+      const latestPushAt = Date.now() + intervalMs
+      schedulePush(Math.min(savedPushAt ?? latestPushAt, latestPushAt))
     },
     { immediate: true, flush: 'sync' },
   )
