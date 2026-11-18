@@ -100,7 +100,19 @@
 .lume-git__header > button {
   display: grid;
   place-items: center;
-  padding: 6px;
+  flex: 0 0 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lume-radius-md);
+  background: transparent;
+  color: var(--lume-text-secondary);
+  transition:
+    background-color var(--lume-transition-fast),
+    color var(--lume-transition-fast);
+}
+.lume-git__header > button:hover:not(:disabled) {
+  color: var(--lume-text-primary);
 }
 .lume-git__feedback {
   display: flex;
