@@ -7,6 +7,7 @@ import { vLiquidGlass } from '@/ui/glass/directive'
 const MENU_MAX_HEIGHT = 224
 const MENU_GAP = 4
 const MENU_INSET = 8
+const COMPACT_MENU_MIN_WIDTH = 184
 
 const props = defineProps<{
   id: string
@@ -14,7 +15,9 @@ const props = defineProps<{
   description?: string
   value: T
   options: readonly { value: T; label: string; group?: string }[]
-  container: HTMLDialogElement | null
+  container: HTMLElement | null
+  compact?: boolean
+  disabled?: boolean
   searchable?: boolean
   searchPlaceholder?: string
   maxMenuHeight?: number
@@ -88,15 +91,25 @@ const scrollToActiveOption = () => {
 const handleOpen = async (index = Math.max(0, selectedIndex.value), initialQuery = '') => {
   const trigger = triggerRef.value
   const container = props.container
-  if (!trigger || !container?.open || (!props.searchable && props.options.length === 0)) return
+  if (
+    !trigger ||
+    !container ||
+    (container instanceof HTMLDialogElement && !container.open) ||
+    props.disabled ||
+    (!props.searchable && props.options.length === 0)
+  )
+    return
 
-  // 浮层留在 dialog 内，避开内容区裁剪，并按弹窗内部坐标定位。
+  // 浮层留在弹窗内，避开内容区裁剪，并按弹窗内部坐标定位。
   const bounds = container.getBoundingClientRect()
   const anchor = trigger.getBoundingClientRect()
   const originX = bounds.left + container.clientLeft
   const originY = bounds.top + container.clientTop
   const maxHeight = props.maxMenuHeight ?? MENU_MAX_HEIGHT
-  const width = Math.min(anchor.width, Math.max(0, container.clientWidth - MENU_INSET * 2))
+  const preferredWidth = props.compact
+    ? Math.max(anchor.width, COMPACT_MENU_MIN_WIDTH)
+    : anchor.width
+  const width = Math.min(preferredWidth, Math.max(0, container.clientWidth - MENU_INSET * 2))
   const left = Math.max(
     MENU_INSET,
     Math.min(anchor.left - originX, container.clientWidth - width - MENU_INSET),
@@ -146,7 +159,7 @@ const handleToggle = () => {
 
 const handleSelect = (index: number) => {
   const option = filteredOptions.value[index]
-  if (!option) return
+  if (!option || props.disabled) return
   emit('change', option.value)
   handleClose()
   triggerRef.value?.focus()
@@ -280,6 +293,13 @@ watch(filteredOptions, (options) => {
 watch(query, (value) => emit('search', value), { flush: 'sync' })
 
 watch(
+  () => props.disabled,
+  (disabled) => {
+    if (disabled) handleClose()
+  },
+)
+
+watch(
   () => props.container,
   (container, previous) => {
     previous?.removeEventListener('close', handleClose)
@@ -307,7 +327,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="lume-settings-select">
+  <div class="lume-settings-select" :class="{ 'lume-settings-select--compact': compact }">
     <div class="lume-settings-select__copy">
       <label :id="`${id}-label`" :for="id" class="lume-settings-select__label">{{ label }}</label>
       <p v-if="description" :id="`${id}-description`" class="lume-settings-select__description">
@@ -319,6 +339,7 @@ onBeforeUnmount(() => {
       ref="triggerRef"
       class="lume-settings-select__trigger"
       type="button"
+      :disabled="disabled"
       role="combobox"
       aria-haspopup="listbox"
       :aria-labelledby="`${id}-label`"
@@ -329,14 +350,17 @@ onBeforeUnmount(() => {
       @click="handleToggle"
       @keydown="handleKeydown"
     >
-      <span class="lume-settings-select__value">{{ selectedLabel }}</span>
+      <span class="lume-settings-select__value" :title="compact ? selectedLabel : undefined">
+        {{ selectedLabel }}
+      </span>
       <ChevronDown :size="14" aria-hidden="true" />
     </button>
     <Teleport v-if="isOpen && container" :to="container">
       <div
         ref="menuRef"
-        v-liquid-glass
+        v-liquid-glass="!compact"
         class="lume-settings-select__menu"
+        :class="{ 'lume-settings-select__menu--compact': compact }"
         :style="menuPosition"
         @keydown="handleMenuKeydown"
       >
@@ -381,6 +405,7 @@ onBeforeUnmount(() => {
               role="option"
               tabindex="-1"
               :aria-selected="option.value === value"
+              :title="compact ? option.label : undefined"
               @pointerdown.prevent
               @pointermove="activeIndex = index"
               @click="handleSelect(index)"
@@ -447,6 +472,34 @@ onBeforeUnmount(() => {
   color: var(--lume-text-primary);
   font-size: var(--lume-font-size-sm);
   text-align: left;
+}
+
+.lume-settings-select--compact {
+  display: flex;
+  min-height: 0;
+  max-width: 100%;
+  gap: 8px;
+  padding: 0;
+}
+
+.lume-settings-select--compact .lume-settings-select__copy {
+  flex-shrink: 0;
+}
+
+.lume-settings-select--compact .lume-settings-select__label {
+  color: var(--lume-text-secondary);
+  font-size: 12px;
+  font-weight: normal;
+}
+
+.lume-settings-select--compact .lume-settings-select__trigger {
+  width: auto;
+  min-height: 28px;
+  max-width: 280px;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--lume-bg-surface-raised);
+  font-weight: var(--lume-font-weight-medium);
 }
 
 .lume-settings-select__trigger:hover {
@@ -579,6 +632,32 @@ onBeforeUnmount(() => {
 
 .lume-settings-select__option > svg {
   flex-shrink: 0;
+}
+
+.lume-settings-select__menu--compact {
+  padding: 4px;
+  border-color: var(--lume-border-default);
+  border-radius: var(--lume-radius-lg);
+  background: var(--lume-bg-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--lume-shadow-lg);
+}
+
+.lume-settings-select__menu--compact .lume-settings-select__option {
+  border: 0;
+  background: transparent;
+}
+
+.lume-settings-select__menu--compact .lume-settings-select__option--active,
+.lume-settings-select__menu--compact .lume-settings-select__option:hover {
+  background: var(--lume-accent-subtle);
+}
+
+.lume-settings-select__menu--compact .lume-settings-select__option > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @container lume-settings-content (max-width: 420px) {

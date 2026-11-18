@@ -11,12 +11,16 @@ import {
   gitRemoteStatus,
   gitStage,
   gitStatus,
+  gitSwitchBranch,
   type GitPushTarget,
   type GitRemoteStatus,
   type GitStatus,
 } from '@/platform/tauri/git'
 import { isTauri } from '@/platform/tauri/client'
-import { runVersionWrite } from '@/features/workspace/services/workspaceOperations'
+import {
+  reloadVersionWorkspace,
+  runVersionWrite,
+} from '@/features/workspace/services/workspaceOperations'
 
 export const gitErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
@@ -126,6 +130,30 @@ export const useGitRepository = (workspace: string) => {
       return t('已启用本地版本管理')
     })
 
+  const switchBranch = (branch: string) =>
+    execute('正在切换分支…', async () => {
+      const snapshot = status.value
+      if (!snapshot?.root || branch === snapshot.branch) return
+      const root = snapshot.root
+      const outcome = await runVersionWrite(
+        root,
+        async () => {
+          const switched = await gitSwitchBranch(workspace, branch, snapshot.branch, snapshot.head)
+          diffRequest++
+          diff.value = ''
+          diffPath.value = ''
+          diffLoading.value = false
+          await reloadVersionWorkspace(root)
+          return switched
+        },
+        true,
+      )
+      if (outcome === 'switchedWithWarning')
+        throw new Error(t('分支已切换，但 Git 切换后的操作失败。请检查工作区状态。'))
+      await readStatus()
+      return t('已切换到分支 {0}', branch)
+    })
+
   const stage = (path: string, staged: boolean) =>
     execute(staged ? '正在暂存文件…' : '正在取消暂存…', async () => {
       await runVersionWrite(workspace, () => gitStage(workspace, path, staged), staged)
@@ -221,6 +249,7 @@ export const useGitRepository = (workspace: string) => {
     readStatus,
     refresh,
     initialize,
+    switchBranch,
     stage,
     commit,
     configureAuthor,

@@ -1,8 +1,8 @@
 use super::{
     history::{blob, commit_id, preview},
     repository::{
-        directory, display_path, ensure_idle, fingerprint, has_head, repository, status,
-        validate_path, GitStatus,
+        current_branch, directory, display_path, ensure_idle, fingerprint, has_head,
+        local_branches, repository, status, validate_path, GitStatus,
     },
     runner::{checked, error, value},
 };
@@ -31,6 +31,57 @@ pub fn initialize(workspace: &str) -> LumeResult<GitStatus> {
     }
     checked(&path, &["init"])?;
     status(workspace)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GitSwitchOutcome {
+    Switched,
+    SwitchedWithWarning,
+}
+
+pub fn switch_branch(
+    workspace: &str,
+    branch: &str,
+    expected_branch: Option<&str>,
+    expected_head: Option<&str>,
+) -> LumeResult<GitSwitchOutcome> {
+    let root = repository(workspace, true)?;
+    ensure_idle(&root)?;
+    let current = current_branch(&root)?;
+    let head = if has_head(&root)? {
+        Some(value(&root, &["rev-parse", "HEAD"])?)
+    } else {
+        None
+    };
+    if current.as_deref() != expected_branch || head.as_deref() != expected_head {
+        return Err(error("当前分支或提交已变化，请刷新后重新确认。"));
+    }
+    if current.as_deref() == Some(branch) {
+        return Ok(GitSwitchOutcome::Switched);
+    }
+    if branch.starts_with('-') || !local_branches(&root)?.iter().any(|name| name == branch) {
+        return Err(error("目标本地分支不可用，请刷新后重试。"));
+    }
+    let switched = checked(
+        &root,
+        &[
+            "switch",
+            "--no-guess",
+            "--no-overwrite-ignore",
+            "--no-recurse-submodules",
+            "--",
+            branch,
+        ],
+    );
+    // post-checkout 失败时 Git 可能已经更新了 HEAD 和工作区，仍需刷新打开的文件。
+    match switched {
+        Ok(_) => Ok(GitSwitchOutcome::Switched),
+        Err(_) if current_branch(&root)?.as_deref() == Some(branch) => {
+            Ok(GitSwitchOutcome::SwitchedWithWarning)
+        }
+        Err(failure) => Err(failure),
+    }
 }
 
 pub fn stage(workspace: &str, path: &str, staged: bool) -> LumeResult<GitStatus> {
@@ -115,7 +166,7 @@ pub fn commit(workspace: &str, message: &str, expected_tree: &str) -> LumeResult
     ensure_idle(&root)?;
     let current = status(workspace)?;
     if current.branch.is_none() {
-        return Err(error("当前处于独立 HEAD，请先在 Git 工具中切换到分支。"));
+        return Err(error("当前处于独立 HEAD，请先切换到本地分支。"));
     }
     if message.trim().is_empty() || message.len() > 10_000 || message.contains('\0') {
         return Err(error("请填写提交说明（最多 10000 字节）。"));

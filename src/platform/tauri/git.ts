@@ -10,6 +10,7 @@ export interface GitChange {
 export interface GitStatus {
   root: string | null
   branch: string | null
+  branches: string[]
   head: string | null
   writable: boolean
   operation: string | null
@@ -66,6 +67,18 @@ export const gitStatus = (workspace: string) =>
   invokeCommand<GitStatus>('lume_git_status', { workspace })
 export const gitInit = (workspace: string) =>
   invokeCommand<GitStatus>('lume_git_init', { workspace })
+export const gitSwitchBranch = (
+  workspace: string,
+  branch: string,
+  expectedBranch: string | null,
+  expectedHead: string | null,
+) =>
+  invokeCommand<'switched' | 'switchedWithWarning'>('lume_git_switch_branch', {
+    workspace,
+    branch,
+    expectedBranch,
+    expectedHead,
+  })
 export const gitStage = (workspace: string, path: string, staged: boolean) =>
   invokeCommand<GitStatus>('lume_git_stage', { workspace, path, staged })
 export const gitDiff = (workspace: string, path: string, staged: boolean) =>

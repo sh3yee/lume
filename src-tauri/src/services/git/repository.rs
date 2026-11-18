@@ -17,6 +17,7 @@ pub struct GitChange {
 pub struct GitStatus {
     pub root: Option<String>,
     pub branch: Option<String>,
+    pub branches: Vec<String>,
     pub head: Option<String>,
     pub writable: bool,
     pub operation: Option<String>,
@@ -65,6 +66,20 @@ pub fn current_branch(root: &Path) -> LumeResult<Option<String>> {
         .map(str::to_owned))
 }
 
+pub fn local_branches(root: &Path) -> LumeResult<Vec<String>> {
+    let output = checked(
+        root,
+        &["for-each-ref", "--format=%(refname:strip=2)", "refs/heads/"],
+    )?;
+    Ok(output
+        .split(|byte| *byte == b'\n')
+        .filter_map(|line| std::str::from_utf8(line).ok())
+        .map(|line| line.trim_end_matches('\r'))
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
+}
+
 pub fn operation(root: &Path) -> LumeResult<Option<String>> {
     let git_dir = PathBuf::from(value(root, &["rev-parse", "--absolute-git-dir"])?);
     for (marker, name) in [("MERGE_HEAD", "merge"), ("rebase-merge", "rebase"), ("rebase-apply", "rebase"), ("CHERRY_PICK_HEAD", "cherry-pick"), ("REVERT_HEAD", "revert"), ("sequencer", "sequencer"), ("BISECT_START", "bisect"), ("index.lock", "locked")] {
@@ -85,7 +100,17 @@ pub fn ensure_idle(root: &Path) -> LumeResult<()> {
 pub fn status(path: &str) -> LumeResult<GitStatus> {
     let workspace = directory(path)?;
     let output = run(&workspace, &["rev-parse", "--show-toplevel"])?;
-    let mut status = GitStatus { root: None, branch: None, head: None, writable: false, operation: None, changes: Vec::new(), author_name: String::new(), author_email: String::new() };
+    let mut status = GitStatus {
+        root: None,
+        branch: None,
+        branches: Vec::new(),
+        head: None,
+        writable: false,
+        operation: None,
+        changes: Vec::new(),
+        author_name: String::new(),
+        author_email: String::new(),
+    };
     if !output.status.success() {
         if String::from_utf8_lossy(&output.stderr).contains("not a git repository") {
             // 损坏的 .git 不能当成普通文件夹重新初始化。
@@ -105,6 +130,7 @@ pub fn status(path: &str) -> LumeResult<GitStatus> {
     status.writable = workspace == root;
     status.operation = operation(&root)?;
     status.branch = current_branch(&root)?;
+    status.branches = local_branches(&root)?;
     if has_head(&root)? { status.head = Some(value(&root, &["rev-parse", "HEAD"])?); }
     for (key, target) in [("user.name", &mut status.author_name), ("user.email", &mut status.author_email)] {
         let output = run(&root, &["config", "--get", key])?;

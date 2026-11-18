@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef } from 'vue'
 import { CircleAlert, CircleCheck, GitBranch, LoaderCircle, RefreshCw, X } from 'lucide-vue-next'
+import SettingsSelect from '@/components/SettingsSelect.vue'
 import { t } from '@/app/i18n'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { isSameDocumentPath } from '@/features/documents/model/documentPath'
@@ -40,6 +41,12 @@ const restoration = shallowRef<{
   documentSnapshot: string
 } | null>(null)
 const { documents } = useDocument()
+const branchOptions = computed(() =>
+  (status.value?.branches ?? []).map((name) => ({ value: name, label: name })),
+)
+const hasOtherBranches = computed(() =>
+  branchOptions.value.some(({ value }) => value !== status.value?.branch),
+)
 let disposed = false
 let previousFocus: HTMLElement | null = null
 
@@ -99,6 +106,10 @@ const handleDismissFeedback = () => {
   dialog.value?.focus()
 }
 
+const handleBranchChange = (branch: string) => {
+  if (branch !== status.value?.branch) void repository.switchBranch(branch)
+}
+
 const handleClose = () => {
   if (!busy.value) emit('close')
 }
@@ -115,7 +126,7 @@ const handleKeydown = (event: KeyboardEvent) => {
     dialog.value?.querySelectorAll<HTMLElement>(
       'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex="0"]',
     ) ?? [],
-  ).filter((element) => element.getClientRects().length > 0)
+  ).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0)
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
   if (!first) {
@@ -199,8 +210,26 @@ onBeforeUnmount(() => {
         </div>
         <template v-else>
           <div class="lume-git__repository-state">
-            <span><GitBranch :size="14" /> {{ status.branch || t('独立 HEAD') }}</span>
-            <code>{{ status.head?.slice(0, 10) || t('尚无提交') }}</code>
+            <SettingsSelect
+              v-if="hasOtherBranches"
+              id="git-current-branch"
+              :label="t('当前分支')"
+              :value="status.branch || t('独立 HEAD')"
+              :options="branchOptions"
+              :container="dialog"
+              :disabled="busy || !writable || !!restoration"
+              compact
+              @change="handleBranchChange"
+            />
+            <div v-else class="lume-git__branch-summary">
+              <span class="lume-git__branch-label">{{ t('当前分支') }}</span>
+              <span class="lume-git__branch-badge" :title="status.branch ?? undefined">
+                {{ status.branch || t('独立 HEAD') }}
+              </span>
+            </div>
+            <code :title="status.head ?? undefined">
+              {{ status.head?.slice(0, 10) || t('尚无提交') }}
+            </code>
           </div>
           <p v-if="!status.writable" class="lume-git__warning">
             {{ t('当前工作区是仓库的子目录，仅可查看。请打开上方仓库根目录以提交或恢复文件。') }}
@@ -212,7 +241,7 @@ onBeforeUnmount(() => {
             {{ t('仓库存在未解决冲突，请先在 Git 工具中处理。') }}
           </p>
           <p v-if="!status.branch" class="lume-git__warning">
-            {{ t('当前处于独立 HEAD，请先在 Git 工具中切换到分支。') }}
+            {{ t('当前处于独立 HEAD，请先切换到本地分支。') }}
           </p>
           <GitRemote
             v-if="remote && status.branch && !restoration"
@@ -297,6 +326,7 @@ onBeforeUnmount(() => {
             />
             <GitHistory
               v-else
+              :key="`${status.branch}:${status.head}`"
               :workspace="workspace"
               :writable="writable"
               :busy="busy"

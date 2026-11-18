@@ -705,12 +705,19 @@ export const en = {
   已更新远程状态: 'Remote status updated',
   '正在检查要恢复的文件…': 'Checking file before restoration…',
   '正在恢复文件…': 'Restoring file…',
+  '正在切换分支…': 'Switching branch…',
+  '已切换到分支 {0}': 'Switched to branch {0}',
+  '目标本地分支不可用，请刷新后重试。': 'The local branch is unavailable. Refresh and retry.',
+  '分支已切换，但 Git 切换后的操作失败。请检查工作区状态。':
+    'The branch was switched, but a Git post-checkout operation failed. Check the workspace.',
+  '分支已切换，但重新加载工作区失败：{0}': 'The branch was switched, but reloading failed: {0}',
   '点击刷新重新检查 Git 环境': 'Refresh to check the Git environment again',
   为这个工作区保存版本: 'Keep versions of this workspace',
   '创建本地 Git 仓库后，可以提交修改、查看历史和恢复文件。':
     'Create a local Git repository to commit changes, browse history, and restore files.',
   启用本地版本管理: 'Enable local version control',
   '独立 HEAD': 'Detached HEAD',
+  当前分支: 'Current branch',
   尚无提交: 'No commits',
   '当前工作区是仓库的子目录，仅可查看。请打开上方仓库根目录以提交或恢复文件。':
     'This workspace is a repository subdirectory and is read-only here. Open the repository root shown above to commit or restore files.',
@@ -718,8 +725,7 @@ export const en = {
     'The repository has an unfinished operation or lock ({0}). Resolve it in a Git tool first.',
   '仓库存在未解决冲突，请先在 Git 工具中处理。':
     'The repository has unresolved conflicts. Resolve them in a Git tool first.',
-  '当前处于独立 HEAD，请先在 Git 工具中切换到分支。':
-    'HEAD is detached. Switch to a branch in a Git tool first.',
+  '当前处于独立 HEAD，请先切换到本地分支。': 'HEAD is detached. Switch to a local branch first.',
   变更: 'Changes',
   未跟踪: 'Untracked',
   已新增: 'Added',

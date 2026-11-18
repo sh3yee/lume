@@ -10,6 +10,12 @@ Existing repositories show their branch, changes, and history. For a regular fol
 
 A workspace inside a larger repository is read-only in this panel. The actual repository root is shown; open that root as the workspace to commit or restore files.
 
+## Switch branches
+
+When another local branch is available, click the name next to **Current branch** to open the branch menu. After you choose a branch, Lume first saves open workspace documents. Git stops the switch and reports a reason if it would overwrite local changes.
+
+After switching, the file tree, commit history, push status, and open workspace documents refresh. Clean tabs close if their files are absent on the target branch.
+
 ## Stage and commit
 
 The Changes tab separates staged and unstaged files. Select a file to inspect its corresponding diff. A partially staged file appears in both groups.
@@ -48,7 +54,7 @@ Restoration does not move HEAD, rewrite history, or modify the index. Difference
 - Text previews require valid UTF-8 and are limited to 512 KB. Binary and large files show version information. Each Git command has an 8 MB output limit, which also bounds file restoration.
 - Repositories with more than 5,000 changed files require a smaller change scope.
 - Symbolic links, submodules, Git metadata paths, and paths outside the repository cannot be restored. Use an external Git tool to stage directories or submodules.
-- Detached HEAD allows history browsing; switch to a branch in an external tool before committing.
+- Detached HEAD allows history browsing. Switch to a local branch before committing.
 - Resolve unfinished merges, rebases, conflicts, or repository locks in an external Git tool, then refresh.
 - Git commands have a timeout. If hooks, signing, or other configuration cause a failure, Lume reports the error and reloads repository state.
 - Use an external Git tool to clone a repository, apply remote updates to the workspace, or resolve merge conflicts.

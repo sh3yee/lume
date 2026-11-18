@@ -25,6 +25,19 @@ pub async fn lume_git_init(state: State<'_, GitState>, workspace: String) -> Lum
 }
 
 #[tauri::command]
+pub async fn lume_git_switch_branch(
+    state: State<'_, GitState>,
+    workspace: String,
+    branch: String,
+    expected_branch: Option<String>,
+    expected_head: Option<String>,
+) -> LumeResult<actions::GitSwitchOutcome> {
+    execute(&state, move || {
+        actions::switch_branch(&workspace, &branch, expected_branch.as_deref(), expected_head.as_deref())
+    }).await
+}
+
+#[tauri::command]
 pub async fn lume_git_stage(state: State<'_, GitState>, workspace: String, path: String, staged: bool) -> LumeResult<repository::GitStatus> {
     execute(&state, move || actions::stage(&workspace, &path, staged)).await
 }

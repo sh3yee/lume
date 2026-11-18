@@ -7,6 +7,7 @@ import { t } from '@/app/i18n'
 import { onBeforeUnmount, watch } from 'vue'
 import { isTauri, PlatformError } from '@/platform/tauri/client'
 import { useDocument } from '@/features/documents/model/useDocument'
+import { flushDocumentEdits } from '@/features/documents/model/documentEditorSync'
 import { saveDocumentFile } from '@/features/files/services/documentFileService'
 import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
 import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
@@ -27,8 +28,13 @@ import {
 } from '@/features/workspace/services/workspaceService'
 
 export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
-  const { documents, updateDocumentContent, updateDocumentMetadata, completeDocumentSave } =
-    useDocument()
+  const {
+    documents,
+    closeDocument,
+    updateDocumentContent,
+    updateDocumentMetadata,
+    completeDocumentSave,
+  } = useDocument()
   const workspace = useWorkspaceCommands()
   const saveErrors = new Map<string, string>()
   const recreateDeletedDocuments = new Set<string>()
@@ -36,6 +42,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
   let saving = false
   let savePending = false
   let disposed = false
+  let workspaceVersion = 0
   let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
   watch(
@@ -64,7 +71,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
         const renamedDocument = documents.value.find((item) =>
           isSameDocumentPath(item.path, change.previousPath ?? null),
         )
-        if (renamedDocument) {
+        if (renamedDocument && !workspace.hasDocumentConflict(renamedDocument.id)) {
           updateDocumentMetadata(renamedDocument.id, {
             path: change.path,
             name: change.path.split(/[\\/]/).pop() || renamedDocument.name,
@@ -239,6 +246,47 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
     }
   }
 
+  const reloadBranchWorkspace = async (root: string) => {
+    // 切换前排队的文件事件对应旧分支，直接以新分支的文件和文档为准。
+    workspaceVersion++
+    const openPaths = documents.value.flatMap(({ id, path }) =>
+      path && isDocumentInDirectory(path, root) ? [{ id, path }] : [],
+    )
+    let readFailure = ''
+    for (const { id, path } of openPaths) {
+      const result = await readWorkspaceDocument(path).then(
+        (file) => ({ file, failure: null }),
+        (failure: unknown) => ({ file: null, failure }),
+      )
+      flushDocumentEdits()
+      const document = documents.value.find(
+        (item) => item.id === id && isSameDocumentPath(item.path, path),
+      )
+      if (!document) continue
+      const missing = result.failure instanceof PlatformError && result.failure.kind === 'NotFound'
+      if (result.file && (!document.isDirty || document.content === result.file.content)) {
+        updateDocumentContent(id, result.file.content, false)
+        updateDocumentMetadata(id, { isDirty: false })
+      } else if (missing && !document.isDirty) {
+        closeDocument(id)
+      } else {
+        workspace.setExternalConflict({
+          documentId: id,
+          fileName: document.name,
+          path,
+          kind: missing ? 'deleted' : 'modified',
+        })
+        if (result.failure && !missing) readFailure ||= getWorkspaceErrorMessage(result.failure)
+      }
+    }
+    const activePath = workspace.workspacePath.value
+    if (activePath && isSameDocumentPath(activePath, root)) {
+      const loaded = await workspace.loadWorkspace(activePath)
+      if (!loaded) readFailure ||= t('无法读取工作区')
+    }
+    if (readFailure) throw new Error(t('分支已切换，但重新加载工作区失败：{0}', readFailure))
+  }
+
   const unregisterVersionDocuments = registerVersionDocuments(
     async (root) => {
       const pending = documents.value.filter(
@@ -271,6 +319,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       if (workspace.workspacePath.value)
         await workspace.loadWorkspace(workspace.workspacePath.value)
     },
+    reloadBranchWorkspace,
   )
 
   const stopVersionWatch = watch(versionOperationActive, (active) => {
@@ -295,8 +344,11 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
   if (isTauri()) {
     void workspace.restoreWorkspace()
     void listenWorkspaceChanges((batch) => {
-      // 等恢复后的文档基准更新完成，再消费监听事件。
-      void runWorkspaceWrite(() => processExternalChanges(batch))
+      const version = workspaceVersion
+      // 等版本操作更新文档基准后，再消费监听事件。
+      void runWorkspaceWrite(async () => {
+        if (version === workspaceVersion) await processExternalChanges(batch)
+      })
     }).then((dispose) => {
       if (disposed) dispose()
       else unlisten = dispose
