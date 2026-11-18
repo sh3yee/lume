@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
-import { CircleAlert, CircleCheck, GitBranch, LoaderCircle, RefreshCw, X } from 'lucide-vue-next'
+import { CircleAlert, CircleCheck, GitBranch, LoaderCircle, X } from 'lucide-vue-next'
 import SettingsSelect from '@/components/SettingsSelect.vue'
 import { t } from '@/app/i18n'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { isSameDocumentPath } from '@/features/documents/model/documentPath'
+import { isTauri } from '@/platform/tauri/client'
 import { gitRestore, gitRestorePreview, type GitRestorePreview } from '@/platform/tauri/git'
 import {
   reloadVersionDocument,
@@ -44,6 +45,11 @@ const restoration = shallowRef<{
   documentSnapshot: string
 } | null>(null)
 const { documents } = useDocument()
+const repositoryPath = computed(() => status.value?.root || props.workspace)
+const repositoryName = computed(
+  () => repositoryPath.value.split(/[\\/]/).filter(Boolean).pop() ?? repositoryPath.value,
+)
+const isMerging = computed(() => Boolean(status.value?.mergeHead && status.value.writable))
 const branchOptions = computed(() =>
   (status.value?.branches ?? []).map((name) => ({ value: name, label: name })),
 )
@@ -177,20 +183,14 @@ onBeforeUnmount(() => {
         tabindex="-1"
       >
         <header class="lume-git__header">
-          <GitBranch :size="20" />
-          <div>
+          <GitBranch :size="18" aria-hidden="true" />
+          <div class="lume-git__title">
             <h2 id="git-dialog-title">{{ t('版本管理') }}</h2>
-            <p :title="status?.root || workspace">{{ status?.root || workspace }}</p>
+            <span class="lume-git__title-separator" aria-hidden="true">/</span>
+            <span class="lume-git__repository-name" :title="repositoryPath">{{
+              repositoryName
+            }}</span>
           </div>
-          <button
-            type="button"
-            :disabled="busy"
-            :aria-label="t('刷新')"
-            :title="t('刷新')"
-            @click="repository.refresh()"
-          >
-            <RefreshCw :size="16" />
-          </button>
           <button
             type="button"
             :disabled="busy"
@@ -201,10 +201,7 @@ onBeforeUnmount(() => {
             <X :size="18" />
           </button>
         </header>
-        <template v-if="!status">
-          <p v-if="!busy" class="lume-git__empty">{{ t('点击刷新重新检查 Git 环境') }}</p>
-        </template>
-        <div v-else-if="!status.root" class="lume-git__welcome">
+        <div v-if="status && !status.root" class="lume-git__welcome">
           <GitBranch :size="36" :stroke-width="1.4" />
           <h3>{{ t('为这个工作区保存版本') }}</h3>
           <p>{{ t('创建本地 Git 仓库后，可以提交修改、查看历史和恢复文件。') }}</p>
@@ -217,31 +214,50 @@ onBeforeUnmount(() => {
             {{ t('启用本地版本管理') }}
           </button>
         </div>
-        <template v-else>
+        <template v-else-if="status">
           <div class="lume-git__repository-state">
-            <SettingsSelect
-              v-if="hasOtherBranches"
-              id="git-current-branch"
-              :label="t('当前分支')"
-              :value="status.branch || t('独立 HEAD')"
-              :options="branchOptions"
-              :container="dialog"
-              :disabled="busy || !writable || !!restoration"
-              compact
-              @change="handleBranchChange"
-            />
-            <div v-else class="lume-git__branch-summary">
-              <span class="lume-git__branch-label">{{ t('当前分支') }}</span>
-              <span class="lume-git__branch-badge" :title="status.branch ?? undefined">
-                {{ status.branch || t('独立 HEAD') }}
-              </span>
+            <div class="lume-git__local-state">
+              <SettingsSelect
+                v-if="hasOtherBranches"
+                id="git-current-branch"
+                :label="t('当前分支')"
+                :value="status.branch || t('独立 HEAD')"
+                :options="branchOptions"
+                :container="dialog"
+                :disabled="busy || !writable || !!restoration"
+                compact
+                @change="handleBranchChange"
+              />
+              <div v-else class="lume-git__branch-summary">
+                <span class="lume-git__branch-label">{{ t('当前分支') }}</span>
+                <span class="lume-git__branch-badge" :title="status.branch ?? undefined">
+                  {{ status.branch || t('独立 HEAD') }}
+                </span>
+              </div>
+              <code :title="status.head ?? undefined">
+                {{ status.head?.slice(0, 10) || t('尚无提交') }}
+              </code>
             </div>
-            <code :title="status.head ?? undefined">
-              {{ status.head?.slice(0, 10) || t('尚无提交') }}
-            </code>
+            <GitRemote
+              v-if="remote && status.branch && !restoration && !isMerging"
+              :key="status.branch"
+              :branch="status.branch"
+              :head="status.head"
+              :remote="remote"
+              :stale="remoteStale"
+              :disabled="busy || !writable"
+              @push="repository.push"
+              @fetch="repository.fetchRemote"
+              @update="repository.updateFromRemote"
+            />
           </div>
           <p v-if="!status.writable" class="lume-git__warning">
-            {{ t('当前工作区是仓库的子目录，仅可查看。请打开上方仓库根目录以提交或恢复文件。') }}
+            {{
+              t(
+                '当前工作区是仓库的子目录，仅可查看。请打开仓库根目录 {0} 以提交或恢复文件。',
+                repositoryPath,
+              )
+            }}
           </p>
           <p v-if="status.operation && !status.mergeHead" class="lume-git__warning">
             {{ t('仓库有未完成操作或锁占用（{0}），请先在 Git 工具中处理。', status.operation) }}
@@ -256,8 +272,8 @@ onBeforeUnmount(() => {
             {{ t('当前处于独立 HEAD，请先切换到本地分支。') }}
           </p>
           <GitMergePanel
-            v-if="status.mergeHead && status.writable"
-            :key="status.mergeHead"
+            v-if="isMerging"
+            :key="status.mergeHead ?? undefined"
             :workspace="workspace"
             :status="status"
             :busy="busy"
@@ -266,19 +282,7 @@ onBeforeUnmount(() => {
             @author="repository.configureAuthor"
           />
           <template v-else>
-            <GitRemote
-              v-if="remote && status.branch && !restoration"
-              :key="status.branch"
-              :branch="status.branch"
-              :head="status.head"
-              :remote="remote"
-              :stale="remoteStale"
-              :disabled="busy || !writable"
-              @push="repository.push"
-              @fetch="repository.fetchRemote"
-              @update="repository.updateFromRemote"
-            />
-            <p v-else-if="remoteError" class="lume-git__warning">{{ remoteError }}</p>
+            <p v-if="remoteError" class="lume-git__warning">{{ remoteError }}</p>
             <nav class="lume-git__tabs" :aria-label="t('版本管理')">
               <button
                 type="button"
@@ -384,7 +388,16 @@ onBeforeUnmount(() => {
             </template>
           </div>
           <button
-            v-if="feedback?.kind === 'error'"
+            v-if="feedback?.kind === 'error' && !status && isTauri()"
+            type="button"
+            class="lume-git__feedback-retry"
+            :disabled="busy"
+            @click="repository.refresh()"
+          >
+            {{ t('重新读取仓库状态') }}
+          </button>
+          <button
+            v-else-if="feedback?.kind === 'error'"
             type="button"
             class="lume-git__feedback-dismiss"
             :aria-label="t('关闭提示')"

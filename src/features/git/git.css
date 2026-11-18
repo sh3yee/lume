@@ -82,20 +82,36 @@
 .lume-git__header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 20px 12px;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--lume-border-subtle);
 }
-.lume-git__header > div {
+.lume-git__header > svg {
+  flex-shrink: 0;
+  color: var(--lume-text-secondary);
+}
+.lume-git__title {
+  display: flex;
   flex: 1;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
-.lume-git__header p {
-  margin-top: 4px;
+.lume-git__title h2 {
+  flex-shrink: 0;
+  font-size: var(--lume-font-size-md);
+  font-weight: var(--lume-font-weight-semibold);
+  white-space: nowrap;
+}
+.lume-git__title-separator {
+  color: var(--lume-border-strong);
+}
+.lume-git__repository-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--lume-text-tertiary);
-  font-size: 12px;
+  color: var(--lume-text-secondary);
 }
 .lume-git__header > button {
   display: grid;
@@ -155,6 +171,11 @@
   margin-right: 8px;
   color: inherit;
 }
+.lume-git .lume-git__feedback-retry {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
 .lume-git .lume-git__feedback-dismiss {
   display: grid;
   place-items: center;
@@ -195,9 +216,18 @@
 .lume-git__repository-state {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 8px 20px;
+  padding: 8px 20px 4px;
+}
+.lume-git__local-state {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding: 0 20px 12px;
+  gap: 8px;
+  min-width: 0;
+  min-height: 30px;
+  max-width: 100%;
 }
 .lume-git__branch-summary {
   display: flex;
@@ -221,7 +251,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lume-git__repository-state code {
+.lume-git__local-state > code {
   color: var(--lume-text-tertiary);
   font-size: 12px;
 }
@@ -229,6 +259,7 @@
   padding: 8px 20px;
   background: var(--lume-accent-subtle);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 .lume-git__tabs {
   display: flex;

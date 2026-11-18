@@ -276,7 +276,7 @@ export const useGitRepository = (workspace: string) => {
   }
 
   const handleFocus = () => {
-    void refresh(false)
+    void refresh(!status.value)
   }
   onMounted(() => {
     if (isTauri()) {

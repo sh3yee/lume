@@ -50,7 +50,7 @@ const statusLabel = computed(() => {
     return t('本地有 {0} 个提交待推送，远程有 {1} 个新提交，请先整合更新。', ahead, behind)
   if (behind > 0) return t('远程有 {0} 个新提交，请先整合更新。', behind)
   if (ahead > 0) return t('{0} 个提交待推送', ahead)
-  return t('没有待推送的提交')
+  return t('无待推送提交')
 })
 
 const canPush = computed(() => {
@@ -104,7 +104,7 @@ watch(
 </script>
 
 <template>
-  <section class="git-remote" :aria-label="t('远程推送')">
+  <section class="git-remote" :aria-label="t('远程仓库')">
     <div class="git-remote__row">
       <div class="git-remote__summary" aria-live="polite">
         <code v-if="upstreamTarget" :title="upstreamTarget.url">
@@ -114,7 +114,7 @@ watch(
           {{ statusLabel }}
         </span>
       </div>
-      <template v-if="upstreamTarget">
+      <div v-if="upstreamTarget" class="git-remote__buttons">
         <button type="button" :disabled="disabled" @click="emit('fetch', upstreamTarget)">
           {{ t('获取远程状态') }}
         </button>
@@ -131,13 +131,13 @@ watch(
         <button
           v-else
           type="button"
-          class="lume-git__primary"
+          :class="{ 'lume-git__primary': !disabled && canPush }"
           :disabled="disabled || !canPush"
           @click="emit('push', upstreamTarget)"
         >
           {{ t('推送') }}
         </button>
-      </template>
+      </div>
       <button
         v-else
         ref="connectButton"
@@ -212,13 +212,13 @@ watch(
 
 <style scoped>
 .git-remote {
-  padding: 8px 20px;
-  border-top: 1px solid var(--lume-border-subtle);
-  overflow: auto;
+  flex: 1 1 380px;
+  min-width: 0;
 }
 
 .git-remote__row,
 .git-remote__summary,
+.git-remote__buttons,
 .git-remote__form,
 .git-remote__actions {
   display: flex;
@@ -227,8 +227,17 @@ watch(
   gap: 8px;
 }
 
+.git-remote__row {
+  min-height: 30px;
+  justify-content: flex-end;
+  gap: 6px 12px;
+}
+
+.git-remote__row button {
+  padding: 4px 8px;
+}
+
 .git-remote__summary {
-  flex: 1 1 220px;
   min-width: 0;
   color: var(--lume-text-secondary);
   overflow-wrap: anywhere;
@@ -265,5 +274,11 @@ watch(
 .git-remote__actions {
   flex-basis: 100%;
   justify-content: flex-end;
+}
+
+@media (max-width: 680px) {
+  .git-remote__row {
+    justify-content: flex-start;
+  }
 }
 </style>

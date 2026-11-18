@@ -812,7 +812,7 @@ export const en = {
     'The branch was switched, but a Git post-checkout operation failed. Check the workspace.',
   '版本操作已完成，但重新加载工作区失败：{0}':
     'Git operation completed, but the workspace could not be reloaded: {0}',
-  '点击刷新重新检查 Git 环境': 'Refresh to check the Git environment again',
+  重新读取仓库状态: 'Reload repository status',
   为这个工作区保存版本: 'Keep versions of this workspace',
   '创建本地 Git 仓库后，可以提交修改、查看历史和恢复文件。':
     'Create a local Git repository to commit changes, browse history, and restore files.',
@@ -820,8 +820,8 @@ export const en = {
   '独立 HEAD': 'Detached HEAD',
   当前分支: 'Current branch',
   尚无提交: 'No commits',
-  '当前工作区是仓库的子目录，仅可查看。请打开上方仓库根目录以提交或恢复文件。':
-    'This workspace is a repository subdirectory and is read-only here. Open the repository root shown above to commit or restore files.',
+  '当前工作区是仓库的子目录，仅可查看。请打开仓库根目录 {0} 以提交或恢复文件。':
+    'This workspace is a read-only view of a subdirectory. Open the repository root {0} to commit or restore files.',
   '仓库有未完成操作或锁占用（{0}），请先在 Git 工具中处理。':
     'The repository has an unfinished operation or lock ({0}). Resolve it in a Git tool first.',
   '仓库存在未解决冲突，请先在 Git 工具中处理。':
@@ -848,7 +848,7 @@ export const en = {
   '远程有 {0} 个新提交，请先整合更新。':
     'The remote has {0} new commit(s). Integrate the updates first.',
   '{0} 个提交待推送': '{0} commit(s) to push',
-  没有待推送的提交: 'No commits to push',
+  无待推送提交: 'No commits to push',
   '根据上次获取或推送的结果显示。': 'Based on the last fetch or push.',
   获取远程状态: 'Fetch remote status',
   推送: 'Push',
