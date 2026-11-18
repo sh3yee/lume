@@ -146,7 +146,9 @@ pub fn working_diff(workspace: &str, path: &str, staged: bool) -> LumeResult<Str
 
 pub fn configure_author(workspace: &str, name: &str, email: &str) -> LumeResult<GitStatus> {
     let root = repository(workspace, true)?;
-    ensure_idle(&root)?;
+    if super::merge::merge_head(&root)?.is_none() {
+        ensure_idle(&root)?;
+    }
     if name.trim().is_empty()
         || email.trim().is_empty()
         || name.len() > 200
@@ -223,13 +225,23 @@ pub fn restore(
         return Err(error("不支持恢复符号链接或子模块"));
     }
     let bytes = checked(&root, &["cat-file", "blob", &id])?;
-    let target = validate_path(&root, path)?;
-    if fingerprint(&root, path)?.as_deref() != expected {
+    replace_file(&root, path, &bytes, &mode, expected)
+}
+
+pub(super) fn replace_file(
+    root: &std::path::Path,
+    path: &str,
+    bytes: &[u8],
+    #[cfg_attr(not(unix), allow(unused_variables))] mode: &str,
+    expected: Option<&str>,
+) -> LumeResult<String> {
+    let target = validate_path(root, path)?;
+    if fingerprint(root, path)?.as_deref() != expected {
         return Err(error("文件在确认后发生变化，请重新查看后再恢复。"));
     }
     let parent = target.parent().ok_or_else(|| error("无法确定父目录"))?;
     std::fs::create_dir_all(parent)?;
-    validate_path(&root, path)?;
+    validate_path(root, path)?;
     let temporary_path = parent.join(format!(
         ".lume-restore-{}-{}.tmp",
         std::process::id(),
@@ -238,7 +250,7 @@ pub fn restore(
     // 先完整写入同目录临时文件，再替换目标；写入失败时保留原文件。
     let mut file = OpenOptions::new().write(true).create_new(true).open(&temporary_path)?;
     let temporary = RestoreFile(temporary_path);
-    file.write_all(&bytes)?;
+    file.write_all(bytes)?;
     file.sync_all()?;
     drop(file);
     #[cfg(unix)]
@@ -247,8 +259,8 @@ pub fn restore(
         let permissions = std::fs::Permissions::from_mode(if mode == "100755" { 0o755 } else { 0o644 });
         std::fs::set_permissions(&temporary.0, permissions)?;
     }
-    validate_path(&root, path)?;
-    if fingerprint(&root, path)?.as_deref() != expected {
+    validate_path(root, path)?;
+    if fingerprint(root, path)?.as_deref() != expected {
         return Err(error("文件在确认后发生变化，请重新查看后再恢复。"));
     }
     // 不经过 checkout，不修改暂存区，也不触发 smudge 过滤器。

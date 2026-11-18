@@ -16,7 +16,9 @@ use commands::{
         lume_git_author, lume_git_index_tree, lume_git_commit, lume_git_history,
         lume_git_history_files, lume_git_history_diff, lume_git_file_version,
         lume_git_restore_preview, lume_git_restore, lume_git_remote_status,
-        lume_git_push, lume_git_auto_push, lume_git_fetch, lume_git_switch_branch},
+        lume_git_push, lume_git_auto_push, lume_git_fetch, lume_git_switch_branch, lume_git_clone,
+        lume_git_update, lume_git_merge_paths, lume_git_conflict, lume_git_resolve, lume_git_finish_merge,
+        lume_git_auth_reply, lume_git_cancel_remote},
     images::{
         lume_clear_staged_images, lume_delete_image_file, lume_import_image_file,
         lume_materialize_staged_images, lume_read_clipboard_image_paths,
@@ -36,11 +38,19 @@ use commands::{
 };
 use services::workspace_watcher::WorkspaceWatcherState;
 
+pub fn run_git_askpass() -> Option<i32> {
+    services::git::askpass::run_helper()
+}
+
 /// 创建并配置 Tauri 应用实例
 ///
 /// 将插件注册和命令绑定集中管理，保持入口清晰。
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            services::git::askpass::initialize(app.handle().clone());
+            Ok(())
+        })
         .manage(WorkspaceWatcherState::default())
         .manage(GitState::default())
         .manage(AppUpdateState::default())
@@ -60,6 +70,14 @@ pub fn run() {
             lume_git_push,
             lume_git_auto_push,
             lume_git_fetch,
+            lume_git_clone,
+            lume_git_auth_reply,
+            lume_git_cancel_remote,
+            lume_git_update,
+            lume_git_merge_paths,
+            lume_git_conflict,
+            lume_git_resolve,
+            lume_git_finish_merge,
             lume_git_history,
             lume_git_history_files,
             lume_git_history_diff,

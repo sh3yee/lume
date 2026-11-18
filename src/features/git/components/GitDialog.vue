@@ -11,8 +11,10 @@ import {
   runVersionWrite,
 } from '@/features/workspace/services/workspaceOperations'
 import { useGitRepository } from '../useGitRepository'
+import { cancelGitRemote, gitRemoteActivity } from '../gitRemoteActivity'
 import GitChanges from './GitChanges.vue'
 import GitHistory from './GitHistory.vue'
+import GitMergePanel from './GitMergePanel.vue'
 import GitRemote from './GitRemote.vue'
 import '../git.css'
 
@@ -23,6 +25,7 @@ const {
   status,
   remote,
   remoteError,
+  remoteStale,
   busy,
   feedback,
   message,
@@ -240,105 +243,123 @@ onBeforeUnmount(() => {
           <p v-if="!status.writable" class="lume-git__warning">
             {{ t('当前工作区是仓库的子目录，仅可查看。请打开上方仓库根目录以提交或恢复文件。') }}
           </p>
-          <p v-if="status.operation" class="lume-git__warning">
+          <p v-if="status.operation && !status.mergeHead" class="lume-git__warning">
             {{ t('仓库有未完成操作或锁占用（{0}），请先在 Git 工具中处理。', status.operation) }}
           </p>
-          <p v-else-if="!writable && status.writable" class="lume-git__warning">
+          <p
+            v-else-if="!status.mergeHead && !writable && status.writable"
+            class="lume-git__warning"
+          >
             {{ t('仓库存在未解决冲突，请先在 Git 工具中处理。') }}
           </p>
           <p v-if="!status.branch" class="lume-git__warning">
             {{ t('当前处于独立 HEAD，请先切换到本地分支。') }}
           </p>
-          <GitRemote
-            v-if="remote && status.branch && !restoration"
-            :key="status.branch"
-            :branch="status.branch"
-            :remote="remote"
-            :disabled="busy || !writable"
-            @push="repository.push"
-            @fetch="repository.fetchRemote"
+          <GitMergePanel
+            v-if="status.mergeHead && status.writable"
+            :key="status.mergeHead"
+            :workspace="workspace"
+            :status="status"
+            :busy="busy"
+            @resolve="repository.resolveConflict"
+            @finish="repository.finishMerge"
+            @author="repository.configureAuthor"
           />
-          <p v-else-if="remoteError" class="lume-git__warning">{{ remoteError }}</p>
-          <nav class="lume-git__tabs" :aria-label="t('版本管理')">
-            <button
-              type="button"
-              :aria-pressed="tab === 'changes'"
-              :disabled="busy || !!restoration"
-              @click="tab = 'changes'"
-            >
-              {{ t('变更') }} {{ status.changes.length }}
-            </button>
-            <button
-              type="button"
-              :aria-pressed="tab === 'history'"
-              :disabled="busy || !!restoration"
-              @click="tab = 'history'"
-            >
-              {{ t('历史') }}
-            </button>
-          </nav>
-          <div
-            v-if="restoration"
-            class="lume-git__restore"
-            role="alertdialog"
-            aria-labelledby="git-restore-title"
-            aria-describedby="git-restore-description"
-          >
-            <h3 id="git-restore-title">{{ t('确认恢复文件') }}</h3>
-            <p>
-              {{ restoration.path }} · <code>{{ restoration.revision.slice(0, 10) }}</code>
-            </p>
-            <p id="git-restore-description">
-              {{
-                t(
-                  '将用此历史版本覆盖当前文件。当前内容已保存到磁盘，但未提交的内容可能被覆盖。恢复不会修改提交历史或暂存区。',
-                )
-              }}
-            </p>
-            <div>
+          <template v-else>
+            <GitRemote
+              v-if="remote && status.branch && !restoration"
+              :key="status.branch"
+              :branch="status.branch"
+              :head="status.head"
+              :remote="remote"
+              :stale="remoteStale"
+              :disabled="busy || !writable"
+              @push="repository.push"
+              @fetch="repository.fetchRemote"
+              @update="repository.updateFromRemote"
+            />
+            <p v-else-if="remoteError" class="lume-git__warning">{{ remoteError }}</p>
+            <nav class="lume-git__tabs" :aria-label="t('版本管理')">
               <button
-                data-restore-cancel
                 type="button"
-                :disabled="busy"
-                @click="restoration = null"
+                :aria-pressed="tab === 'changes'"
+                :disabled="busy || !!restoration"
+                @click="tab = 'changes'"
               >
-                {{ t('取消') }}
+                {{ t('变更') }} {{ status.changes.length }}
               </button>
               <button
                 type="button"
-                class="lume-git__primary"
-                :disabled="busy"
-                @click="handleRestore"
+                :aria-pressed="tab === 'history'"
+                :disabled="busy || !!restoration"
+                @click="tab = 'history'"
               >
-                {{ t('确认恢复') }}
+                {{ t('历史') }}
               </button>
+            </nav>
+            <div
+              v-if="restoration"
+              class="lume-git__restore"
+              role="alertdialog"
+              aria-labelledby="git-restore-title"
+              aria-describedby="git-restore-description"
+            >
+              <h3 id="git-restore-title">{{ t('确认恢复文件') }}</h3>
+              <p>
+                {{ restoration.path }} · <code>{{ restoration.revision.slice(0, 10) }}</code>
+              </p>
+              <p id="git-restore-description">
+                {{
+                  t(
+                    '将用此历史版本覆盖当前文件。当前内容已保存到磁盘，但未提交的内容可能被覆盖。恢复不会修改提交历史或暂存区。',
+                  )
+                }}
+              </p>
+              <div>
+                <button
+                  data-restore-cancel
+                  type="button"
+                  :disabled="busy"
+                  @click="restoration = null"
+                >
+                  {{ t('取消') }}
+                </button>
+                <button
+                  type="button"
+                  class="lume-git__primary"
+                  :disabled="busy"
+                  @click="handleRestore"
+                >
+                  {{ t('确认恢复') }}
+                </button>
+              </div>
             </div>
-          </div>
-          <div v-else class="lume-git__body" :aria-busy="busy">
-            <GitChanges
-              v-if="tab === 'changes'"
-              v-model:message="message"
-              :status="status"
-              :busy="busy"
-              :writable="writable"
-              :diff="diff"
-              :diff-path="diffPath"
-              :diff-staged="diffStaged"
-              :diff-loading="diffLoading"
-              @stage="repository.stage"
-              @diff="repository.showDiff"
-              @commit="repository.commit()"
-              @author="repository.configureAuthor"
-            />
-            <GitHistory
-              v-else
-              :key="`${status.branch}:${status.head}`"
-              :workspace="workspace"
-              :writable="writable"
-              :busy="busy"
-              @restore="handlePrepareRestore"
-            />
-          </div>
+            <div v-else class="lume-git__body" :aria-busy="busy">
+              <GitChanges
+                v-if="tab === 'changes'"
+                v-model:message="message"
+                :status="status"
+                :busy="busy"
+                :writable="writable"
+                :diff="diff"
+                :diff-path="diffPath"
+                :diff-staged="diffStaged"
+                :diff-loading="diffLoading"
+                @stage="repository.stage"
+                @diff="repository.showDiff"
+                @commit="repository.commit()"
+                @author="repository.configureAuthor"
+              />
+              <GitHistory
+                v-else
+                :key="`${status.branch}:${status.head}`"
+                :workspace="workspace"
+                :writable="writable"
+                :busy="busy"
+                @restore="handlePrepareRestore"
+              />
+            </div>
+          </template>
         </template>
         <footer class="lume-git__feedback" :data-kind="feedback?.kind">
           <div class="lume-git__feedback-message" role="status" aria-atomic="true">
@@ -353,6 +374,9 @@ onBeforeUnmount(() => {
               <p>{{ feedback.message }}</p>
             </template>
           </div>
+          <button v-if="busy && gitRemoteActivity !== null" type="button" @click="cancelGitRemote">
+            {{ t('取消远程操作') }}
+          </button>
           <div class="lume-git__feedback-message" role="alert" aria-atomic="true">
             <template v-if="feedback?.kind === 'error'">
               <CircleAlert :size="15" aria-hidden="true" />

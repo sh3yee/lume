@@ -21,14 +21,24 @@
     </TitleBar>
 
     <div class="lume-app__body">
-      <SideBar v-if="sidebarVisible && !focusMode" @open-versions="gitDialogOpen = true" />
+      <SideBar
+        v-if="sidebarVisible && !focusMode"
+        @open-versions="gitDialogOpen = true"
+        @clone-repository="gitCloneOpen = true"
+      />
 
       <div class="lume-app__workspace">
         <div class="lume-app__content">
           <div class="lume-app__editor-card">
             <main class="lume-app__main">
+              <div v-if="activeGitConflict" class="lume-app__git-conflict">
+                <p>{{ t('此文件有 Git 合并冲突，请在版本管理中解决。') }}</p>
+                <button type="button" @click="openConflictWorkspace">
+                  {{ t('打开版本管理') }}
+                </button>
+              </div>
               <WysiwygPane
-                v-if="viewMode === 'wysiwyg'"
+                v-else-if="viewMode === 'wysiwyg'"
                 ref="wysiwygPaneRef"
                 :key="activeDocumentId"
                 @edit-source="handleEditSource"
@@ -108,13 +118,15 @@
       @exported="showMessage(t('导出成功'))"
     />
     <ExternalConflictDialog
-      v-if="externalConflict && !gitDialogOpen"
+      v-if="externalConflict && !gitDialogOpen && !gitCloneOpen"
       :file-name="externalConflict.fileName"
       :deleted="externalConflict.kind === 'deleted'"
       @keep="keepLocalChanges"
       @reload="reloadConflictedDocument"
     />
     <FileDropMessage :message="fileDropMessage" @dismiss="dismissMessage" />
+    <GitCloneDialog v-if="gitCloneOpen" @close="gitCloneOpen = false" />
+    <GitAuthDialog v-if="isTauri()" />
     <GitDialog
       v-if="gitDialogOpen && workspacePath"
       :key="workspacePath"
@@ -148,10 +160,16 @@ import FileDropMessage from '@components/FileDropMessage.vue'
 import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
 import ExportDialog from '@/features/export/components/ExportDialog.vue'
 import GitDialog from '@/features/git/components/GitDialog.vue'
+import GitCloneDialog from '@/features/git/components/GitCloneDialog.vue'
+import GitAuthDialog from '@/features/git/components/GitAuthDialog.vue'
+import { getGitConflictWorkspace } from '@/features/git/gitConflictPaths'
 import { useGitAutoPush } from '@/features/git/useGitAutoPush'
 import { useWorkspaceStore } from '@/features/workspace/model/workspaceStore'
+import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
+import { isSameDocumentPath } from '@/features/documents/model/documentPath'
 import { versionOperationActive } from '@/features/workspace/services/workspaceOperations'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { isTauri } from '@/platform/tauri/client'
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { useAppShortcuts } from '@/app/commands/useAppShortcuts'
@@ -180,6 +198,7 @@ const sourceEditorRef = ref<(ImageCommandEditor & { focus: () => void }) | null>
 const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
 const gitDialogOpen = ref(false)
+const gitCloneOpen = ref(false)
 const { workspacePath } = useWorkspaceStore()
 const {
   preference: gitAutoPushPreference,
@@ -199,6 +218,11 @@ const commandPalette = useCommandPalette({
     if (workspacePath.value) gitDialogOpen.value = true
     else showMessage(t('请先打开本地工作区以管理版本'))
   },
+  cloneRepository: isTauri()
+    ? () => {
+        gitCloneOpen.value = true
+      }
+    : undefined,
   toggleSidebar,
   toggleInspector: () => handleToggleInspector(),
   toggleFocusMode: () => {
@@ -226,6 +250,9 @@ const {
   requestCloseDocument,
   requestCloseDocuments,
 } = useDocument()
+const activeGitConflict = computed(() =>
+  getGitConflictWorkspace(activeDocument.value?.path ?? null),
+)
 const { themePreference } = useThemePreference()
 const { writingWidth, writingFont, fontSize, lineHeight } = useWritingPreference()
 const { interfaceFont, interfaceFontSize, outlineFontSize } = useInterfacePreference()
@@ -248,6 +275,20 @@ const appUpdater = provideAppUpdater(() => {
   if (!flushDocumentSession()) throw new Error(t('无法暂存文档，已取消安装更新。'))
 })
 const { fileDragPaths } = useFileDrop(viewMode, openFilesFromPaths, showMessage, dismissMessage)
+const workspaceCommands = useWorkspaceCommands()
+
+const openConflictWorkspace = async () => {
+  const path = activeGitConflict.value
+  if (!path) return
+  if (
+    !isSameDocumentPath(path, workspacePath.value) &&
+    !(await workspaceCommands.loadWorkspace(path))
+  ) {
+    showMessage(workspaceCommands.workspaceError.value ?? t('无法读取工作区'))
+    return
+  }
+  gitDialogOpen.value = true
+}
 
 const handleEditSource = async () => {
   handleViewModeChange('split')
@@ -408,6 +449,24 @@ useAppShortcuts({
 }
 
 /* 外框由编辑面板统一绘制，标签和正文之间不再叠加卡片。 */
+.lume-app__git-conflict {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--lume-space-4);
+  width: 100%;
+  padding: var(--lume-space-6);
+  color: var(--lume-text-secondary);
+}
+
+.lume-app__git-conflict button {
+  padding: var(--lume-space-2) var(--lume-space-4);
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+  color: var(--lume-accent-default);
+  background: var(--lume-bg-surface-raised);
+}
+
 .lume-app__main :deep(.lume-wysiwyg-pane),
 .lume-app__main :deep(.lume-source-editor),
 .lume-app__main :deep(.lume-preview-pane) {

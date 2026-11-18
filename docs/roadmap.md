@@ -4,20 +4,17 @@
 
 This roadmap contains unfinished work only. For available features, see the [README](../README.md) and [Markdown guide](markdown-guide.md).
 
-Future development will mainly focus on syncing ordinary Markdown files and their assets through storage you choose. WebDAV and Git provide paths to self-hosted storage; Baidu Netdisk and Alibaba Cloud Drive are separate cloud-service integrations. All integrations below are planned or under evaluation, with no committed release dates.
+Future development will mainly focus on syncing ordinary Markdown files and their assets through storage you choose. WebDAV supports self-hosted storage. Baidu Netdisk and Alibaba Cloud Drive are separate cloud-service integrations. All integrations below are planned or under evaluation, with no committed release dates.
 
 ## Main Priorities
 
 | Direction           | Planned work                                                                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | WebDAV              | Connect to a chosen server, select a remote folder, and sync documents and assets; support personal NAS and self-hosted services.                                        |
-| Git                 | Clone remote repositories, apply remote updates to the workspace, and resolve merge conflicts in the app.                                                 |
 | Baidu Netdisk       | Evaluate available integration methods for authorization, folder mapping, and document / asset synchronization.                                                          |
 | Alibaba Cloud Drive | Evaluate available integration methods for authorization, folder mapping, and document / asset synchronization.                                                          |
 
 ## Sync Behavior to Work Through
-
-Local version control, remote status, and manual pushing are available. See the [guide](git-version-control.md) and the [phased implementation plan](git-integration-plan.zh-CN.md).
 
 - Keep local writing usable offline and make every remote connection optional.
 - Sync Markdown and referenced assets together, preserving relative paths and handling moves, renames, and deletions.

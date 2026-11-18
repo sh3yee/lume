@@ -1,4 +1,4 @@
-use crate::{error::{LumeError, LumeResult}, services::git::{actions, history, remote, repository}};
+use crate::{error::{LumeError, LumeResult}, services::git::{actions, askpass, history, merge, remote, repository}};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::State;
@@ -95,6 +95,47 @@ pub async fn lume_git_fetch(
     target: remote::GitPushTarget,
 ) -> LumeResult<()> {
     execute(&state, move || remote::fetch(&workspace, &branch, target)).await
+}
+
+#[tauri::command]
+pub async fn lume_git_clone(state: State<'_, GitState>, parent: String, name: String, url: String) -> LumeResult<String> {
+    execute(&state, move || remote::clone_repository(&parent, &name, &url)).await
+}
+
+// 认证输入由等待 Git 的进程消费，回复和取消不能等待 Git 操作队列。
+#[tauri::command]
+pub fn lume_git_auth_reply(id: u32, value: String) -> LumeResult<()> {
+    askpass::answer(id, value)
+}
+
+#[tauri::command]
+pub fn lume_git_cancel_remote(id: u32) {
+    askpass::cancel(id);
+}
+
+#[tauri::command]
+pub async fn lume_git_update(state: State<'_, GitState>, workspace: String, target: merge::UpdateTarget) -> LumeResult<merge::UpdateOutcome> {
+    execute(&state, move || merge::update(&workspace, target)).await
+}
+
+#[tauri::command]
+pub async fn lume_git_merge_paths(state: State<'_, GitState>, workspace: String) -> LumeResult<Option<merge::MergePaths>> {
+    execute(&state, move || merge::paths(&workspace)).await
+}
+
+#[tauri::command]
+pub async fn lume_git_conflict(state: State<'_, GitState>, workspace: String, path: String) -> LumeResult<merge::Conflict> {
+    execute(&state, move || merge::conflict(&workspace, &path)).await
+}
+
+#[tauri::command]
+pub async fn lume_git_resolve(state: State<'_, GitState>, workspace: String, path: String, snapshot: String, resolution: merge::Resolution) -> LumeResult<()> {
+    execute(&state, move || merge::resolve(&workspace, &path, &snapshot, resolution)).await
+}
+
+#[tauri::command]
+pub async fn lume_git_finish_merge(state: State<'_, GitState>, workspace: String, head: String, merged: String, abort: bool, expected_tree: Option<String>) -> LumeResult<()> {
+    execute(&state, move || merge::finish(&workspace, &head, &merged, abort, expected_tree.as_deref())).await
 }
 
 #[tauri::command]

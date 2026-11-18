@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import { t } from '@/app/i18n'
-import type { GitPushTarget, GitRemoteStatus } from '@/platform/tauri/git'
+import type { GitPushTarget, GitRemoteStatus, GitUpdateTarget } from '@/platform/tauri/git'
 
 const props = defineProps<{
   branch: string
+  head: string | null
   remote: GitRemoteStatus
+  stale: boolean
   disabled: boolean
 }>()
 const emit = defineEmits<{
   push: [target: GitPushTarget]
   fetch: [target: GitPushTarget]
+  update: [target: GitUpdateTarget]
 }>()
 
 const connectButton = useTemplateRef<HTMLButtonElement>('connectButton')
@@ -19,6 +22,7 @@ const connecting = shallowRef(false)
 const remoteName = shallowRef('')
 const url = shallowRef('')
 const targetBranch = shallowRef('')
+const updating = shallowRef<GitUpdateTarget | null>(null)
 
 const upstreamTarget = computed<GitPushTarget | null>(() => {
   const upstream = props.remote.upstream
@@ -53,6 +57,16 @@ const canPush = computed(() => {
   const upstream = props.remote.upstream
   return upstream && upstream.ahead !== 0 && !upstream.behind
 })
+const updateTarget = computed<GitUpdateTarget | null>(() => {
+  const upstream = props.remote.upstream
+  if (!props.head || !upstream?.head || !upstream.behind || upstream.ahead === null) return null
+  return {
+    branch: props.branch,
+    head: props.head,
+    upstreamHead: upstream.head,
+    merge: upstream.ahead > 0,
+  }
+})
 const canConfirm = computed(
   () => !props.disabled && Boolean(firstTarget.value.url && firstTarget.value.targetBranch),
 )
@@ -73,6 +87,12 @@ const handleCancel = () => {
 
 const handleConfirm = () => {
   if (canConfirm.value) emit('push', firstTarget.value)
+}
+
+const handleUpdate = () => {
+  if (!updating.value || props.disabled) return
+  emit('update', updating.value)
+  updating.value = null
 }
 
 watch(
@@ -99,6 +119,17 @@ watch(
           {{ t('获取远程状态') }}
         </button>
         <button
+          v-if="updateTarget"
+          type="button"
+          class="lume-git__primary"
+          :disabled="disabled || !!updating"
+          :aria-expanded="!!updating"
+          @click="updating = updateTarget"
+        >
+          {{ t(updateTarget.merge ? '合并远程分支' : '应用远程更新') }}
+        </button>
+        <button
+          v-else
           type="button"
           class="lume-git__primary"
           :disabled="disabled || !canPush"
@@ -117,6 +148,24 @@ watch(
       >
         {{ t('连接远程仓库') }}
       </button>
+    </div>
+    <p v-if="stale" class="git-remote__hint" role="status">
+      {{ t('远程状态可能已过期，请重新获取。') }}
+    </p>
+    <div v-if="updating" class="git-remote__form">
+      <p>
+        {{
+          updating.merge
+            ? t('将合并远程提交和本地提交。请先提交或移走未提交的文件改动。')
+            : t('将把当前分支快进到已获取的远程提交。请先提交或移走未提交的文件改动。')
+        }}
+      </p>
+      <div class="git-remote__actions">
+        <button type="button" :disabled="disabled" @click="updating = null">{{ t('取消') }}</button>
+        <button type="button" class="lume-git__primary" :disabled="disabled" @click="handleUpdate">
+          {{ t(updating.merge ? '开始合并' : '确认更新') }}
+        </button>
+      </div>
     </div>
     <form v-if="connecting" ref="form" class="git-remote__form" @submit.prevent="handleConfirm">
       <label v-if="remote.remotes.length" class="git-remote__field">

@@ -9,6 +9,7 @@ import { isTauri, PlatformError } from '@/platform/tauri/client'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { flushDocumentEdits } from '@/features/documents/model/documentEditorSync'
 import { saveDocumentFile } from '@/features/files/services/documentFileService'
+import { isGitConflictPath, refreshGitConflictPaths } from '@/features/git/gitConflictPaths'
 import { clearDocumentImageStaging } from '@/features/images/services/imageAssetService'
 import { replaceMarkdownImageSources } from '@/features/images/services/markdownImageReferences'
 import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
@@ -63,10 +64,12 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
     scanDurationMs: number
   }) {
     if (batch.workspacePath !== workspace.workspacePath.value) return
+    await refreshGitConflictPaths(batch.workspacePath).catch(() => undefined)
     workspace.setLastScanDuration(batch.scanDurationMs)
     await workspace.loadWorkspace(batch.workspacePath)
 
     for (const change of batch.changes) {
+      if (isGitConflictPath(change.path) || isGitConflictPath(change.previousPath ?? null)) continue
       if (change.kind === 'renamed' && change.previousPath) {
         const renamedDocument = documents.value.find((item) =>
           isSameDocumentPath(item.path, change.previousPath ?? null),
@@ -178,7 +181,12 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       for (const document of documents.value) {
         if (disposed) break
         if (root && (!document.path || !isDocumentInDirectory(document.path, root))) continue
-        if (!document.path || !document.isDirty || workspace.hasDocumentConflict(document.id))
+        if (
+          !document.path ||
+          !document.isDirty ||
+          isGitConflictPath(document.path) ||
+          workspace.hasDocumentConflict(document.id)
+        )
           continue
         const snapshot = { ...document }
         try {
@@ -254,6 +262,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
     )
     let readFailure = ''
     for (const { id, path } of openPaths) {
+      if (isGitConflictPath(path)) continue
       const result = await readWorkspaceDocument(path).then(
         (file) => ({ file, failure: null }),
         (failure: unknown) => ({ file: null, failure }),
@@ -284,7 +293,7 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
       const loaded = await workspace.loadWorkspace(activePath)
       if (!loaded) readFailure ||= t('无法读取工作区')
     }
-    if (readFailure) throw new Error(t('分支已切换，但重新加载工作区失败：{0}', readFailure))
+    if (readFailure) throw new Error(t('版本操作已完成，但重新加载工作区失败：{0}', readFailure))
   }
 
   const unregisterVersionDocuments = registerVersionDocuments(
@@ -326,7 +335,16 @@ export function useWorkspaceLifecycle(showMessage: (message: string) => void) {
     if (!active) scheduleAutoSave()
   })
 
-  const stopWorkspaceWatch = watch(workspace.workspacePath, restartWatcher, { immediate: true })
+  const stopWorkspaceWatch = watch(
+    workspace.workspacePath,
+    (path) => {
+      if (path && isTauri()) void refreshGitConflictPaths(path).catch(() => undefined)
+      void restartWatcher(path).catch((error: unknown) =>
+        showMessage(getWorkspaceErrorMessage(error)),
+      )
+    },
+    { immediate: true },
+  )
   const stopAutoSaveWatch = watch(
     () => documents.value.map(({ id, path, content, isDirty }) => [id, path, content, isDirty]),
     () => {

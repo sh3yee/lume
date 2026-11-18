@@ -7,6 +7,7 @@ import { useLayoutPreference } from '@/app/preferences/useLayoutPreference'
 import { vLiquidGlass } from '@/ui/glass/directive'
 import {
   ChevronRight,
+  Download,
   FilePlus2,
   FileText,
   Folder,
@@ -21,9 +22,10 @@ import {
 import { useDocument } from '@composables/useDocument'
 import { useFileOps } from '@composables/useFileOps'
 import { useWorkspaceCommands } from '@/features/workspace/commands/useWorkspaceCommands'
+import { isTauri } from '@/platform/tauri/client'
 import type { WorkspaceEntry } from '@/platform/tauri/workspace'
 
-const emit = defineEmits<{ openVersions: [] }>()
+const emit = defineEmits<{ openVersions: []; cloneRepository: [] }>()
 
 const { activeDocument, activeDocumentId, documents, activateDocument, requestCloseDocument } =
   useDocument()
@@ -294,6 +296,15 @@ onBeforeUnmount(() => {
           @click="emit('openVersions')"
         >
           <GitBranch :size="16" :stroke-width="1.6" />
+        </button>
+        <button
+          v-else-if="isTauri()"
+          type="button"
+          :title="t('克隆仓库')"
+          :aria-label="t('克隆仓库')"
+          @click="emit('cloneRepository')"
+        >
+          <Download :size="16" :stroke-width="1.6" />
         </button>
         <button
           type="button"

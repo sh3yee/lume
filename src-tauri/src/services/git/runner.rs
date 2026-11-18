@@ -1,8 +1,10 @@
 use crate::error::{LumeError, LumeResult};
+use super::askpass::InteractiveRemote;
 use std::{
+    fs::File,
     io::Read,
     path::Path,
-    process::{Command, Output, Stdio},
+    process::{Child, Command, Output, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
@@ -43,7 +45,7 @@ fn read_output(
 }
 
 pub fn run(directory: &Path, args: &[&str]) -> LumeResult<Output> {
-    run_git(directory, args, None)
+    run_git(directory, args, None, None)
 }
 
 pub enum RemoteMode {
@@ -52,10 +54,38 @@ pub enum RemoteMode {
 }
 
 pub fn run_remote(directory: &Path, args: &[&str], mode: RemoteMode) -> LumeResult<Output> {
-    run_git(directory, args, Some(mode))
+    run_git(directory, args, Some(mode), None)
 }
 
-fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeResult<Output> {
+fn stop_child(child: &mut Child, network: bool) {
+    if network && matches!(child.try_wait(), Ok(None)) {
+        #[cfg(unix)]
+        {
+            extern "C" { fn kill(pid: i32, signal: i32) -> i32; }
+            // 网络 Git 启动在自己的进程组，先停止其中的 SSH/HTTP 子进程。
+            unsafe { kill(-(child.id() as i32), 9); }
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            if let Some(windows) = std::env::var_os("SystemRoot") {
+                let taskkill = std::path::PathBuf::from(windows).join("System32").join("taskkill.exe");
+                let _ = Command::new(taskkill).args(["/PID", &child.id().to_string(), "/T", "/F"])
+                    .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+                    .creation_flags(0x08000000).status();
+            }
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>, destination: Option<File>) -> LumeResult<Output> {
+    let interactive = if matches!(remote, Some(RemoteMode::Interactive)) {
+        InteractiveRemote::start()?
+    } else {
+        None
+    };
     let mut command = Command::new("git");
     command
         .current_dir(directory)
@@ -66,8 +96,11 @@ fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeR
         .env("GIT_EDITOR", "true")
         .env("LC_ALL", "C")
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
+        .stdout(destination.map(Stdio::from).unwrap_or_else(Stdio::piped))
         .stderr(Stdio::piped());
+    if let Some(interactive) = &interactive {
+        interactive.configure(&mut command);
+    }
     if matches!(remote, Some(RemoteMode::Background)) {
         command
             .env("GCM_INTERACTIVE", "0")
@@ -75,6 +108,11 @@ fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeR
     }
     let timeout = if remote.is_some() {
         command.env("GIT_ALLOW_PROTOCOL", "https:ssh");
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
         REMOTE_TIMEOUT
     } else {
         TIMEOUT
@@ -99,20 +137,19 @@ fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeR
         }
     })?;
     let exceeded = Arc::new(AtomicBool::new(false));
-    let stdout = read_output(
-        child.stdout.take().ok_or_else(|| error("无法读取 Git 输出"))?,
-        exceeded.clone(),
-    );
+    let stdout = child.stdout.take().map(|pipe| read_output(pipe, exceeded.clone()));
     let stderr = read_output(
         child.stderr.take().ok_or_else(|| error("无法读取 Git 输出"))?,
         exceeded.clone(),
     );
     let started = Instant::now();
     let status = loop {
-        if exceeded.load(Ordering::Relaxed) || started.elapsed() > timeout {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(error(if exceeded.load(Ordering::Relaxed) {
+        let cancelled = interactive.as_ref().map_or(false, InteractiveRemote::cancelled);
+        if cancelled || exceeded.load(Ordering::Relaxed) || started.elapsed() > timeout {
+            stop_child(&mut child, remote.is_some());
+            return Err(error(if cancelled {
+                "已取消远程 Git 操作。"
+            } else if exceeded.load(Ordering::Relaxed) {
                 "Git 输出过大，请缩小操作范围。"
             } else if remote.is_some() {
                 "远程 Git 操作超时，请检查网络或身份验证后重试。"
@@ -126,8 +163,8 @@ fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeR
         }
     };
     // hooks 等子进程可能仍持有管道，不无限等待其退出。
-    let stdout = stdout.recv_timeout(Duration::from_secs(2))
-        .map_err(|_| error("Git 输出读取超时"))?;
+    let stdout = stdout.map(|reader| reader.recv_timeout(Duration::from_secs(2)))
+        .transpose().map_err(|_| error("Git 输出读取超时"))?.unwrap_or_default();
     let stderr = stderr.recv_timeout(Duration::from_secs(2))
         .map_err(|_| error("Git 输出读取超时"))?;
     if exceeded.load(Ordering::Relaxed) {
@@ -137,7 +174,14 @@ fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeR
 }
 
 pub fn checked(directory: &Path, args: &[&str]) -> LumeResult<Vec<u8>> {
-    let output = run(directory, args)?;
+    checked_output(run(directory, args)?)
+}
+
+pub(super) fn write_blob(directory: &Path, id: &str, destination: File) -> LumeResult<()> {
+    checked_output(run_git(directory, &["cat-file", "blob", id], None, Some(destination))?).map(|_| ())
+}
+
+fn checked_output(output: Output) -> LumeResult<Vec<u8>> {
     if !output.status.success() {
         let message = String::from_utf8_lossy(&output.stderr)
             .trim().chars().take(2000).collect::<String>();

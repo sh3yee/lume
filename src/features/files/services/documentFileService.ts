@@ -2,6 +2,7 @@ import { t } from '@/app/i18n'
 import { isTauri } from '@/platform/tauri/client'
 import { readDroppedMarkdownFile } from '@/platform/tauri/files'
 import { prepareDocumentImages } from '@/features/images/services/imageAssetService'
+import { isGitConflictPath } from '@/features/git/gitConflictPaths'
 import { openBrowserDocument, saveBrowserDocument } from '@/platform/browser/files'
 import { openDocument, selectSavePath, writeDocument } from '@/platform/tauri/files'
 
@@ -62,6 +63,7 @@ export async function saveDocumentFile(
 
   const path = await selectSavePath(document.path, document.name, saveAs)
   if (!path) return null
+  if (isGitConflictPath(path)) throw new Error(t('此文件有 Git 合并冲突，请在版本管理中解决。'))
   const prepared = await prepareDocumentImages(document.content, path, document.id, document.path)
   await writeDocument(path, prepared.content)
   return { ...prepared, name: path.split(/[\\/]/).pop() || document.name, path }

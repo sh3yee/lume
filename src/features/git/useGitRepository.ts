@@ -5,22 +5,28 @@ import {
   gitCommit,
   gitDiff,
   gitFetch,
+  gitFinishMerge,
   gitIndexTree,
   gitInit,
   gitPush,
   gitRemoteStatus,
+  gitResolve,
   gitStage,
   gitStatus,
   gitSwitchBranch,
+  gitUpdate,
+  type GitConflictResolution,
   type GitPushTarget,
   type GitRemoteStatus,
   type GitStatus,
+  type GitUpdateTarget,
 } from '@/platform/tauri/git'
 import { isTauri } from '@/platform/tauri/client'
 import {
   reloadVersionWorkspace,
   runVersionWrite,
 } from '@/features/workspace/services/workspaceOperations'
+import { isGitConflict, refreshGitConflictPaths } from './gitConflictPaths'
 
 export const gitErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
@@ -34,6 +40,7 @@ export const useGitRepository = (workspace: string) => {
   const status = shallowRef<GitStatus | null>(null)
   const remote = shallowRef<GitRemoteStatus | null>(null)
   const remoteError = shallowRef('')
+  const remoteStale = shallowRef(false)
   const busy = shallowRef(false)
   const feedback = shallowRef<GitFeedback | null>(null)
   const message = shallowRef('')
@@ -46,10 +53,7 @@ export const useGitRepository = (workspace: string) => {
   let indexTree = ''
   let feedbackTimeout = 0
 
-  const hasConflicts = (snapshot: GitStatus) =>
-    snapshot.changes.some((change) =>
-      ['UU', 'AU', 'UA', 'DU', 'UD', 'AA', 'DD'].includes(change.index + change.working),
-    )
+  const hasConflicts = (snapshot: GitStatus) => snapshot.changes.some(isGitConflict)
 
   const writable = computed(() =>
     Boolean(status.value?.writable && !status.value.operation && !hasConflicts(status.value)),
@@ -195,9 +199,64 @@ export const useGitRepository = (workspace: string) => {
     execute('正在获取远程状态…', async () => {
       const branch = status.value?.branch
       if (!branch) return
-      await gitFetch(workspace, branch, target)
+      try {
+        await gitFetch(workspace, branch, target)
+        remoteStale.value = false
+      } catch (failure) {
+        remoteStale.value = true
+        throw failure
+      }
       await readStatus()
       return t('已更新远程状态')
+    })
+
+  const applyWorkspaceChange = async <T>(operation: () => Promise<T>, saveFirst = false) => {
+    const root = status.value?.root ?? workspace
+    const outcome = await runVersionWrite(
+      root,
+      async () => {
+        const reload = async () => {
+          await refreshGitConflictPaths(workspace)
+          diffRequest++
+          diff.value = ''
+          diffPath.value = ''
+          diffLoading.value = false
+          await reloadVersionWorkspace(root)
+        }
+        const result = await operation().catch(async (failure: unknown) => {
+          // Git 返回错误前可能已经修改工作区，刷新后保留原始错误。
+          await reload().catch(() => undefined)
+          throw failure
+        })
+        await reload()
+        return result
+      },
+      saveFirst,
+    )
+    await readStatus()
+    return outcome
+  }
+
+  const updateFromRemote = (target: GitUpdateTarget) =>
+    execute(target.merge ? '正在合并远程分支…' : '正在应用远程更新…', async () => {
+      const result = await applyWorkspaceChange(() => gitUpdate(workspace, target), true)
+      return result === 'mergeStarted' ? t('合并已开始') : t('已应用远程更新')
+    })
+
+  const resolveConflict = (path: string, snapshot: string, resolution: GitConflictResolution) =>
+    execute('正在保存合并结果…', async () => {
+      await applyWorkspaceChange(() => gitResolve(workspace, path, snapshot, resolution))
+      return t('合并结果已保存')
+    })
+
+  const finishMerge = (abort: boolean) =>
+    execute(abort ? '正在中止合并…' : '正在提交合并…', async () => {
+      const { head, mergeHead, mergeTree } = status.value ?? {}
+      if (!head || !mergeHead) return
+      await applyWorkspaceChange(() =>
+        gitFinishMerge(workspace, head, mergeHead, abort, mergeTree ?? null),
+      )
+      return abort ? t('已中止合并') : t('已提交合并')
     })
 
   const showDiff = async (path: string, staged: boolean) => {
@@ -236,6 +295,7 @@ export const useGitRepository = (workspace: string) => {
     status,
     remote,
     remoteError,
+    remoteStale,
     busy,
     feedback,
     dismissFeedback,
@@ -255,6 +315,9 @@ export const useGitRepository = (workspace: string) => {
     configureAuthor,
     push,
     fetchRemote,
+    updateFromRemote,
+    resolveConflict,
+    finishMerge,
     showDiff,
   }
 }

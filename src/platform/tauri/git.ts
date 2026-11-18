@@ -14,6 +14,8 @@ export interface GitStatus {
   head: string | null
   writable: boolean
   operation: string | null
+  mergeHead: string | null
+  mergeTree: string | null
   changes: GitChange[]
   authorName: string
   authorEmail: string
@@ -54,6 +56,7 @@ export interface GitRemoteStatus {
     targetBranch: string
     ahead: number | null
     behind: number | null
+    head: string | null
   } | null
 }
 
@@ -62,6 +65,26 @@ export interface GitPushTarget {
   url: string
   targetBranch: string
 }
+
+export interface GitUpdateTarget {
+  branch: string
+  head: string
+  upstreamHead: string
+  merge: boolean
+}
+
+export interface GitConflict {
+  base: { content: string | null } | null
+  local: { content: string | null } | null
+  remote: { content: string | null } | null
+  worktree: string | null
+  snapshot: string
+}
+
+export type GitConflictResolution =
+  | { kind: 'local' | 'remote' }
+  | { kind: 'text'; content: string }
+  | { kind: 'copyLocal' | 'copyRemote'; name: string }
 
 export const gitStatus = (workspace: string) =>
   invokeCommand<GitStatus>('lume_git_status', { workspace })
@@ -97,6 +120,30 @@ export const gitAutoPush = (workspace: string) =>
   invokeCommand<boolean>('lume_git_auto_push', { workspace })
 export const gitFetch = (workspace: string, branch: string, target: GitPushTarget) =>
   invokeCommand<void>('lume_git_fetch', { workspace, branch, target })
+export const gitClone = (parent: string, name: string, url: string) =>
+  invokeCommand<string>('lume_git_clone', { parent, name, url })
+export const gitAuthReply = (id: number, value: string) =>
+  invokeCommand<void>('lume_git_auth_reply', { id, value })
+export const gitCancelRemote = (id: number) => invokeCommand<void>('lume_git_cancel_remote', { id })
+export const gitUpdate = (workspace: string, target: GitUpdateTarget) =>
+  invokeCommand<'fastForwarded' | 'mergeStarted'>('lume_git_update', { workspace, target })
+export const gitMergePaths = (workspace: string) =>
+  invokeCommand<{ root: string; paths: string[] } | null>('lume_git_merge_paths', { workspace })
+export const gitConflict = (workspace: string, path: string) =>
+  invokeCommand<GitConflict>('lume_git_conflict', { workspace, path })
+export const gitResolve = (
+  workspace: string,
+  path: string,
+  snapshot: string,
+  resolution: GitConflictResolution,
+) => invokeCommand<void>('lume_git_resolve', { workspace, path, snapshot, resolution })
+export const gitFinishMerge = (
+  workspace: string,
+  head: string,
+  merged: string,
+  abort: boolean,
+  expectedTree: string | null,
+) => invokeCommand<void>('lume_git_finish_merge', { workspace, head, merged, abort, expectedTree })
 export const gitHistory = (workspace: string, skip = 0, path: string | null = null) =>
   invokeCommand<GitHistory>('lume_git_history', { workspace, skip, path })
 export const gitHistoryFiles = (workspace: string, revision: string) =>

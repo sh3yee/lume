@@ -6,6 +6,8 @@
 import { useWorkspaceStore } from '../model/workspaceStore'
 import { useDocument } from '@/features/documents/model/useDocument'
 import { runWorkspaceWrite } from '../services/workspaceOperations'
+import { containsGitConflict } from '@/features/git/gitConflictPaths'
+import { t } from '@/app/i18n'
 import {
   createEntry,
   clearStoredWorkspacePath,
@@ -100,6 +102,8 @@ export function useWorkspaceCommands() {
     const root = store.workspacePath.value
     if (!root) return null
     try {
+      if (containsGitConflict(path))
+        throw new Error(t('此文件有 Git 合并冲突，请在版本管理中解决。'))
       const nextPath = await renameEntry(root, path, newName)
       syncOpenDocumentPaths(path, nextPath)
       await loadWorkspace(root)
@@ -114,6 +118,8 @@ export function useWorkspaceCommands() {
     const root = store.workspacePath.value
     if (!root) return null
     try {
+      if (containsGitConflict(path))
+        throw new Error(t('此文件有 Git 合并冲突，请在版本管理中解决。'))
       const nextPath = await moveEntry(root, path, targetDirectory)
       syncOpenDocumentPaths(path, nextPath)
       await loadWorkspace(root)
@@ -129,6 +135,8 @@ export function useWorkspaceCommands() {
     const root = store.workspacePath.value
     if (!root) return false
     try {
+      if (containsGitConflict(path))
+        throw new Error(t('此文件有 Git 合并冲突，请在版本管理中解决。'))
       await deleteEntry(root, path)
       for (const document of documents.value) {
         if (

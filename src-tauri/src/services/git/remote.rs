@@ -1,12 +1,32 @@
 use super::{
-    repository::{current_branch, directory, ensure_idle, find_root, has_head, repository},
+    repository::{current_branch, directory, display_path, ensure_idle, find_root, has_head, operation, repository, validate_path},
     runner::{checked, error, run, run_remote, value, RemoteMode},
 };
 use crate::error::LumeResult;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, net::Ipv6Addr, path::Path};
+use std::{
+    collections::BTreeMap,
+    io::ErrorKind,
+    net::Ipv6Addr,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU32, Ordering},
+};
 
-const REMOTE_AHEAD: &str = "远程分支有新提交，请用 Git 工具获取并整合更新后重试。";
+const REMOTE_AHEAD: &str = "远程分支有新提交，请获取远程状态并整合更新后重试。";
+static CLONE_SEQUENCE: AtomicU32 = AtomicU32::new(0);
+
+struct CloneStaging(PathBuf);
+
+impl Drop for CloneStaging {
+    fn drop(&mut self) {
+        // 只清理本次专用目录，不进入目标目录或被替换的链接。
+        if std::fs::canonicalize(&self.0).as_ref().ok() == Some(&self.0)
+            && std::fs::symlink_metadata(&self.0).is_ok_and(|meta| !meta.file_type().is_symlink())
+        {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub struct GitRemote {
@@ -21,6 +41,7 @@ pub struct GitUpstream {
     pub target_branch: String,
     pub ahead: Option<u32>,
     pub behind: Option<u32>,
+    pub head: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -168,13 +189,74 @@ pub fn status(workspace: &str, branch: &str) -> LumeResult<GitRemoteStatus> {
     }
 
     let counts = tracking_counts(&root, &format!("refs/heads/{branch}"), &tracking.tracking_ref)?;
+    let head = counts.map(|_| value(&root, &["rev-parse", "--verify", &tracking.tracking_ref])).transpose()?;
     result.upstream = Some(GitUpstream {
         remote_name: tracking.remote_name,
         target_branch: tracking.branch,
         ahead: counts.map(|(ahead, _)| ahead),
         behind: counts.map(|(_, behind)| behind),
+        head,
     });
     Ok(result)
+}
+
+pub fn clone_repository(parent: &str, name: &str, address: &str) -> LumeResult<String> {
+    let parent = directory(parent)?;
+    let address = address.trim();
+    if !supported_url(address) {
+        return Err(error("请输入不含凭据的 HTTPS 或 SSH 仓库地址。"));
+    }
+    if name.trim() != name || name.contains(['/', '\\', '<', '>', '"', '|', '?', '*'])
+        || name.chars().any(char::is_control)
+    {
+        return Err(error("请输入有效的新文件夹名称。"));
+    }
+    let destination = validate_path(&parent, name)?;
+    match std::fs::symlink_metadata(&destination) {
+        Ok(_) => return Err(error("目标文件夹已存在，请选择新名称。")),
+        Err(failure) if failure.kind() == ErrorKind::NotFound => (),
+        Err(failure) => return Err(failure.into()),
+    }
+    let staging_path = parent.join(format!(
+        ".lume-clone-{}-{}",
+        std::process::id(),
+        CLONE_SEQUENCE.fetch_add(1, Ordering::Relaxed),
+    ));
+    std::fs::create_dir(&staging_path)?;
+    let staging = CloneStaging(staging_path);
+    let source = display_path(&staging.0);
+    network_command(
+        &parent,
+        &["clone", "--no-recurse-submodules", "--", address, &source],
+        "无法克隆仓库，请检查远程地址和访问权限后重试。",
+        RemoteMode::Interactive,
+    )?;
+    // 克隆期间目标名保持可用，发布前独占创建，避免替换已有仓库。
+    std::fs::create_dir(&destination).map_err(|failure| {
+        if failure.kind() == ErrorKind::AlreadyExists {
+            error("目标文件夹已存在，请选择新名称。")
+        } else {
+            failure.into()
+        }
+    })?;
+    #[cfg(windows)]
+    std::fs::remove_dir(&destination)?;
+    if let Err(failure) = std::fs::rename(&staging.0, &destination) {
+        #[cfg(not(windows))]
+        let _ = std::fs::remove_dir(&destination);
+        return Err(failure.into());
+    }
+    Ok(display_path(&destination))
+}
+
+pub(super) fn checked_upstream(root: &Path, branch: &str, expected: &str) -> LumeResult<String> {
+    let tracking = upstream(root, branch)?
+        .ok_or_else(|| error("当前分支没有配置远程跟踪分支。"))?;
+    let commit = value(root, &["rev-parse", "--verify", &format!("{}^{{commit}}", tracking.tracking_ref)])?;
+    if commit != expected {
+        return Err(error("远程跟踪分支已变化，请刷新后重新确认。"));
+    }
+    Ok(commit)
 }
 
 fn tracking_counts(root: &Path, source: &str, tracking_ref: &str) -> LumeResult<Option<(u32, u32)>> {
@@ -260,6 +342,9 @@ pub fn auto_push(workspace: &str) -> LumeResult<bool> {
     let Some(root) = find_root(&workspace)?.filter(|root| root == &workspace) else {
         return Ok(false);
     };
+    if operation(&root)?.is_some() {
+        return Ok(false);
+    }
     let Some(branch) = current_branch(&root)? else {
         return Ok(false);
     };

@@ -23,6 +23,7 @@ export interface CommandPaletteActions {
   saveFileAs: () => unknown
   openExport: () => void
   openVersions?: () => void
+  cloneRepository?: () => void
   toggleSidebar: () => void
   toggleInspector: () => void
   toggleFocusMode: () => void
@@ -41,6 +42,7 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     { id: 'save-file-as', label: t('另存为'), hint: getShortcutHint('save-file-as') },
     { id: 'export-file', label: t('导出…'), hint: getShortcutHint('export-file') },
     ...(actions.openVersions ? [{ id: 'workspace-versions', label: t('版本管理') }] : []),
+    ...(actions.cloneRepository ? [{ id: 'git-clone', label: t('克隆仓库') }] : []),
     { id: 'toggle-sidebar', label: t('切换文件栏'), hint: getShortcutHint('toggle-sidebar') },
     { id: 'toggle-inspector', label: t('切换大纲'), hint: getShortcutHint('toggle-inspector') },
     { id: 'toggle-view-mode', label: t('切换编辑模式'), hint: getShortcutHint('toggle-view-mode') },
@@ -78,6 +80,7 @@ export function useCommandPalette(actions: CommandPaletteActions) {
     if (id === 'save-file-as') void actions.saveFileAs()
     if (id === 'export-file') actions.openExport()
     if (id === 'workspace-versions') actions.openVersions?.()
+    if (id === 'git-clone') actions.cloneRepository?.()
     if (id === 'toggle-sidebar') actions.toggleSidebar()
     if (id === 'toggle-inspector') actions.toggleInspector()
     if (id === 'toggle-view-mode') actions.toggleViewMode()

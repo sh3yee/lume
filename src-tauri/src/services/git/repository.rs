@@ -21,6 +21,8 @@ pub struct GitStatus {
     pub head: Option<String>,
     pub writable: bool,
     pub operation: Option<String>,
+    pub merge_head: Option<String>,
+    pub merge_tree: Option<String>,
     pub changes: Vec<GitChange>,
     pub author_name: String,
     pub author_email: String,
@@ -125,6 +127,8 @@ pub fn status(path: &str) -> LumeResult<GitStatus> {
         head: None,
         writable: false,
         operation: None,
+        merge_head: None,
+        merge_tree: None,
         changes: Vec::new(),
         author_name: String::new(),
         author_email: String::new(),
@@ -135,6 +139,9 @@ pub fn status(path: &str) -> LumeResult<GitStatus> {
     status.root = Some(display_path(&root));
     status.writable = workspace == root;
     status.operation = operation(&root)?;
+    if status.operation.as_deref() == Some("merge") {
+        status.merge_head = super::merge::merge_head(&root)?;
+    }
     status.branch = current_branch(&root)?;
     status.branches = local_branches(&root)?;
     if has_head(&root)? { status.head = Some(value(&root, &["rev-parse", "HEAD"])?); }
@@ -152,6 +159,9 @@ pub fn status(path: &str) -> LumeResult<GitStatus> {
         } else { None };
         status.changes.push(GitChange { path: text(record[3..].to_vec())?, previous_path, index: (record[0] as char).to_string(), working: (record[1] as char).to_string() });
         if status.changes.len() > 5000 { return Err(error("仓库变更超过 5000 项，请先缩小变更范围。")); }
+    }
+    if status.merge_head.is_some() && status.writable && super::merge::unmerged_paths(&root)?.is_empty() {
+        status.merge_tree = Some(value(&root, &["write-tree"])?);
     }
     Ok(status)
 }

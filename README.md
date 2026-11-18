@@ -68,7 +68,7 @@ Screenshots were captured from the current browser preview with an English inter
 - **Autosave** — In the desktop app, documents with a save location are automatically written back to their files. Save new drafts once to choose a location.
 - **Session recovery** — Open documents and draft contents are stored locally so you can continue after reopening the app.
 - **External change handling** — Detect changes in the open workspace and choose how to handle conflicting edits or deleted files.
-- **Git version control** — Open Version control from the branch icon in the file sidebar or the command palette to initialize or detect repositories, switch branches, stage and commit changes, browse history, restore individual files, or push commits to a remote. Requires system Git. See the [guide](docs/git-version-control.md).
+- **Git version control** — Clone a repository from the command palette or open Version control from the branch icon in the file sidebar. Stage and commit changes, switch branches, browse history, restore files, fetch and apply remote updates, resolve merge conflicts, and push commits manually or on a schedule. Requires system Git.
 
 ### Find your place
 
