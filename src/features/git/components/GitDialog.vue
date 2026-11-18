@@ -12,7 +12,6 @@ import {
   runVersionWrite,
 } from '@/features/workspace/services/workspaceOperations'
 import { useGitRepository } from '../useGitRepository'
-import { cancelGitRemote, gitRemoteActivity } from '../gitRemoteActivity'
 import GitChanges from './GitChanges.vue'
 import GitHistory from './GitHistory.vue'
 import GitMergePanel from './GitMergePanel.vue'
@@ -220,6 +219,8 @@ onBeforeUnmount(() => {
               <SettingsSelect
                 v-if="hasOtherBranches"
                 id="git-current-branch"
+                class="lume-git__branch-select"
+                :data-current-branch="!!status.branch"
                 :label="t('当前分支')"
                 :value="status.branch || t('独立 HEAD')"
                 :options="branchOptions"
@@ -230,7 +231,11 @@ onBeforeUnmount(() => {
               />
               <div v-else class="lume-git__branch-summary">
                 <span class="lume-git__branch-label">{{ t('当前分支') }}</span>
-                <span class="lume-git__branch-badge" :title="status.branch ?? undefined">
+                <span
+                  class="lume-git__branch-badge"
+                  :data-current-branch="!!status.branch"
+                  :title="status.branch ?? undefined"
+                >
                   {{ status.branch || t('独立 HEAD') }}
                 </span>
               </div>
@@ -378,9 +383,6 @@ onBeforeUnmount(() => {
               <p>{{ feedback.message }}</p>
             </template>
           </div>
-          <button v-if="busy && gitRemoteActivity !== null" type="button" @click="cancelGitRemote">
-            {{ t('取消远程操作') }}
-          </button>
           <div class="lume-git__feedback-message" role="alert" aria-atomic="true">
             <template v-if="feedback?.kind === 'error'">
               <CircleAlert :size="15" aria-hidden="true" />

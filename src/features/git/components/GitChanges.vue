@@ -57,6 +57,9 @@ const staged = computed(() =>
   props.status.changes.filter((change) => change.index !== ' ' && change.index !== '?'),
 )
 const unstaged = computed(() => props.status.changes.filter((change) => change.working !== ' '))
+const plainPreview = computed(() =>
+  props.status.changes.some((change) => change.path === props.diffPath && change.index === '?'),
+)
 const groups = computed(() =>
   [
     { label: t('已暂存'), staged: true, files: staged.value },
@@ -183,7 +186,7 @@ watch(
         <span>{{ diffPath || t('选择文件查看差异') }}</span>
         <small v-if="diffPath">{{ t(diffStaged ? '已暂存' : '未暂存') }}</small>
       </div>
-      <GitDiff :content="diff" :loading="diffLoading" />
+      <GitDiff :content="diff" :loading="diffLoading" :plain="plainPreview" />
     </div>
   </div>
 </template>

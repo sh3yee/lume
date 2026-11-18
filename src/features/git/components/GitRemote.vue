@@ -31,6 +31,11 @@ const upstreamTarget = computed<GitPushTarget | null>(() => {
   return { remoteName: upstream.remoteName, url: address, targetBranch: upstream.targetBranch }
 })
 
+const upstreamRef = computed(() => {
+  const upstream = props.remote.upstream
+  return upstream ? `${upstream.remoteName}/${upstream.targetBranch}` : ''
+})
+
 const selectedRemote = computed(() =>
   props.remote.remotes.find(({ name }) => name === remoteName.value),
 )
@@ -56,6 +61,10 @@ const statusLabel = computed(() => {
 const canPush = computed(() => {
   const upstream = props.remote.upstream
   return upstream && upstream.ahead !== 0 && !upstream.behind
+})
+const noPendingPush = computed(() => {
+  const upstream = props.remote.upstream
+  return upstream?.ahead === 0 && upstream.behind === 0
 })
 const updateTarget = computed<GitUpdateTarget | null>(() => {
   const upstream = props.remote.upstream
@@ -106,16 +115,22 @@ watch(
 <template>
   <section class="git-remote" :aria-label="t('远程仓库')">
     <div class="git-remote__row">
-      <div class="git-remote__summary" aria-live="polite">
-        <code v-if="upstreamTarget" :title="upstreamTarget.url">
-          {{ upstreamTarget.remoteName }}/{{ upstreamTarget.targetBranch }}
-        </code>
-        <span :title="upstreamTarget ? t('根据上次获取或推送的结果显示。') : undefined">
-          {{ statusLabel }}
-        </span>
-      </div>
+      <span
+        v-if="!noPendingPush"
+        class="git-remote__summary"
+        aria-live="polite"
+        :title="upstreamTarget ? t('根据上次获取或推送的结果显示。') : undefined"
+      >
+        {{ statusLabel }}
+      </span>
       <div v-if="upstreamTarget" class="git-remote__buttons">
-        <button type="button" :disabled="disabled" @click="emit('fetch', upstreamTarget)">
+        <button
+          type="button"
+          :disabled="disabled"
+          :title="`${upstreamRef}\n${upstreamTarget.url}`"
+          :aria-label="`${t('获取远程状态')} · ${upstreamRef}`"
+          @click="emit('fetch', upstreamTarget)"
+        >
           {{ t('获取远程状态') }}
         </button>
         <button
@@ -128,15 +143,17 @@ watch(
         >
           {{ t(updateTarget.merge ? '合并远程分支' : '应用远程更新') }}
         </button>
-        <button
-          v-else
-          type="button"
-          :class="{ 'lume-git__primary': !disabled && canPush }"
-          :disabled="disabled || !canPush"
-          @click="emit('push', upstreamTarget)"
-        >
-          {{ t('推送') }}
-        </button>
+        <span v-else class="git-remote__push" :title="noPendingPush ? statusLabel : undefined">
+          <button
+            type="button"
+            :class="{ 'lume-git__primary': !disabled && canPush }"
+            :aria-label="noPendingPush ? `${t('推送')} · ${statusLabel}` : undefined"
+            :disabled="disabled || !canPush"
+            @click="emit('push', upstreamTarget)"
+          >
+            {{ t('推送') }}
+          </button>
+        </span>
       </div>
       <button
         v-else
@@ -217,7 +234,6 @@ watch(
 }
 
 .git-remote__row,
-.git-remote__summary,
 .git-remote__buttons,
 .git-remote__form,
 .git-remote__actions {
@@ -237,14 +253,14 @@ watch(
   padding: 4px 8px;
 }
 
+.git-remote__push[title] > button:disabled {
+  pointer-events: none;
+}
+
 .git-remote__summary {
   min-width: 0;
   color: var(--lume-text-secondary);
   overflow-wrap: anywhere;
-}
-
-.git-remote__summary > code {
-  color: var(--lume-text-primary);
 }
 
 .git-remote__form {

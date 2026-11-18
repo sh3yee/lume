@@ -251,6 +251,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.lume-git__branch-badge[data-current-branch='true'],
+.lume-git .lume-git__branch-select[data-current-branch='true'] > .lume-settings-select__trigger {
+  background-color: var(--lume-accent-subtle);
+  color: var(--lume-accent-default);
+}
 .lume-git__local-state > code {
   color: var(--lume-text-tertiary);
   font-size: 12px;
@@ -427,16 +432,23 @@
   background: var(--lume-pane-bg);
   user-select: text;
 }
-.lume-git__diff pre {
+.lume-git__diff pre,
+.lume-git__patch {
   margin: 0;
   padding: 14px 0;
+  font-family: var(--lume-font-mono);
   font-size: 12px;
   line-height: 1.7;
   tab-size: 4;
 }
-.lume-git__diff code {
+.lume-git__plain-content {
   display: block;
   min-width: max-content;
+  padding-inline: 14px;
+}
+.lume-git__patch {
+  width: max-content;
+  min-width: 100%;
 }
 .lume-git__line {
   display: block;
@@ -444,13 +456,40 @@
   min-height: 1.7em;
   padding: 0 14px;
 }
-.lume-git__line--added {
-  background: rgb(45 160 75 / 13%);
+.lume-git__line--numbered {
+  display: grid;
+  grid-template-columns: repeat(2, var(--lume-git-line-number-width)) 2ch 1fr;
+  column-gap: 8px;
 }
-.lume-git__line--removed {
-  background: rgb(220 60 60 / 13%);
+.lume-git__line-number {
+  color: var(--lume-text-tertiary);
+  text-align: right;
+  user-select: none;
 }
-.lume-git__line--hunk {
+.lume-git__line-marker {
+  font-weight: var(--lume-font-weight-semibold);
+  text-align: center;
+  user-select: none;
+}
+.lume-git__line-text {
+  white-space: pre;
+}
+.lume-git__line[data-kind='added'] {
+  background: var(--lume-color-success-bg);
+}
+.lume-git__line[data-kind='removed'] {
+  background: var(--lume-color-danger-bg);
+}
+.lume-git__line[data-kind='added'] .lume-git__line-marker {
+  color: var(--lume-color-success);
+}
+.lume-git__line[data-kind='removed'] .lume-git__line-marker {
+  color: var(--lume-color-danger);
+}
+.lume-git__line[data-kind='metadata'] {
+  color: var(--lume-text-tertiary);
+}
+.lume-git__line[data-kind='hunk'] {
   color: var(--lume-accent-default);
   background: var(--lume-accent-subtle);
 }
