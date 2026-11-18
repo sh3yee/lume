@@ -93,6 +93,8 @@ export const gitRemoteStatus = (workspace: string, branch: string) =>
   invokeCommand<GitRemoteStatus>('lume_git_remote_status', { workspace, branch })
 export const gitPush = (workspace: string, branch: string, head: string, target: GitPushTarget) =>
   invokeCommand<void>('lume_git_push', { workspace, branch, head, target })
+export const gitAutoPush = (workspace: string) =>
+  invokeCommand<boolean>('lume_git_auto_push', { workspace })
 export const gitFetch = (workspace: string, branch: string, target: GitPushTarget) =>
   invokeCommand<void>('lume_git_fetch', { workspace, branch, target })
 export const gitHistory = (workspace: string, skip = 0, path: string | null = null) =>

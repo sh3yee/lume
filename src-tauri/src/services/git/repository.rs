@@ -97,9 +97,27 @@ pub fn ensure_idle(root: &Path) -> LumeResult<()> {
     Ok(())
 }
 
+pub fn find_root(workspace: &Path) -> LumeResult<Option<PathBuf>> {
+    let output = run(workspace, &["rev-parse", "--show-toplevel"])?;
+    if !output.status.success() {
+        if String::from_utf8_lossy(&output.stderr).contains("not a git repository") {
+            // 损坏的 .git 不能当成普通文件夹重新初始化。
+            for ancestor in workspace.ancestors() {
+                match std::fs::symlink_metadata(ancestor.join(".git")) {
+                    Ok(_) => return Err(error("检测到 Git 元数据但仓库不可读取，请先修复仓库。")),
+                    Err(failure) if failure.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(failure) => return Err(failure.into()),
+                }
+            }
+            return Ok(None);
+        }
+        return Err(error(String::from_utf8_lossy(&output.stderr).trim().to_owned()));
+    }
+    directory(text(output.stdout)?.trim_end_matches(['\r', '\n'])).map(Some)
+}
+
 pub fn status(path: &str) -> LumeResult<GitStatus> {
     let workspace = directory(path)?;
-    let output = run(&workspace, &["rev-parse", "--show-toplevel"])?;
     let mut status = GitStatus {
         root: None,
         branch: None,
@@ -111,21 +129,9 @@ pub fn status(path: &str) -> LumeResult<GitStatus> {
         author_name: String::new(),
         author_email: String::new(),
     };
-    if !output.status.success() {
-        if String::from_utf8_lossy(&output.stderr).contains("not a git repository") {
-            // 损坏的 .git 不能当成普通文件夹重新初始化。
-            for ancestor in workspace.ancestors() {
-                match std::fs::symlink_metadata(ancestor.join(".git")) {
-                    Ok(_) => return Err(error("检测到 Git 元数据但仓库不可读取，请先修复仓库。")),
-                    Err(failure) if failure.kind() == std::io::ErrorKind::NotFound => (),
-                    Err(failure) => return Err(failure.into()),
-                }
-            }
-            return Ok(status);
-        }
-        return Err(error(String::from_utf8_lossy(&output.stderr).trim().to_owned()));
-    }
-    let root = directory(text(output.stdout)?.trim_end_matches(['\r', '\n']))?;
+    let Some(root) = find_root(&workspace)? else {
+        return Ok(status);
+    };
     status.root = Some(display_path(&root));
     status.writable = workspace == root;
     status.operation = operation(&root)?;

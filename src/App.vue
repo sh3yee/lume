@@ -77,6 +77,9 @@
       :interface-font="interfaceFont"
       :interface-font-size="interfaceFontSize"
       :outline-font-size="outlineFontSize"
+      :git-workspace="workspacePath"
+      :git-auto-push="gitAutoPushPreference"
+      :git-auto-push-error="gitAutoPushError"
       @close="settingsOpen = false"
       @update:view-mode="handleViewModeChange"
       @update:theme="themePreference = $event"
@@ -90,6 +93,7 @@
       @update:interface-font="interfaceFont = $event"
       @update:interface-font-size="interfaceFontSize = $event"
       @update:outline-font-size="outlineFontSize = $event"
+      @update:git-auto-push="updateGitAutoPushPreference"
     />
     <UnsavedChangesDialog
       v-if="pendingCloseDocument"
@@ -115,6 +119,7 @@
       v-if="gitDialogOpen && workspacePath"
       :key="workspacePath"
       :workspace="workspacePath"
+      :auto-push-revision="gitAutoPushRevision"
       @close="gitDialogOpen = false"
     />
   </div>
@@ -143,6 +148,7 @@ import FileDropMessage from '@components/FileDropMessage.vue'
 import ExternalConflictDialog from '@components/ExternalConflictDialog.vue'
 import ExportDialog from '@/features/export/components/ExportDialog.vue'
 import GitDialog from '@/features/git/components/GitDialog.vue'
+import { useGitAutoPush } from '@/features/git/useGitAutoPush'
 import { useWorkspaceStore } from '@/features/workspace/model/workspaceStore'
 import { versionOperationActive } from '@/features/workspace/services/workspaceOperations'
 import { nextTick, ref } from 'vue'
@@ -175,6 +181,12 @@ const splitScrollRatio = ref(0)
 const settingsOpen = ref(false)
 const gitDialogOpen = ref(false)
 const { workspacePath } = useWorkspaceStore()
+const {
+  preference: gitAutoPushPreference,
+  error: gitAutoPushError,
+  revision: gitAutoPushRevision,
+  updatePreference: updateGitAutoPushPreference,
+} = useGitAutoPush(workspacePath)
 const exportSnapshot = ref<OpenDocument | null>(null)
 const { newFile, openFile, openFilesFromPaths, saveFile } = useFileOps()
 const commandPalette = useCommandPalette({

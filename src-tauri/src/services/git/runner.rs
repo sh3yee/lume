@@ -43,14 +43,19 @@ fn read_output(
 }
 
 pub fn run(directory: &Path, args: &[&str]) -> LumeResult<Output> {
-    run_git(directory, args, false)
+    run_git(directory, args, None)
 }
 
-pub fn run_remote(directory: &Path, args: &[&str]) -> LumeResult<Output> {
-    run_git(directory, args, true)
+pub enum RemoteMode {
+    Interactive,
+    Background,
 }
 
-fn run_git(directory: &Path, args: &[&str], remote: bool) -> LumeResult<Output> {
+pub fn run_remote(directory: &Path, args: &[&str], mode: RemoteMode) -> LumeResult<Output> {
+    run_git(directory, args, Some(mode))
+}
+
+fn run_git(directory: &Path, args: &[&str], remote: Option<RemoteMode>) -> LumeResult<Output> {
     let mut command = Command::new("git");
     command
         .current_dir(directory)
@@ -63,7 +68,12 @@ fn run_git(directory: &Path, args: &[&str], remote: bool) -> LumeResult<Output> 
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let timeout = if remote {
+    if matches!(remote, Some(RemoteMode::Background)) {
+        command
+            .env("GCM_INTERACTIVE", "0")
+            .env("SSH_ASKPASS_REQUIRE", "never");
+    }
+    let timeout = if remote.is_some() {
         command.env("GIT_ALLOW_PROTOCOL", "https:ssh");
         REMOTE_TIMEOUT
     } else {
@@ -104,7 +114,7 @@ fn run_git(directory: &Path, args: &[&str], remote: bool) -> LumeResult<Output> 
             let _ = child.wait();
             return Err(error(if exceeded.load(Ordering::Relaxed) {
                 "Git 输出过大，请缩小操作范围。"
-            } else if remote {
+            } else if remote.is_some() {
                 "远程 Git 操作超时，请检查网络或身份验证后重试。"
             } else {
                 "Git 操作超时，请检查 Git hooks、签名或仓库状态后重试。"

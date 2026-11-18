@@ -38,6 +38,8 @@ For branches with an upstream, the panel shows how many commits are ready to pus
 
 Lume uses system Git credentials or SSH configuration. After a failed push, you can keep editing and retry when the issue is resolved.
 
+**Preferences → Git → Automatic push** is off by default. Open a workspace to set its interval from 1 to 1440 minutes, then enable automatic push when you need it. The default interval is 30 minutes. While Lume is running, it pushes local commits from the current branch to its configured upstream. Connect the remote and create local commits manually. Git preferences show any automatic push error.
+
 ## History and file restoration
 
 The History tab lists commits on the current branch, with pagination. Enter a repository-relative file path to filter history, or leave it blank for all commits.

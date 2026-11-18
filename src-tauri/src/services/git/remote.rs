@@ -1,10 +1,12 @@
 use super::{
-    repository::{current_branch, ensure_idle, has_head, repository},
-    runner::{checked, error, run, run_remote, value},
+    repository::{current_branch, directory, ensure_idle, find_root, has_head, repository},
+    runner::{checked, error, run, run_remote, value, RemoteMode},
 };
 use crate::error::LumeResult;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, net::Ipv6Addr, path::Path};
+
+const REMOTE_AHEAD: &str = "远程分支有新提交，请用 Git 工具获取并整合更新后重试。";
 
 #[derive(Serialize)]
 pub struct GitRemote {
@@ -165,27 +167,33 @@ pub fn status(workspace: &str, branch: &str) -> LumeResult<GitRemoteStatus> {
         return Ok(result);
     }
 
-    let mut ahead = None;
-    let mut behind = None;
-    let reference = run(&root, &["show-ref", "--verify", "--quiet", &tracking.tracking_ref])?;
-    if reference.status.success() {
-        let range = format!("refs/heads/{branch}...{}", tracking.tracking_ref);
-        let counts = value(&root, &["rev-list", "--left-right", "--count", &range, "--"])?;
-        let (local, remote) = counts
-            .split_once('\t')
-            .ok_or_else(|| error("无法读取远程分支状态。"))?;
-        ahead = Some(local.parse().map_err(|_| error("无法读取远程分支状态。"))?);
-        behind = Some(remote.parse().map_err(|_| error("无法读取远程分支状态。"))?);
-    } else if reference.status.code() != Some(1) {
-        return Err(error("无法读取远程分支状态。"));
-    }
+    let counts = tracking_counts(&root, &format!("refs/heads/{branch}"), &tracking.tracking_ref)?;
     result.upstream = Some(GitUpstream {
         remote_name: tracking.remote_name,
         target_branch: tracking.branch,
-        ahead,
-        behind,
+        ahead: counts.map(|(ahead, _)| ahead),
+        behind: counts.map(|(_, behind)| behind),
     });
     Ok(result)
+}
+
+fn tracking_counts(root: &Path, source: &str, tracking_ref: &str) -> LumeResult<Option<(u32, u32)>> {
+    let reference = run(root, &["show-ref", "--verify", "--quiet", tracking_ref])?;
+    if reference.status.code() == Some(1) {
+        return Ok(None);
+    }
+    if !reference.status.success() {
+        return Err(error("无法读取远程分支状态。"));
+    }
+    let range = format!("{source}...{tracking_ref}");
+    let counts = value(root, &["rev-list", "--left-right", "--count", &range, "--"])?;
+    let (ahead, behind) = counts
+        .split_once('\t')
+        .ok_or_else(|| error("无法读取远程分支状态。"))?;
+    Ok(Some((
+        ahead.parse().map_err(|_| error("无法读取远程分支状态。"))?,
+        behind.parse().map_err(|_| error("无法读取远程分支状态。"))?,
+    )))
 }
 
 fn confirm_remote(remotes: &[GitRemote], name: &str, url: &str) -> LumeResult<()> {
@@ -239,7 +247,56 @@ pub fn push(workspace: &str, branch: &str, head: &str, target: GitPushTarget) ->
     } else {
         connect_remote(&root, &remotes, url)?
     };
-    let refspec = format!("refs/heads/{branch}:{target_ref}");
+    push_ref(
+        &root,
+        &format!("refs/heads/{branch}:{target_ref}"),
+        &name,
+        RemoteMode::Interactive,
+    )
+}
+
+pub fn auto_push(workspace: &str) -> LumeResult<bool> {
+    let workspace = directory(workspace)?;
+    let Some(root) = find_root(&workspace)?.filter(|root| root == &workspace) else {
+        return Ok(false);
+    };
+    let Some(branch) = current_branch(&root)? else {
+        return Ok(false);
+    };
+    let Some(tracking) = upstream(&root, &branch)? else {
+        return Ok(false);
+    };
+    if !push_remotes(&root)?
+        .iter()
+        .any(|remote| remote.name == tracking.remote_name)
+    {
+        return Ok(false);
+    }
+
+    let source_ref = format!("refs/heads/{branch}");
+    let head = value(&root, &["rev-parse", "--verify", &source_ref])?;
+    let Some((ahead, behind)) = tracking_counts(&root, &head, &tracking.tracking_ref)? else {
+        return Ok(false);
+    };
+    if ahead == 0 {
+        return Ok(false);
+    }
+    if behind > 0 {
+        return Err(error(REMOTE_AHEAD));
+    }
+    ensure_idle(&root)?;
+    if current_branch(&root)?.as_deref() != Some(branch.as_str())
+        || value(&root, &["rev-parse", "HEAD"])? != head
+    {
+        return Ok(false);
+    }
+    // 固定这次检查过的提交，避免外部 Git 在推送前改变分支指向。
+    let refspec = format!("{head}:refs/heads/{}", tracking.branch);
+    push_ref(&root, &refspec, &tracking.remote_name, RemoteMode::Background)?;
+    Ok(true)
+}
+
+fn push_ref(root: &Path, refspec: &str, name: &str, mode: RemoteMode) -> LumeResult<()> {
     let mut args = Vec::new();
     let mirror_override = format!("remote.{name}.mirror=false");
     // Git 会读取远程的镜像配置，显式关闭它以保证只更新目标分支。
@@ -251,15 +308,16 @@ pub fn push(workspace: &str, branch: &str, head: &str, target: GitPushTarget) ->
         "--porcelain",
         "--no-follow-tags",
         "--recurse-submodules=no",
-        "--set-upstream",
-        "--",
-        &name,
-        &refspec,
     ]);
+    if matches!(mode, RemoteMode::Interactive) {
+        args.push("--set-upstream");
+    }
+    args.extend(["--", name, refspec]);
     network_command(
-        &root,
+        root,
         &args,
         "推送失败，请检查远程地址、写入权限或仓库规则后重试。",
+        mode,
     )
 }
 
@@ -296,11 +354,12 @@ pub fn fetch(workspace: &str, branch: &str, target: GitPushTarget) -> LumeResult
             &refspec,
         ],
         "无法获取远程状态，请检查远程地址和访问权限后重试。",
+        RemoteMode::Interactive,
     )
 }
 
-fn network_command(root: &Path, args: &[&str], fallback: &str) -> LumeResult<()> {
-    let output = run_remote(root, args)?;
+fn network_command(root: &Path, args: &[&str], fallback: &str, mode: RemoteMode) -> LumeResult<()> {
+    let output = run_remote(root, args, mode)?;
     if output.status.success() {
         return Ok(());
     }
@@ -314,7 +373,7 @@ fn network_command(root: &Path, args: &[&str], fallback: &str) -> LumeResult<()>
     .to_ascii_lowercase();
     let contains = |patterns: &[&str]| patterns.iter().any(|pattern| detail.contains(pattern));
     let message = if contains(&["non-fast-forward", "(fetch first)"]) {
-        "远程分支有新提交，请用 Git 工具获取并整合更新后重试。"
+        REMOTE_AHEAD
     } else if contains(&[
         "host key verification failed",
         "remote host identification has changed",

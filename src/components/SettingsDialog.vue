@@ -9,6 +9,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Braces,
   Columns2,
+  GitBranch,
   Palette,
   Image,
   Info,
@@ -25,6 +26,11 @@ import {
   type MarkdownExtension,
 } from '@/app/preferences/useMarkdownPreference'
 import ImageSettingsPanel from '@/features/images/components/ImageSettingsPanel.vue'
+import {
+  MAX_AUTO_PUSH_MINUTES,
+  MIN_AUTO_PUSH_MINUTES,
+  type GitAutoPushPreference,
+} from '@/features/git/useGitAutoPush'
 import AboutSettingsPanel from '@/features/about/AboutSettingsPanel.vue'
 import { useAppUpdater } from '@/features/about/useAppUpdater'
 import type { WritingFont } from '@/app/preferences/useWritingPreference'
@@ -41,7 +47,7 @@ import ShortcutSettings from './ShortcutSettings.vue'
 type ViewMode = 'wysiwyg' | 'split'
 type WritingWidth = 'compact' | 'comfortable' | 'wide'
 type SettingsCategory =
-  'general' | 'editor' | 'markdown' | 'appearance' | 'images' | 'shortcuts' | 'about'
+  'general' | 'editor' | 'markdown' | 'appearance' | 'images' | 'git' | 'shortcuts' | 'about'
 interface MarkdownSettingsGroup {
   id: string
   label: string
@@ -68,6 +74,9 @@ const props = defineProps<{
   interfaceFont: FontPreference
   interfaceFontSize: number
   outlineFontSize: number
+  gitWorkspace: string | null
+  gitAutoPush: GitAutoPushPreference
+  gitAutoPushError: string
 }>()
 
 const emit = defineEmits<{
@@ -84,6 +93,7 @@ const emit = defineEmits<{
   (e: 'update:interface-font', value: FontPreference): void
   (e: 'update:interface-font-size', value: number): void
   (e: 'update:outline-font-size', value: number): void
+  (e: 'update:git-auto-push', value: GitAutoPushPreference): void
 }>()
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
@@ -161,6 +171,7 @@ const categoryMeta = computed<
   { id: 'editor', label: t('编辑'), icon: Sparkles },
   { id: 'markdown', label: 'Markdown', icon: Braces },
   { id: 'images', label: t('图片'), icon: Image },
+  ...(isTauri() ? [{ id: 'git' as const, label: 'Git', icon: GitBranch }] : []),
   { id: 'appearance', label: t('外观'), icon: Palette },
   { id: 'shortcuts', label: t('快捷键'), icon: Keyboard },
   { id: 'about', label: t('关于'), icon: Info },
@@ -188,6 +199,15 @@ const handleResetTypography = () => {
   emit('update:font-size', 15)
   emit('update:line-height', 1.65)
   emit('update:writing-width', 'comfortable')
+}
+
+const handleAutoPushIntervalChange = (event: Event) => {
+  const input = event.currentTarget as HTMLInputElement
+  if (!input.validity.valid) {
+    input.value = String(props.gitAutoPush.intervalMinutes)
+    return
+  }
+  emit('update:git-auto-push', { ...props.gitAutoPush, intervalMinutes: input.valueAsNumber })
 }
 
 watch(
@@ -659,6 +679,75 @@ onBeforeUnmount(() => dialogRef.value?.close())
           />
 
           <ImageSettingsPanel v-if="activeCategory === 'images'" />
+          <section v-if="activeCategory === 'git'" class="lume-settings__section">
+            <p v-if="!gitWorkspace" class="lume-settings__hint">
+              {{ t('请先打开本地工作区以管理版本') }}
+            </p>
+            <template v-else>
+              <p class="lume-settings__hint lume-settings__git-workspace" :title="gitWorkspace">
+                {{ t('仅适用于工作区 {0}', gitWorkspace) }}
+              </p>
+              <div class="lume-settings__git-group">
+                <button
+                  type="button"
+                  class="lume-settings__git-row lume-settings__git-toggle"
+                  role="switch"
+                  :aria-checked="gitAutoPush.enabled"
+                  aria-labelledby="git-auto-push-label"
+                  aria-describedby="git-auto-push-description"
+                  @click="
+                    emit('update:git-auto-push', { ...gitAutoPush, enabled: !gitAutoPush.enabled })
+                  "
+                >
+                  <span class="lume-settings__option-copy">
+                    <span id="git-auto-push-label" class="lume-settings__inline-label">
+                      {{ t('自动推送') }}
+                    </span>
+                    <small id="git-auto-push-description">
+                      {{ t('Lume 运行期间，定时将当前分支的本地提交推送到已配置的远程跟踪分支。') }}
+                    </small>
+                  </span>
+                  <span class="lume-settings__git-switch" aria-hidden="true"></span>
+                </button>
+                <label class="lume-settings__git-row">
+                  <span class="lume-settings__option-copy">
+                    <span id="git-auto-push-interval-label" class="lume-settings__inline-label">
+                      {{ t('推送间隔') }}
+                    </span>
+                    <small id="git-auto-push-interval-hint">
+                      {{
+                        t(
+                          '输入 {0} 到 {1} 之间的整数。',
+                          MIN_AUTO_PUSH_MINUTES,
+                          MAX_AUTO_PUSH_MINUTES,
+                        )
+                      }}
+                    </small>
+                  </span>
+                  <span class="lume-settings__git-field">
+                    <input
+                      class="lume-settings__git-interval"
+                      :value="gitAutoPush.intervalMinutes"
+                      :min="MIN_AUTO_PUSH_MINUTES"
+                      :max="MAX_AUTO_PUSH_MINUTES"
+                      aria-labelledby="git-auto-push-interval-label git-auto-push-interval-unit"
+                      aria-describedby="git-auto-push-interval-hint"
+                      type="number"
+                      inputmode="numeric"
+                      step="1"
+                      required
+                      @change="handleAutoPushIntervalChange"
+                      @keydown.enter.prevent="handleAutoPushIntervalChange"
+                    />
+                    <span id="git-auto-push-interval-unit">{{ t('分钟') }}</span>
+                  </span>
+                </label>
+              </div>
+              <p v-if="gitAutoPushError" class="lume-settings__git-error" role="status">
+                {{ t('自动推送失败：{0}', gitAutoPushError) }}
+              </p>
+            </template>
+          </section>
 
           <ShortcutSettings v-if="open && activeCategory === 'shortcuts'" />
 
@@ -778,6 +867,119 @@ onBeforeUnmount(() => dialogRef.value?.close())
   color: var(--lume-text-tertiary);
   font-size: var(--lume-font-size-xs);
   line-height: var(--lume-line-height-normal);
+}
+
+.lume-settings__git-workspace,
+.lume-settings__git-error {
+  overflow-wrap: anywhere;
+}
+
+.lume-settings__git-group {
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+}
+
+.lume-settings__git-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-5);
+  padding: var(--lume-space-4) var(--lume-space-5);
+}
+
+.lume-settings__git-row + .lume-settings__git-row {
+  border-top: 1px solid var(--lume-border-subtle);
+}
+
+.lume-settings__git-toggle {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+}
+
+.lume-settings__git-switch {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border: 1px solid var(--lume-border-strong);
+  border-radius: var(--lume-radius-full);
+  background-color: var(--lume-bg-surface-raised);
+}
+
+.lume-settings__git-switch::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: var(--lume-radius-full);
+  background-color: var(--lume-text-tertiary);
+}
+
+.lume-settings__git-toggle[aria-checked='true'] .lume-settings__git-switch {
+  justify-content: flex-end;
+  border-color: var(--lume-accent-default);
+  background-color: var(--lume-accent-default);
+}
+
+.lume-settings__git-toggle[aria-checked='true'] .lume-settings__git-switch::before {
+  background-color: var(--lume-accent-contrast);
+}
+
+.lume-settings__git-toggle:focus-visible {
+  outline: none;
+}
+
+.lume-settings__git-toggle:focus-visible .lume-settings__git-switch {
+  outline: 2px solid var(--lume-accent-default);
+  outline-offset: 2px;
+}
+
+.lume-settings__git-field {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--lume-space-2);
+  padding-inline: var(--lume-space-3);
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+  background-color: var(--lume-bg-surface-raised);
+  color: var(--lume-text-secondary);
+  font-size: var(--lume-font-size-xs);
+  cursor: text;
+}
+
+.lume-settings__git-field:focus-within {
+  border-color: var(--lume-input-focus-border);
+  outline: 1px solid var(--lume-input-focus-border);
+}
+
+.lume-settings__git-interval {
+  appearance: textfield;
+  width: 5ch;
+  min-height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--lume-text-primary);
+  font-size: var(--lume-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.lume-settings__git-interval:focus {
+  outline: none;
+}
+
+.lume-settings__git-interval::-webkit-inner-spin-button,
+.lume-settings__git-interval::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.lume-settings__git-error {
+  margin: 0;
+  color: var(--lume-color-danger);
+  font-size: var(--lume-font-size-sm);
 }
 
 .lume-settings__close {

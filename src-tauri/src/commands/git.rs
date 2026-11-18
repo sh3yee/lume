@@ -83,6 +83,11 @@ pub async fn lume_git_push(
 }
 
 #[tauri::command]
+pub async fn lume_git_auto_push(state: State<'_, GitState>, workspace: String) -> LumeResult<bool> {
+    execute(&state, move || remote::auto_push(&workspace)).await
+}
+
+#[tauri::command]
 pub async fn lume_git_fetch(
     state: State<'_, GitState>,
     workspace: String,

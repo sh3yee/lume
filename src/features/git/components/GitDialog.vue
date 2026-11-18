@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { CircleAlert, CircleCheck, GitBranch, LoaderCircle, RefreshCw, X } from 'lucide-vue-next'
 import SettingsSelect from '@/components/SettingsSelect.vue'
 import { t } from '@/app/i18n'
@@ -16,7 +16,7 @@ import GitHistory from './GitHistory.vue'
 import GitRemote from './GitRemote.vue'
 import '../git.css'
 
-const props = defineProps<{ workspace: string }>()
+const props = defineProps<{ workspace: string; autoPushRevision: number }>()
 const emit = defineEmits<{ close: [] }>()
 const repository = useGitRepository(props.workspace)
 const {
@@ -150,6 +150,12 @@ onMounted(() => {
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   dialog.value?.focus()
 })
+watch(
+  () => props.autoPushRevision,
+  () => {
+    void repository.execute(null, repository.readStatus)
+  },
+)
 onBeforeUnmount(() => {
   disposed = true
   if (previousFocus?.isConnected) void nextTick(() => previousFocus?.focus())
