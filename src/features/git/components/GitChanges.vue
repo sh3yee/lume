@@ -1,18 +1,9 @@
 <script setup lang="ts">
-import {
-  ChevronRight,
-  Copy,
-  File,
-  FileCog,
-  FileMinus2,
-  FilePenLine,
-  FilePlus2,
-  FileSymlink,
-  FileWarning,
-} from 'lucide-vue-next'
-import { computed, shallowRef, watch, type Component } from 'vue'
-import { t, type MessageKey } from '@/app/i18n'
+import { ChevronRight } from 'lucide-vue-next'
+import { computed, shallowRef, watch } from 'vue'
+import { t } from '@/app/i18n'
 import type { GitStatus } from '@/platform/tauri/git'
+import { gitFileIndicator } from '../gitFileIndicators'
 import GitDiff from './GitDiff.vue'
 
 const props = defineProps<{
@@ -32,24 +23,6 @@ const emit = defineEmits<{
   author: [name: string, email: string]
 }>()
 
-interface FileIndicator {
-  icon: Component
-  label: MessageKey
-  tone?: 'added' | 'alert'
-}
-
-const defaultIndicator: FileIndicator = { icon: File, label: '变更' }
-const fileIndicators: Partial<Record<string, FileIndicator>> = {
-  '?': { icon: FilePlus2, label: '未跟踪', tone: 'added' },
-  A: { icon: FilePlus2, label: '已新增', tone: 'added' },
-  M: { icon: FilePenLine, label: '已修改' },
-  D: { icon: FileMinus2, label: '已删除', tone: 'alert' },
-  R: { icon: FileSymlink, label: '已重命名' },
-  C: { icon: Copy, label: '已复制' },
-  T: { icon: FileCog, label: '文件类型已更改' },
-  U: { icon: FileWarning, label: '未合并', tone: 'alert' },
-}
-
 const authorOpen = shallowRef(false)
 const authorName = shallowRef('')
 const authorEmail = shallowRef('')
@@ -68,7 +41,7 @@ const groups = computed(() =>
     ...group,
     files: group.files.map((file) => ({
       ...file,
-      indicator: fileIndicators[group.staged ? file.index : file.working] ?? defaultIndicator,
+      indicator: gitFileIndicator(group.staged ? file.index : file.working),
     })),
   })),
 )

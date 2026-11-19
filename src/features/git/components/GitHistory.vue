@@ -10,6 +10,7 @@ import {
   type GitFileVersion,
   type GitHistoryFile,
 } from '@/platform/tauri/git'
+import { gitFileIndicator } from '../gitFileIndicators'
 import { gitErrorMessage } from '../useGitRepository'
 import GitDiff from './GitDiff.vue'
 
@@ -32,6 +33,18 @@ const error = shallowRef('')
 let disposed = false
 let request = 0
 let historyRequest = 0
+const changedFiles = computed(() =>
+  files.value.map((file) => {
+    const parts = file.path.split('/')
+    const name = parts.pop() ?? file.path
+    return {
+      ...file,
+      name,
+      directory: parts.join('/'),
+      indicator: gitFileIndicator(file.status),
+    }
+  }),
+)
 const preview = computed(() =>
   mode.value === 'diff'
     ? diff.value
@@ -144,9 +157,9 @@ onBeforeUnmount(() => {
           :disabled="busy"
           @click="selectCommit(commit)"
         >
-          <strong>{{ commit.message }}</strong>
+          <strong :title="commit.message">{{ commit.message }}</strong>
+          <code :title="commit.id">{{ commit.id.slice(0, 10) }}</code>
           <span>{{ commit.author }} · {{ formatDate(commit.date) }}</span>
-          <code>{{ commit.id.slice(0, 10) }}</code>
         </button>
         <p v-if="loading" class="lume-git__empty" role="status">{{ t('正在读取…') }}</p>
         <button
@@ -162,16 +175,29 @@ onBeforeUnmount(() => {
       <div class="lume-git__preview-pane">
         <p v-if="!selected" class="lume-git__empty">{{ t('选择提交查看变更文件') }}</p>
         <div v-else class="lume-git__history-files">
-          <p v-if="filesLoading">{{ t('正在读取…') }}</p>
+          <p v-if="filesLoading" class="lume-git__hint" role="status">{{ t('正在读取…') }}</p>
           <button
-            v-for="file in files"
+            v-for="file in changedFiles"
             :key="file.path"
             type="button"
+            class="lume-git__file lume-git__history-file"
             :class="{ 'is-selected': path === file.path }"
+            :aria-current="path === file.path ? 'true' : undefined"
+            :aria-label="`${file.path} · ${t(file.indicator.label)}`"
+            :title="file.path"
             :disabled="busy"
             @click="selectFile(file.path)"
           >
-            {{ file.status }} · {{ file.path }}
+            <span class="lume-git__file-status" :data-tone="file.indicator.tone" aria-hidden="true">
+              <component :is="file.indicator.icon" :size="14" />
+            </span>
+            <span class="lume-git__history-file-path">
+              <span class="lume-git__history-file-name">{{ file.name }}</span>
+              <small v-if="file.directory" class="lume-git__history-file-directory">
+                {{ file.directory }}
+              </small>
+            </span>
+            <small class="lume-git__history-file-label">{{ t(file.indicator.label) }}</small>
           </button>
           <p v-if="!filesLoading && !files.length" class="lume-git__hint">
             {{ t('此提交没有文件差异') }}
