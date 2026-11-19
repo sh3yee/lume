@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
-import { CircleAlert, CircleCheck, GitBranch, LoaderCircle, X } from 'lucide-vue-next'
+import {
+  CircleAlert,
+  CircleCheck,
+  GitBranch,
+  GitCommitHorizontal,
+  LoaderCircle,
+  X,
+} from 'lucide-vue-next'
 import SettingsSelect from '@/components/SettingsSelect.vue'
 import { t } from '@/app/i18n'
 import { useDocument } from '@/features/documents/model/useDocument'
@@ -226,33 +233,45 @@ onBeforeUnmount(() => {
         <template v-else-if="status">
           <div class="lume-git__repository-state">
             <div class="lume-git__local-state">
-              <SettingsSelect
-                v-if="hasOtherBranches"
-                id="git-current-branch"
-                class="lume-git__branch-select"
-                :data-current-branch="!!status.branch"
-                :label="t('当前分支')"
-                :value="status.branch || t('独立 HEAD')"
-                :options="branchOptions"
-                :container="dialog"
-                :disabled="busy || !writable || !!restoration"
-                compact
-                searchable
-                @change="handleBranchChange"
-              />
-              <div v-else class="lume-git__branch-summary">
-                <span class="lume-git__branch-label">{{ t('当前分支') }}</span>
+              <label
+                id="git-current-branch-label"
+                class="lume-git__branch-label"
+                :for="hasOtherBranches ? 'git-current-branch' : undefined"
+              >
+                {{ t('当前分支') }}
+              </label>
+              <div class="lume-git__revision">
+                <SettingsSelect
+                  v-if="hasOtherBranches"
+                  id="git-current-branch"
+                  label-id="git-current-branch-label"
+                  class="lume-git__branch-select"
+                  :data-current-branch="!!status.branch"
+                  :label="t('当前分支')"
+                  :value="status.branch || t('独立 HEAD')"
+                  :options="branchOptions"
+                  :container="dialog"
+                  :disabled="busy || !writable || !!restoration"
+                  compact
+                  searchable
+                  @change="handleBranchChange"
+                />
                 <span
+                  v-else
                   class="lume-git__branch-badge"
                   :data-current-branch="!!status.branch"
                   :title="status.branch ?? undefined"
                 >
                   {{ status.branch || t('独立 HEAD') }}
                 </span>
+                <div class="lume-git__revision-detail">
+                  <code v-if="status.head" class="lume-git__commit-id" :title="status.head">
+                    <GitCommitHorizontal :size="14" aria-hidden="true" />
+                    {{ status.head.slice(0, 10) }}
+                  </code>
+                  <span v-else class="lume-git__hint">{{ t('尚无提交') }}</span>
+                </div>
               </div>
-              <code :title="status.head ?? undefined">
-                {{ status.head?.slice(0, 10) || t('尚无提交') }}
-              </code>
             </div>
             <GitRemote
               v-if="

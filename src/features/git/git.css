@@ -229,30 +229,45 @@
   min-height: 30px;
   max-width: 100%;
 }
-.lume-git__branch-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-}
 .lume-git__branch-label {
   flex-shrink: 0;
   color: var(--lume-text-secondary);
   font-size: 12px;
 }
+.lume-git__revision {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 30px;
+  max-width: 100%;
+  border: 1px solid var(--lume-border-default);
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-code-bg);
+}
 .lume-git__branch-badge {
+  align-self: center;
   min-width: 0;
   max-width: 280px;
   padding: 4px 8px;
-  border-radius: var(--lume-radius-md);
-  background: var(--lume-bg-surface-raised);
   font-weight: var(--lume-font-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lume-git .lume-git__local-state .lume-git__branch-select > .lume-settings-select__trigger {
+.lume-git .lume-git__revision .lume-git__branch-select > .lume-settings-select__trigger {
+  align-self: stretch;
   padding-inline-end: 6px;
+  border: 0;
+  border-radius: var(--lume-radius-sm) 0 0 var(--lume-radius-sm);
+  background-color: transparent;
+}
+.lume-git__revision
+  .lume-git__branch-select
+  > .lume-settings-select__trigger:is(:hover:not(:disabled), [aria-expanded='true']) {
+  background-color: var(--lume-accent-subtle);
+}
+.lume-git__revision .lume-git__branch-select > .lume-settings-select__trigger:focus-visible {
+  outline: 2px solid var(--lume-input-focus-border);
+  outline-offset: -2px;
 }
 .lume-git__branch-select > .lume-settings-select__trigger > svg {
   /* 补偿图标留白，让箭头与分支名的可见字形对齐。 */
@@ -260,12 +275,25 @@
 }
 .lume-git__branch-badge[data-current-branch='true'],
 .lume-git .lume-git__branch-select[data-current-branch='true'] > .lume-settings-select__trigger {
-  background-color: var(--lume-accent-subtle);
   color: var(--lume-accent-default);
 }
-.lume-git__local-state > code {
-  color: var(--lume-text-tertiary);
+.lume-git__revision-detail {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-inline: 8px;
+  border-inline-start: 1px solid var(--lume-code-border);
+  white-space: nowrap;
+}
+.lume-git__commit-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-mono);
   font-size: 12px;
+  font-weight: var(--lume-font-weight-medium);
+  line-height: 1.2;
 }
 .lume-git__warning {
   padding: 8px 20px;

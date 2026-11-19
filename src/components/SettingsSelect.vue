@@ -12,6 +12,7 @@ const COMPACT_MENU_MIN_WIDTH = 184
 const props = defineProps<{
   id: string
   label: string
+  labelId?: string
   description?: string
   value: T
   options: readonly { value: T; label: string; group?: string }[]
@@ -328,8 +329,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="lume-settings-select" :class="{ 'lume-settings-select--compact': compact }">
-    <div class="lume-settings-select__copy">
-      <label :id="`${id}-label`" :for="id" class="lume-settings-select__label">{{ label }}</label>
+    <div v-if="!labelId || description" class="lume-settings-select__copy">
+      <label v-if="!labelId" :id="`${id}-label`" :for="id" class="lume-settings-select__label">
+        {{ label }}
+      </label>
       <p v-if="description" :id="`${id}-description`" class="lume-settings-select__description">
         {{ description }}
       </p>
@@ -342,7 +345,7 @@ onBeforeUnmount(() => {
       :disabled="disabled"
       role="combobox"
       aria-haspopup="listbox"
-      :aria-labelledby="`${id}-label`"
+      :aria-labelledby="labelId ?? `${id}-label`"
       :aria-describedby="description ? `${id}-description` : undefined"
       :aria-expanded="isOpen"
       :aria-controls="isOpen ? `${id}-listbox` : undefined"
@@ -386,7 +389,7 @@ onBeforeUnmount(() => {
           class="lume-settings-select__list"
           role="listbox"
           tabindex="-1"
-          :aria-labelledby="`${id}-label`"
+          :aria-labelledby="labelId ?? `${id}-label`"
         >
           <template v-for="(option, index) in filteredOptions" :key="`${option.value}-${index}`">
             <div
