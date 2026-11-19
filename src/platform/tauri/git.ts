@@ -49,8 +49,15 @@ export interface GitRestorePreview {
   absolutePath: string
 }
 
+export interface GitRemote {
+  name: string
+  url: string
+}
+
 export interface GitRemoteStatus {
-  remotes: { name: string; url: string }[]
+  remotes: GitRemote[]
+  fetchRemotes: GitRemote[]
+  branches: { refName: string; remoteName: string; name: string }[]
   upstream: {
     remoteName: string
     targetBranch: string
@@ -95,12 +102,14 @@ export const gitSwitchBranch = (
   branch: string,
   expectedBranch: string | null,
   expectedHead: string | null,
+  remote: boolean,
 ) =>
   invokeCommand<'switched' | 'switchedWithWarning'>('lume_git_switch_branch', {
     workspace,
     branch,
     expectedBranch,
     expectedHead,
+    remote,
   })
 export const gitStage = (workspace: string, path: string, staged: boolean) =>
   invokeCommand<GitStatus>('lume_git_stage', { workspace, path, staged })
@@ -112,14 +121,14 @@ export const gitIndexTree = (workspace: string) =>
   invokeCommand<string>('lume_git_index_tree', { workspace })
 export const gitCommit = (workspace: string, message: string, expectedTree: string) =>
   invokeCommand<GitStatus>('lume_git_commit', { workspace, message, expectedTree })
-export const gitRemoteStatus = (workspace: string, branch: string) =>
+export const gitRemoteStatus = (workspace: string, branch: string | null) =>
   invokeCommand<GitRemoteStatus>('lume_git_remote_status', { workspace, branch })
 export const gitPush = (workspace: string, branch: string, head: string, target: GitPushTarget) =>
   invokeCommand<void>('lume_git_push', { workspace, branch, head, target })
 export const gitAutoPush = (workspace: string) =>
   invokeCommand<boolean>('lume_git_auto_push', { workspace })
-export const gitFetch = (workspace: string, branch: string, target: GitPushTarget) =>
-  invokeCommand<void>('lume_git_fetch', { workspace, branch, target })
+export const gitFetch = (workspace: string, target: GitRemote) =>
+  invokeCommand<void>('lume_git_fetch', { workspace, target })
 export const gitClone = (parent: string, name: string, url: string) =>
   invokeCommand<string>('lume_git_clone', { parent, name, url })
 export const gitAuthReply = (id: number, value: string) =>

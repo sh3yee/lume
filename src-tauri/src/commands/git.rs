@@ -31,9 +31,16 @@ pub async fn lume_git_switch_branch(
     branch: String,
     expected_branch: Option<String>,
     expected_head: Option<String>,
+    remote: Option<bool>,
 ) -> LumeResult<actions::GitSwitchOutcome> {
     execute(&state, move || {
-        actions::switch_branch(&workspace, &branch, expected_branch.as_deref(), expected_head.as_deref())
+        actions::switch_branch(
+            &workspace,
+            &branch,
+            expected_branch.as_deref(),
+            expected_head.as_deref(),
+            remote.unwrap_or_default(),
+        )
     }).await
 }
 
@@ -66,9 +73,9 @@ pub async fn lume_git_commit(state: State<'_, GitState>, workspace: String, mess
 pub async fn lume_git_remote_status(
     state: State<'_, GitState>,
     workspace: String,
-    branch: String,
+    branch: Option<String>,
 ) -> LumeResult<remote::GitRemoteStatus> {
-    execute(&state, move || remote::status(&workspace, &branch)).await
+    execute(&state, move || remote::status(&workspace, branch.as_deref())).await
 }
 
 #[tauri::command]
@@ -91,10 +98,9 @@ pub async fn lume_git_auto_push(state: State<'_, GitState>, workspace: String) -
 pub async fn lume_git_fetch(
     state: State<'_, GitState>,
     workspace: String,
-    branch: String,
-    target: remote::GitPushTarget,
+    target: remote::GitRemote,
 ) -> LumeResult<()> {
-    execute(&state, move || remote::fetch(&workspace, &branch, target)).await
+    execute(&state, move || remote::fetch(&workspace, target)).await
 }
 
 #[tauri::command]

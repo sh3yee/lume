@@ -17,6 +17,7 @@ import {
   gitUpdate,
   type GitConflictResolution,
   type GitPushTarget,
+  type GitRemote,
   type GitRemoteStatus,
   type GitStatus,
   type GitUpdateTarget,
@@ -40,7 +41,7 @@ export const useGitRepository = (workspace: string) => {
   const status = shallowRef<GitStatus | null>(null)
   const remote = shallowRef<GitRemoteStatus | null>(null)
   const remoteError = shallowRef('')
-  const remoteStale = shallowRef(false)
+  const remoteStale = shallowRef<ReadonlySet<string>>(new Set())
   const busy = shallowRef(false)
   const feedback = shallowRef<GitFeedback | null>(null)
   const message = shallowRef('')
@@ -67,7 +68,7 @@ export const useGitRepository = (workspace: string) => {
         : ''
     let remoteSnapshot: GitRemoteStatus | null = null
     let remoteFailure = ''
-    if (snapshot.writable && snapshot.branch && snapshot.head && !disposed) {
+    if (snapshot.writable && !disposed) {
       try {
         remoteSnapshot = await gitRemoteStatus(workspace, snapshot.branch)
       } catch (failure) {
@@ -134,15 +135,21 @@ export const useGitRepository = (workspace: string) => {
       return t('已启用本地版本管理')
     })
 
-  const switchBranch = (branch: string) =>
+  const switchBranch = (branch: string, fromRemote: boolean) =>
     execute('正在切换分支…', async () => {
       const snapshot = status.value
-      if (!snapshot?.root || branch === snapshot.branch) return
+      if (!snapshot?.root || (!fromRemote && branch === snapshot.branch)) return
       const root = snapshot.root
       const outcome = await runVersionWrite(
         root,
         async () => {
-          const switched = await gitSwitchBranch(workspace, branch, snapshot.branch, snapshot.head)
+          const switched = await gitSwitchBranch(
+            workspace,
+            branch,
+            snapshot.branch,
+            snapshot.head,
+            fromRemote,
+          )
           diffRequest++
           diff.value = ''
           diffPath.value = ''
@@ -155,7 +162,7 @@ export const useGitRepository = (workspace: string) => {
       if (outcome === 'switchedWithWarning')
         throw new Error(t('分支已切换，但 Git 切换后的操作失败。请检查工作区状态。'))
       await readStatus()
-      return t('已切换到分支 {0}', branch)
+      return t('已切换到分支 {0}', status.value?.branch ?? branch)
     })
 
   const stage = (path: string, staged: boolean) =>
@@ -195,16 +202,17 @@ export const useGitRepository = (workspace: string) => {
       return t('已推送到 {0}', target.targetBranch)
     })
 
-  const fetchRemote = (target: GitPushTarget) =>
+  const fetchRemote = (target: GitRemote) =>
     execute('正在获取远程状态…', async () => {
-      const branch = status.value?.branch
-      if (!branch) return
+      const stale = new Set(remoteStale.value)
       try {
-        await gitFetch(workspace, branch, target)
-        remoteStale.value = false
+        await gitFetch(workspace, target)
+        stale.delete(target.name)
       } catch (failure) {
-        remoteStale.value = true
+        stale.add(target.name)
         throw failure
+      } finally {
+        remoteStale.value = stale
       }
       await readStatus()
       return t('已更新远程状态')

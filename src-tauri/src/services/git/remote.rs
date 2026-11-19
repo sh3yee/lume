@@ -1,11 +1,11 @@
 use super::{
     repository::{current_branch, directory, display_path, ensure_idle, find_root, has_head, operation, repository, validate_path},
-    runner::{checked, error, run, run_remote, value, RemoteMode},
+    runner::{checked, error, run, run_remote, text, value, RemoteMode},
 };
 use crate::error::LumeResult;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     io::ErrorKind,
     net::Ipv6Addr,
     path::{Path, PathBuf},
@@ -28,7 +28,7 @@ impl Drop for CloneStaging {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, PartialEq, Serialize)]
 pub struct GitRemote {
     pub name: String,
     pub url: String,
@@ -45,9 +45,25 @@ pub struct GitUpstream {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitRemoteStatus {
     pub remotes: Vec<GitRemote>,
+    pub fetch_remotes: Vec<GitRemote>,
+    pub branches: Vec<GitRemoteBranch>,
     pub upstream: Option<GitUpstream>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitRemoteBranch {
+    pub ref_name: String,
+    pub remote_name: String,
+    pub name: String,
+}
+
+struct FetchRemote {
+    address: GitRemote,
+    refspecs: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -119,17 +135,21 @@ fn supported_url(address: &str) -> bool {
 }
 
 fn push_remotes(root: &Path) -> LumeResult<Vec<GitRemote>> {
+    remote_addresses(root, " (push)")
+}
+
+fn remote_addresses(root: &Path, suffix: &str) -> LumeResult<Vec<GitRemote>> {
     let mut urls = BTreeMap::<_, Vec<_>>::new();
     let output = value(root, &["remote", "-v"])?;
     for line in output.lines() {
         if let Some((name, url)) = line
-            .strip_suffix(" (push)")
+            .strip_suffix(suffix)
             .and_then(|line| line.split_once('\t'))
         {
             urls.entry(name).or_default().push(url);
         }
     }
-    // 一个操作只推送到界面上展示的一个地址。
+    // 使用界面上展示的唯一地址。
     Ok(urls
         .into_iter()
         .filter_map(|(name, urls)| match urls.as_slice() {
@@ -140,6 +160,110 @@ fn push_remotes(root: &Path) -> LumeResult<Vec<GitRemote>> {
             _ => None,
         })
         .collect())
+}
+
+fn fetch_remotes(root: &Path) -> LumeResult<Vec<FetchRemote>> {
+    let mut remotes = Vec::new();
+    for address in remote_addresses(root, " (fetch)")? {
+        let key = format!("remote.{}.fetch", address.name);
+        let output = run(root, &["config", "--get-all", "--", &key])?;
+        if output.status.code() == Some(1) {
+            continue;
+        }
+        if !output.status.success() {
+            return Err(error("无法读取远程仓库的获取配置。"));
+        }
+        let config = text(output.stdout)?;
+        let mut refspecs = Vec::new();
+        for spec in config.lines() {
+            if spec.starts_with('^') {
+                refspecs.push(spec.to_owned());
+            } else if let Some((source, destination)) = spec.strip_prefix('+').unwrap_or(spec).split_once(':') {
+                // 只更新远程跟踪引用，保留单分支克隆和自定义的分支映射。
+                if source.starts_with("refs/heads/") && destination.starts_with("refs/remotes/") {
+                    refspecs.push(format!("+{source}:{destination}"));
+                } else if source == "refs/*" && destination.starts_with("refs/remotes/") {
+                    refspecs.push(format!("+refs/heads/*:{}", destination.replace('*', "heads/*")));
+                }
+            }
+        }
+        if refspecs.iter().any(|spec| spec.starts_with('+')) {
+            remotes.push(FetchRemote { address, refspecs });
+        }
+    }
+    Ok(remotes)
+}
+
+fn refspec_match<'a>(pattern: &str, reference: &'a str) -> Option<&'a str> {
+    if let Some((prefix, suffix)) = pattern.split_once('*') {
+        return reference.strip_prefix(prefix)?.strip_suffix(suffix);
+    }
+    (pattern == reference).then_some("")
+}
+
+fn source_branch(remote: &FetchRemote, reference: &str) -> Option<String> {
+    remote.refspecs.iter().find_map(|spec| {
+        let (source, destination) = spec.strip_prefix('+')?.split_once(':')?;
+        let source = source.replace('*', refspec_match(destination, reference)?);
+        if remote.refspecs.iter().any(|spec| {
+            spec.strip_prefix('^').and_then(|pattern| refspec_match(pattern, &source)).is_some()
+        }) {
+            return None;
+        }
+        source.strip_prefix("refs/heads/").map(str::to_owned)
+    })
+}
+
+fn branch_options(root: &Path, remotes: &[FetchRemote]) -> LumeResult<Vec<GitRemoteBranch>> {
+    let refs = value(
+        root,
+        &[
+            "for-each-ref",
+            "--format=%(refname)%00%(symref)%00%(upstream)",
+            "refs/heads/",
+            "refs/remotes/",
+        ],
+    )?;
+    let mut tracked = HashSet::new();
+    let mut references = Vec::new();
+    for line in refs.lines() {
+        let mut fields = line.split('\0');
+        let (Some(reference), Some(symbolic), Some(upstream)) =
+            (fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if reference.starts_with("refs/heads/") {
+            tracked.insert(upstream);
+        } else if symbolic.is_empty() {
+            references.push(reference);
+        }
+    }
+
+    let mut branches = Vec::new();
+    for reference in references.into_iter().filter(|reference| !tracked.contains(reference)) {
+        let mut matches = remotes.iter().filter_map(|remote| {
+            source_branch(remote, reference).map(|name| (&remote.address.name, name))
+        });
+        let Some((remote_name, name)) = matches.next() else {
+            continue;
+        };
+        // 一个跟踪引用有多个来源时，Git 无法可靠地设置上游。
+        if matches.next().is_none() {
+            branches.push(GitRemoteBranch {
+                ref_name: reference.to_owned(),
+                remote_name: remote_name.clone(),
+                name,
+            });
+        }
+    }
+    Ok(branches)
+}
+
+pub fn branch_option(root: &Path, reference: &str) -> LumeResult<Option<GitRemoteBranch>> {
+    Ok(branch_options(root, &fetch_remotes(root)?)?
+        .into_iter()
+        .find(|branch| branch.ref_name == reference))
 }
 
 fn upstream(root: &Path, branch: &str) -> LumeResult<Option<Upstream>> {
@@ -170,12 +294,17 @@ fn upstream(root: &Path, branch: &str) -> LumeResult<Option<Upstream>> {
     }))
 }
 
-pub fn status(workspace: &str, branch: &str) -> LumeResult<GitRemoteStatus> {
+pub fn status(workspace: &str, branch: Option<&str>) -> LumeResult<GitRemoteStatus> {
     let root = repository(workspace, false)?;
-    let remotes = push_remotes(&root)?;
+    let fetch_remotes = fetch_remotes(&root)?;
     let mut result = GitRemoteStatus {
-        remotes,
+        remotes: push_remotes(&root)?,
+        branches: branch_options(&root, &fetch_remotes)?,
+        fetch_remotes: fetch_remotes.into_iter().map(|remote| remote.address).collect(),
         upstream: None,
+    };
+    let Some(branch) = branch else {
+        return Ok(result);
     };
     let Some(tracking) = upstream(&root, branch)? else {
         return Ok(result);
@@ -406,38 +535,28 @@ fn push_ref(root: &Path, refspec: &str, name: &str, mode: RemoteMode) -> LumeRes
     )
 }
 
-pub fn fetch(workspace: &str, branch: &str, target: GitPushTarget) -> LumeResult<()> {
+pub fn fetch(workspace: &str, target: GitRemote) -> LumeResult<()> {
     let root = repository(workspace, true)?;
-    if current_branch(&root)?.as_deref() != Some(branch) {
-        return Err(error("当前分支或提交已变化，请刷新后重新确认。"));
-    }
-    let tracking = upstream(&root, branch)?
-        .filter(|tracking| {
-            Some(tracking.remote_name.as_str()) == target.remote_name.as_deref()
-                && tracking.branch == target.target_branch
-        })
+    let remote = fetch_remotes(&root)?
+        .into_iter()
+        .find(|remote| remote.address == target)
         .ok_or_else(|| error("远程地址已变化或无法使用，请刷新后重新确认。"))?;
-    confirm_remote(&push_remotes(&root)?, &tracking.remote_name, &target.url)?;
-    let fetch_url = value(&root, &["remote", "get-url", "--", &tracking.remote_name])?;
-    if !supported_url(&fetch_url) {
-        return Err(error("请输入不含凭据的 HTTPS 或 SSH 仓库地址。"));
-    }
-    // 仅更新当前上游的本地跟踪引用。
-    let refspec = format!("+refs/heads/{}:{}", tracking.branch, tracking.tracking_ref);
+    let mut args = vec![
+        "fetch",
+        "--atomic",
+        "--no-tags",
+        "--prune",
+        "--no-prune-tags",
+        "--recurse-submodules=no",
+        "--no-write-fetch-head",
+        "--refmap=",
+        "--",
+        &remote.address.name,
+    ];
+    args.extend(remote.refspecs.iter().map(String::as_str));
     network_command(
         &root,
-        &[
-            "fetch",
-            "--no-tags",
-            "--no-prune",
-            "--no-prune-tags",
-            "--recurse-submodules=no",
-            "--no-write-fetch-head",
-            "--refmap=",
-            "--",
-            &tracking.remote_name,
-            &refspec,
-        ],
+        &args,
         "无法获取远程状态，请检查远程地址和访问权限后重试。",
         RemoteMode::Interactive,
     )

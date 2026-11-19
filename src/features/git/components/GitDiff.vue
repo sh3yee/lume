@@ -23,13 +23,12 @@ const markers = { added: '+', removed: '−' }
         :key="index"
         class="lume-git__line"
         :class="{
-          'lume-git__line--numbered': line.before !== undefined || line.after !== undefined,
+          'lume-git__line--numbered': line.lineNumber,
         }"
         :data-kind="line.kind"
       >
-        <template v-if="line.before !== undefined || line.after !== undefined">
-          <span class="lume-git__line-number">{{ line.before }}</span>
-          <span class="lume-git__line-number">{{ line.after }}</span>
+        <template v-if="line.lineNumber">
+          <span class="lume-git__line-number">{{ line.lineNumber }}</span>
           <span class="lume-git__line-marker">
             {{ line.kind === 'added' || line.kind === 'removed' ? markers[line.kind] : '' }}
           </span>

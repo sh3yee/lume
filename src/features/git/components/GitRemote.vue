@@ -1,24 +1,30 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import { t } from '@/app/i18n'
-import type { GitPushTarget, GitRemoteStatus, GitUpdateTarget } from '@/platform/tauri/git'
+import type {
+  GitPushTarget,
+  GitRemote,
+  GitRemoteStatus,
+  GitUpdateTarget,
+} from '@/platform/tauri/git'
 
 const props = defineProps<{
-  branch: string
+  branch: string | null
   head: string | null
   remote: GitRemoteStatus
-  stale: boolean
+  stale: ReadonlySet<string>
   disabled: boolean
 }>()
 const emit = defineEmits<{
   push: [target: GitPushTarget]
-  fetch: [target: GitPushTarget]
+  fetch: [target: GitRemote]
   update: [target: GitUpdateTarget]
 }>()
 
 const connectButton = useTemplateRef<HTMLButtonElement>('connectButton')
 const form = useTemplateRef<HTMLFormElement>('form')
 const connecting = shallowRef(false)
+const fetchRemoteName = shallowRef('')
 const remoteName = shallowRef('')
 const url = shallowRef('')
 const targetBranch = shallowRef('')
@@ -31,9 +37,14 @@ const upstreamTarget = computed<GitPushTarget | null>(() => {
   return { remoteName: upstream.remoteName, url: address, targetBranch: upstream.targetBranch }
 })
 
-const upstreamRef = computed(() => {
-  const upstream = props.remote.upstream
-  return upstream ? `${upstream.remoteName}/${upstream.targetBranch}` : ''
+const fetchTarget = computed(() => {
+  const { fetchRemotes, upstream } = props.remote
+  return (
+    fetchRemotes.find(({ name }) => name === fetchRemoteName.value) ??
+    fetchRemotes.find(({ name }) => name === upstream?.remoteName) ??
+    fetchRemotes.find(({ name }) => name === 'origin') ??
+    fetchRemotes[0]
+  )
 })
 
 const selectedRemote = computed(() =>
@@ -68,7 +79,14 @@ const noPendingPush = computed(() => {
 })
 const updateTarget = computed<GitUpdateTarget | null>(() => {
   const upstream = props.remote.upstream
-  if (!props.head || !upstream?.head || !upstream.behind || upstream.ahead === null) return null
+  if (
+    !props.branch ||
+    !props.head ||
+    !upstream?.head ||
+    !upstream.behind ||
+    upstream.ahead === null
+  )
+    return null
   return {
     branch: props.branch,
     head: props.head,
@@ -83,10 +101,14 @@ const canConfirm = computed(
 const handleConnect = async () => {
   remoteName.value = props.remote.remotes.length === 1 ? (props.remote.remotes[0]?.name ?? '') : ''
   url.value = ''
-  targetBranch.value = props.branch
+  targetBranch.value = props.branch ?? ''
   connecting.value = true
   await nextTick()
   form.value?.querySelector<HTMLElement>('select, input')?.focus()
+}
+
+const handleFetchRemoteChange = (event: Event) => {
+  fetchRemoteName.value = (event.target as HTMLSelectElement).value
 }
 
 const handleCancel = () => {
@@ -116,23 +138,36 @@ watch(
   <section class="git-remote" :aria-label="t('远程仓库')">
     <div class="git-remote__row">
       <span
-        v-if="!noPendingPush"
+        v-if="branch && head && !noPendingPush"
         class="git-remote__summary"
         aria-live="polite"
         :title="upstreamTarget ? t('根据上次获取或推送的结果显示。') : undefined"
       >
         {{ statusLabel }}
       </span>
-      <div v-if="upstreamTarget" class="git-remote__buttons">
+      <div v-if="fetchTarget" class="git-remote__buttons">
+        <select
+          v-if="remote.fetchRemotes.length > 1"
+          :value="fetchTarget.name"
+          :aria-label="t('远程仓库')"
+          :disabled="disabled"
+          @change="handleFetchRemoteChange"
+        >
+          <option v-for="item in remote.fetchRemotes" :key="item.name" :value="item.name">
+            {{ item.name }}
+          </option>
+        </select>
         <button
           type="button"
           :disabled="disabled"
-          :title="`${upstreamRef}\n${upstreamTarget.url}`"
-          :aria-label="`${t('获取远程状态')} · ${upstreamRef}`"
-          @click="emit('fetch', upstreamTarget)"
+          :title="`${fetchTarget.name}\n${fetchTarget.url}`"
+          :aria-label="`${t('获取远程状态')} · ${fetchTarget.name}`"
+          @click="emit('fetch', fetchTarget)"
         >
           {{ t('获取远程状态') }}
         </button>
+      </div>
+      <div v-if="upstreamTarget" class="git-remote__buttons">
         <button
           v-if="updateTarget"
           type="button"
@@ -156,7 +191,7 @@ watch(
         </span>
       </div>
       <button
-        v-else
+        v-else-if="branch && head"
         ref="connectButton"
         type="button"
         :disabled="disabled || connecting"
@@ -166,7 +201,7 @@ watch(
         {{ t('连接远程仓库') }}
       </button>
     </div>
-    <p v-if="stale" class="git-remote__hint" role="status">
+    <p v-if="fetchTarget && stale.has(fetchTarget.name)" class="git-remote__hint" role="status">
       {{ t('远程状态可能已过期，请重新获取。') }}
     </p>
     <div v-if="updating" class="git-remote__form">

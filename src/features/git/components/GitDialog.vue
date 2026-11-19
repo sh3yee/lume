@@ -49,9 +49,18 @@ const repositoryName = computed(
   () => repositoryPath.value.split(/[\\/]/).filter(Boolean).pop() ?? repositoryPath.value,
 )
 const isMerging = computed(() => Boolean(status.value?.mergeHead && status.value.writable))
-const branchOptions = computed(() =>
-  (status.value?.branches ?? []).map((name) => ({ value: name, label: name })),
-)
+const branchOptions = computed(() => [
+  ...(status.value?.branches ?? []).map((name) => ({
+    value: name,
+    label: name,
+    group: t('本地分支'),
+  })),
+  ...(remote.value?.branches ?? []).map(({ refName, remoteName, name }) => ({
+    value: `:${refName}`,
+    label: `${remoteName}/${name}`,
+    group: t('远程分支'),
+  })),
+])
 const hasOtherBranches = computed(() =>
   branchOptions.value.some(({ value }) => value !== status.value?.branch),
 )
@@ -115,7 +124,8 @@ const handleDismissFeedback = () => {
 }
 
 const handleBranchChange = (branch: string) => {
-  if (branch !== status.value?.branch) void repository.switchBranch(branch)
+  const fromRemote = branch.startsWith(':')
+  void repository.switchBranch(fromRemote ? branch.slice(1) : branch, fromRemote)
 }
 
 const handleClose = () => {
@@ -227,6 +237,7 @@ onBeforeUnmount(() => {
                 :container="dialog"
                 :disabled="busy || !writable || !!restoration"
                 compact
+                searchable
                 @change="handleBranchChange"
               />
               <div v-else class="lume-git__branch-summary">
@@ -244,7 +255,12 @@ onBeforeUnmount(() => {
               </code>
             </div>
             <GitRemote
-              v-if="remote && status.branch && !restoration && !isMerging"
+              v-if="
+                remote &&
+                ((status.branch && status.head) || remote.fetchRemotes.length) &&
+                !restoration &&
+                !isMerging
+              "
               :key="status.branch"
               :branch="status.branch"
               :head="status.head"

@@ -1,8 +1,7 @@
 interface DiffLine {
   text: string
   kind: 'context' | 'added' | 'removed' | 'hunk' | 'metadata'
-  before?: number
-  after?: number
+  lineNumber?: string
 }
 
 const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?: |$)/
@@ -15,7 +14,7 @@ export const parseDiffLines = (content: string) => {
   let after = 0
   let beforeRemaining = 0
   let afterRemaining = 0
-  let largestLineNumber = 0
+  let lineNumberWidth = 3
 
   const lines = source.map((raw): DiffLine => {
     const text = raw.endsWith('\r') ? raw.slice(0, -1) : raw
@@ -40,18 +39,25 @@ export const parseDiffLines = (content: string) => {
     )
       return { text, kind: 'metadata' }
 
-    const beforeNumber = hasBefore ? before++ : undefined
-    const afterNumber = hasAfter ? after++ : undefined
-    if (hasBefore) beforeRemaining--
-    if (hasAfter) afterRemaining--
-    largestLineNumber = Math.max(largestLineNumber, beforeNumber ?? 0, afterNumber ?? 0)
+    const lineNumber =
+      hasBefore && hasAfter && before !== after
+        ? `${before} → ${after}`
+        : String(hasAfter ? after : before)
+    lineNumberWidth = Math.max(lineNumberWidth, lineNumber.length)
+    if (hasBefore) {
+      before++
+      beforeRemaining--
+    }
+    if (hasAfter) {
+      after++
+      afterRemaining--
+    }
     return {
       text: text.slice(1),
       kind: marker === '+' ? 'added' : marker === '-' ? 'removed' : 'context',
-      before: beforeNumber,
-      after: afterNumber,
+      lineNumber,
     }
   })
 
-  return { lines, lineNumberWidth: `${Math.max(3, String(largestLineNumber).length)}ch` }
+  return { lines, lineNumberWidth: `${lineNumberWidth}ch` }
 }

@@ -1,5 +1,6 @@
 use super::{
     history::{blob, commit_id, preview},
+    remote::branch_option,
     repository::{
         current_branch, directory, display_path, ensure_idle, fingerprint, has_head,
         local_branches, repository, status, validate_path, GitStatus,
@@ -45,6 +46,7 @@ pub fn switch_branch(
     branch: &str,
     expected_branch: Option<&str>,
     expected_head: Option<&str>,
+    remote: bool,
 ) -> LumeResult<GitSwitchOutcome> {
     let root = repository(workspace, true)?;
     ensure_idle(&root)?;
@@ -57,31 +59,65 @@ pub fn switch_branch(
     if current.as_deref() != expected_branch || head.as_deref() != expected_head {
         return Err(error("当前分支或提交已变化，请刷新后重新确认。"));
     }
-    if current.as_deref() == Some(branch) {
+    if !remote && current.as_deref() == Some(branch) {
         return Ok(GitSwitchOutcome::Switched);
     }
-    if branch.starts_with('-') || !local_branches(&root)?.iter().any(|name| name == branch) {
-        return Err(error("目标本地分支不可用，请刷新后重试。"));
+    let local = local_branches(&root)?;
+    let mut args = vec![
+        "switch",
+        "--no-guess",
+        "--no-overwrite-ignore",
+        "--no-recurse-submodules",
+    ];
+    let name = if remote {
+        let target = branch_option(&root, branch)?
+            .ok_or_else(|| error("目标远程分支不可用，请刷新后重试。"))?;
+        let name = tracking_branch_name(&local, &target.remote_name, &target.name);
+        args.extend(["--track", "-c"]);
+        name
+    } else {
+        if branch.starts_with('-') || !local.iter().any(|name| name == branch) {
+            return Err(error("目标本地分支不可用，请刷新后重试。"));
+        }
+        branch.to_owned()
+    };
+    if remote {
+        args.push(&name);
     }
-    let switched = checked(
-        &root,
-        &[
-            "switch",
-            "--no-guess",
-            "--no-overwrite-ignore",
-            "--no-recurse-submodules",
-            "--",
-            branch,
-        ],
-    );
+    args.extend(["--", branch]);
+    let switched = checked(&root, &args);
     // post-checkout 失败时 Git 可能已经更新了 HEAD 和工作区，仍需刷新打开的文件。
     match switched {
         Ok(_) => Ok(GitSwitchOutcome::Switched),
-        Err(_) if current_branch(&root)?.as_deref() == Some(branch) => {
+        Err(_) if current_branch(&root)?.as_deref() == Some(name.as_str()) && has_head(&root)? => {
             Ok(GitSwitchOutcome::SwitchedWithWarning)
         }
         Err(failure) => Err(failure),
     }
+}
+
+fn tracking_branch_name(local: &[String], remote: &str, branch: &str) -> String {
+    let available = |candidate: &str| {
+        let folded = candidate.to_lowercase();
+        !local.iter().any(|name| {
+            let existing = name.to_lowercase();
+            existing == folded
+                || existing.strip_prefix(&folded).is_some_and(|rest| rest.starts_with('/'))
+                || folded.strip_prefix(&existing).is_some_and(|rest| rest.starts_with('/'))
+        })
+    };
+    if !branch.starts_with('-') && branch != "HEAD" && available(branch) {
+        return branch.to_owned();
+    }
+    // 使用远程仓库名区分同名分支，必要时避开本地引用的目录冲突。
+    let qualified = format!("{remote}/{branch}");
+    if available(&qualified) {
+        return qualified;
+    }
+    (2..)
+        .map(|suffix| format!("{remote}-{suffix}/{branch}"))
+        .find(|candidate| available(candidate))
+        .expect("local branch names are finite")
 }
 
 pub fn stage(workspace: &str, path: &str, staged: bool) -> LumeResult<GitStatus> {

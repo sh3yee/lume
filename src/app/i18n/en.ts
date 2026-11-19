@@ -808,6 +808,10 @@ export const en = {
   '正在切换分支…': 'Switching branch…',
   '已切换到分支 {0}': 'Switched to branch {0}',
   '目标本地分支不可用，请刷新后重试。': 'The local branch is unavailable. Refresh and retry.',
+  '目标远程分支不可用，请刷新后重试。': 'The remote branch is unavailable. Refresh and retry.',
+  '无法读取远程仓库的获取配置。': 'Unable to read the remote fetch configuration.',
+  本地分支: 'Local branches',
+  远程分支: 'Remote branches',
   '分支已切换，但 Git 切换后的操作失败。请检查工作区状态。':
     'The branch was switched, but a Git post-checkout operation failed. Check the workspace.',
   '版本操作已完成，但重新加载工作区失败：{0}':
