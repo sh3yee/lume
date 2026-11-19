@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
                 !restoration &&
                 !isMerging
               "
-              :key="status.branch"
+              :key="status.branch ?? undefined"
               :branch="status.branch"
               :head="status.head"
               :remote="remote"
