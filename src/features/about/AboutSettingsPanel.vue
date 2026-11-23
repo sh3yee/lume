@@ -154,13 +154,21 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
             {{ status === 'checking' ? t('正在检查…') : t('检查更新') }}
           </button>
         </div>
-        <progress
+        <div
           v-if="status === 'downloading'"
           class="lume-about__progress"
-          :value="downloadPercent ?? undefined"
-          max="100"
+          role="progressbar"
           :aria-label="t('更新下载进度')"
-        />
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-valuenow="downloadPercent ?? undefined"
+        >
+          <span
+            class="lume-about__progress-fill"
+            :class="{ 'lume-about__progress-fill--indeterminate': downloadPercent === null }"
+            :style="downloadPercent === null ? undefined : { width: `${downloadPercent}%` }"
+          ></span>
+        </div>
         <p v-if="error" class="lume-about__error" role="alert">{{ error }}</p>
         <p v-if="status === 'ready' || status === 'installing'" class="lume-about__hint">
           {{ t('下载完成后可安装并重启，当前编辑会话将在重启后恢复。') }}
@@ -381,9 +389,35 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
 }
 
 .lume-about__progress {
+  position: relative;
   width: 100%;
   height: 6px;
-  accent-color: var(--lume-accent-default);
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--lume-border-subtle);
+}
+
+.lume-about__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lume-accent-default);
+  transition: width 0.2s ease;
+}
+
+.lume-about__progress-fill--indeterminate {
+  width: 40%;
+  animation: lume-about-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes lume-about-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(250%);
+  }
 }
 
 .lume-about__release-notes {
@@ -444,9 +478,5 @@ const handleReleaseNotesClick = (event: MouseEvent) => {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .lume-about__spinner {
-    animation: none;
-  }
-}
+/* 检查与下载的图标是进度反馈，系统关闭动画时也保留旋转。 */
 </style>
