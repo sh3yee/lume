@@ -37,6 +37,42 @@ use commands::{
     },
 };
 use services::workspace_watcher::WorkspaceWatcherState;
+use std::path::Path;
+use tauri::{AppHandle, Emitter, Manager};
+
+/// 过滤命令行参数中的 Markdown 路径，忽略程序自身与其他参数。
+pub(crate) fn markdown_paths<I>(args: I) -> Vec<String>
+where
+    I: IntoIterator<Item = String>,
+{
+    args.into_iter()
+        .filter(|path| {
+            matches!(
+                Path::new(path)
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .map(str::to_ascii_lowercase)
+                    .as_deref(),
+                Some("md" | "markdown")
+            )
+        })
+        .collect()
+}
+
+/// 第二次启动时把文件转交给已运行窗口，并把窗口带回前台。
+#[cfg(desktop)]
+fn handle_second_instance(app: &AppHandle, args: Vec<String>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+
+    let paths = markdown_paths(args);
+    if !paths.is_empty() {
+        let _ = app.emit("lume://open-files", paths);
+    }
+}
 
 pub fn run_git_askpass() -> Option<i32> {
     services::git::askpass::run_helper()
@@ -46,7 +82,16 @@ pub fn run_git_askpass() -> Option<i32> {
 ///
 /// 将插件注册和命令绑定集中管理，保持入口清晰。
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    // 单实例插件必须最先注册，第二次启动才会被拦截并转交给已运行窗口。
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            handle_second_instance(app, args);
+        }));
+    }
+
+    builder
         .setup(|app| {
             services::git::askpass::initialize(app.handle().clone());
             Ok(())

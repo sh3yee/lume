@@ -7,7 +7,7 @@ import { t } from '@/app/i18n'
 import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import { onFileDragDrop, type FileDragDropEvent } from '@/platform/tauri/window'
 import { isTauri } from '@/platform/tauri/client'
-import { startupFilePaths } from '@/platform/tauri/system'
+import { startupFilePaths, onOpenFileRequest } from '@/platform/tauri/system'
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg', 'ico'])
 
@@ -22,6 +22,7 @@ export function useFileDrop(
 ) {
   const fileDragPaths = ref<string[]>([])
   let unlistenFileDragDrop: (() => void) | null = null
+  let unlistenOpenRequest: (() => void) | null = null
   let fileDropQueue = Promise.resolve()
 
   async function handleDroppedFiles(paths: string[]) {
@@ -88,6 +89,10 @@ export function useFileDrop(
 
   onMounted(async () => {
     unlistenFileDragDrop = await onFileDragDrop(handleFileDragDrop).catch(() => null)
+    // 第二次启动由单实例插件转交路径；已有标签会被激活，不会重复打开。
+    unlistenOpenRequest = await onOpenFileRequest((paths) => queueDroppedFiles(paths)).catch(
+      () => null,
+    )
     if (isTauri()) {
       const startupPaths = await startupFilePaths().catch(() => [])
       if (startupPaths.length > 0) await handleDroppedFiles(startupPaths)
@@ -96,6 +101,7 @@ export function useFileDrop(
 
   onBeforeUnmount(() => {
     unlistenFileDragDrop?.()
+    unlistenOpenRequest?.()
   })
 
   return { fileDragPaths }

@@ -1,4 +1,7 @@
-import { invokeCommand } from './client'
+import { listen } from '@tauri-apps/api/event'
+import { invokeCommand, isTauri } from './client'
+
+type UnlistenFn = () => void
 
 export interface HealthStatus {
   status: string
@@ -11,6 +14,13 @@ export function healthCheck() {
 
 export function startupFilePaths() {
   return invokeCommand<string[]>('lume_startup_file_paths')
+}
+
+export async function onOpenFileRequest(
+  handler: (paths: string[]) => void,
+): Promise<UnlistenFn | null> {
+  if (!isTauri()) return null
+  return listen<string[]>('lume://open-files', (event) => handler(event.payload))
 }
 
 export function openWebUrl(url: string) {

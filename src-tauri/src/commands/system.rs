@@ -27,19 +27,7 @@ pub async fn lume_list_system_fonts() -> LumeResult<Vec<String>> {
 
 #[tauri::command]
 pub fn lume_startup_file_paths() -> LumeResult<Vec<String>> {
-    Ok(std::env::args()
-        .skip(1)
-        .filter(|path| {
-            matches!(
-                Path::new(path)
-                    .extension()
-                    .and_then(|value| value.to_str())
-                    .map(str::to_ascii_lowercase)
-                    .as_deref(),
-                Some("md" | "markdown")
-            )
-        })
-        .collect())
+    Ok(crate::markdown_paths(std::env::args().skip(1)))
 }
 
 #[tauri::command]
